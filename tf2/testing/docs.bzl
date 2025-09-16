@@ -49,6 +49,10 @@ tf_doc_test = rule(
             allow_single_file = [".yaml", ".yml"],
             doc = "terraform-docs configuration file",
         ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
+        ),
     },
     test = True,
     doc = "Tests that README.md is up-to-date with terraform-docs output",
@@ -60,6 +64,10 @@ tf_generate_docs = rule(
         "config": attr.label(
             allow_single_file = [".yaml", ".yml"],
             doc = "terraform-docs configuration file",
+        ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
         ),
     },
     executable = True,

@@ -32,6 +32,10 @@ tf_lint_test = rule(
             allow_single_file = [".hcl"],
             doc = "TFLint configuration file",
         ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
+        ),
     },
     test = True,
     doc = "Lints Terraform configuration using tflint",
@@ -67,6 +71,10 @@ tf_lint_negative_test = rule(
         "config": attr.label(
             allow_single_file = [".hcl"],
             doc = "TFLint configuration file",
+        ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
         ),
     },
     test = True,

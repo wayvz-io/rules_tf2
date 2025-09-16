@@ -102,3 +102,15 @@ tf_providers.download(
 )
 
 use_repo(tf_providers, "tf_provider_registry")
+
+# Module extension for tool management  
+tf_tools = use_extension("//tf2:extensions.bzl", "tf_tools")
+
+# Configure tool versions
+tf_tools.configure(
+    terraform_version = "1.12.2",
+    tflint_version = "0.54.0", 
+    terraform_docs_version = "0.20.0",
+)
+
+use_repo(tf_tools, "tf_tool_registry")

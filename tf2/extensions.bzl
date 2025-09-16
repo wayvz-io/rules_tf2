@@ -1,6 +1,7 @@
 """Module extensions for tf2"""
 
 load("//tf2/core/repositories:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
+load("//tf2/core/repositories:tools.bzl", "tool_registry", "download_tool")
 # CDKTF support is disabled - not yet functional
 # load("//tf2/core/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
 
@@ -354,5 +355,72 @@ tfc_config = module_extension(
     implementation = _tfc_config_impl,
     tag_classes = {
         "configure": _tfc_configure,
+    },
+)
+
+def _tf_tools_impl(module_ctx):
+    """Implementation of tf_tools module extension"""
+    
+    # Default versions
+    terraform_version = None
+    tflint_version = None
+    terraform_docs_version = None
+    
+    # Collect tool configuration from modules
+    for mod in module_ctx.modules:
+        for config in mod.tags.configure:
+            if config.terraform_version:
+                terraform_version = config.terraform_version
+            if config.tflint_version:
+                tflint_version = config.tflint_version
+            if config.terraform_docs_version:
+                terraform_docs_version = config.terraform_docs_version
+    
+    # Create individual tool repositories
+    download_tool(
+        name = "terraform_tool",
+        tool_name = "terraform",
+        version = terraform_version,
+    )
+    
+    download_tool(
+        name = "tflint_tool", 
+        tool_name = "tflint",
+        version = tflint_version,
+    )
+    
+    download_tool(
+        name = "terraform_docs_tool",
+        tool_name = "terraform-docs", 
+        version = terraform_docs_version,
+    )
+    
+    # Create tool registry repository (just for aliases)
+    tool_registry(
+        name = "tf_tool_registry",
+    )
+
+# Tag class for tool configuration
+_tools_configure = tag_class(
+    attrs = {
+        "terraform_version": attr.string(
+            doc = "Terraform version to download (defaults to latest)",
+            mandatory = False,
+        ),
+        "tflint_version": attr.string(
+            doc = "TFLint version to download (defaults to latest)",
+            mandatory = False,
+        ),
+        "terraform_docs_version": attr.string(
+            doc = "terraform-docs version to download (defaults to latest)",
+            mandatory = False,
+        ),
+    },
+)
+
+tf_tools = module_extension(
+    implementation = _tf_tools_impl,
+    tag_classes = {
+        "configure": _tools_configure,
     },
 )

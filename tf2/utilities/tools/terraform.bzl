@@ -1,6 +1,7 @@
 """Terraform command execution utilities"""
 
 load("//tf2/utilities/utils:runfiles.bzl", "get_runfiles_dir_script", "create_temp_dir_script", "create_runfiles_path")
+load(":tool_paths.bzl", "get_terraform_path")
 
 def terraform_init_script(ctx, plugin_dir = None, backend = False, upgrade = False, lockfile_readonly = True):
     """Generates terraform init command with appropriate flags.
@@ -15,7 +16,8 @@ def terraform_init_script(ctx, plugin_dir = None, backend = False, upgrade = Fal
     Returns:
         String containing terraform init command
     """
-    cmd_parts = ["terraform", "init"]
+    terraform_bin = get_terraform_path(ctx)
+    cmd_parts = [terraform_bin, "init"]
     
     if not backend:
         cmd_parts.append("-backend=false")
@@ -276,8 +278,12 @@ cd "$WORK_DIR"
     if extra_runfiles:
         runfiles_files.extend(extra_runfiles)
     
-    # Create runfiles with transitive dependencies
+    # Create runfiles with transitive dependencies, including tool binaries
+    tools_runfiles = []
+    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+        tools_runfiles.extend(ctx.files._tools)
+    
     return script, ctx.runfiles(
-        files = runfiles_files,
+        files = runfiles_files + tools_runfiles,
         transitive_files = depset(transitive = [f.files for f in extra_runfiles if hasattr(f, "files")])
     )
