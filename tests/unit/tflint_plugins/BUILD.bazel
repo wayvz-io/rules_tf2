@@ -1,0 +1,11 @@
+# Test suite for all tflint plugins
+
+test_suite(
+    name = "all_plugin_tests",
+    tests = [
+        "//tests/unit/tflint_plugins/aws:aws_plugin_test",
+        "//tests/unit/tflint_plugins/azurerm:azurerm_plugin_test",
+        "//tests/unit/tflint_plugins/google:google_plugin_test",
+        "//tests/unit/tflint_plugins/opa:opa_plugin_test",
+    ],
+)

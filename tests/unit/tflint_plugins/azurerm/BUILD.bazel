@@ -1,0 +1,12 @@
+load("//tf2/testing:lint_with_plugins.bzl", "tf_lint_plugin_negative_test")
+
+tf_lint_plugin_negative_test(
+    name = "azurerm_plugin_test",
+    srcs = [
+        "main.tf",
+    ],
+    config = ".tflint.hcl",
+    plugins = [
+        "@tflint_plugin_registry//:azurerm_bin",
+    ],
+)

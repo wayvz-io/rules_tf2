@@ -117,11 +117,12 @@ def create_tfdoc_generate_script(ctx, name, config = None):
     
     config_arg = ""
     if config:
-        config_arg = "--config $WORKSPACE_DIR/{}".format(config.path)
+        config_arg = "--config $WORKSPACE_DIR/{}".format(config.short_path)
     
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
 
+{runfiles_script}
 {workspace_script}
 
 # Source and target paths
@@ -143,6 +144,7 @@ fi
 
 echo "Generated $TARGET_FILE"
 """.format(
+        runfiles_script = get_runfiles_dir_script(),
         workspace_script = get_workspace_dir_script(),
         package = ctx.label.package,
         config_arg = config_arg,
