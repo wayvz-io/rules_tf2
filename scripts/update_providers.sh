@@ -137,8 +137,12 @@ fi
 
 # Determine the correct versions.json path based on context
 # Check if we're in the tf2 module context
-if [ -f "$WORKSPACE_ROOT/test_providers/versions.json" ]; then
-    # tf2 module context
+if [ -f "$WORKSPACE_ROOT/tests/providers/versions.json" ]; then
+    # tf2 module context - process tests/providers
+    VERSIONS_FILE="$WORKSPACE_ROOT/tests/providers/versions.json"
+    LOCK_FILE="$WORKSPACE_ROOT/tests/providers/terraform.lock.hcl"
+elif [ -f "$WORKSPACE_ROOT/test_providers/versions.json" ]; then
+    # Legacy location - process test_providers
     VERSIONS_FILE="$WORKSPACE_ROOT/test_providers/versions.json"
     LOCK_FILE="$WORKSPACE_ROOT/test_providers/terraform.lock.hcl"
 elif [ -f "$WORKSPACE_ROOT/iac/providers/versions.json" ]; then
@@ -146,9 +150,10 @@ elif [ -f "$WORKSPACE_ROOT/iac/providers/versions.json" ]; then
     VERSIONS_FILE="$WORKSPACE_ROOT/iac/providers/versions.json"
     LOCK_FILE="$WORKSPACE_ROOT/iac/providers/terraform.lock.hcl"
 else
-    echo -e "${RED}Error: Could not find versions.json in either iac/providers/ or test_providers/${NC}"
+    echo -e "${RED}Error: Could not find versions.json in either iac/providers/, tests/providers/, or test_providers/${NC}"
     echo "Searched in:"
     echo "  - $WORKSPACE_ROOT/iac/providers/versions.json"
+    echo "  - $WORKSPACE_ROOT/tests/providers/versions.json"
     echo "  - $WORKSPACE_ROOT/test_providers/versions.json"
     exit 1
 fi

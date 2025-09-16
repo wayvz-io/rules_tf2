@@ -1,0 +1,23 @@
+load("@rules_nixpkgs_cc//:cc.bzl", "nixpkgs_cc_configure")
+load("@rules_nixpkgs_java//:java.bzl", "nixpkgs_java_configure")
+
+def _non_module_deps_impl(ctx):
+    nixpkgs_cc_configure(
+        name = "nixpkgs_config_cc",
+        repository = "@nixpkgs",
+        register = False,
+    )
+
+    nixpkgs_java_configure(
+        name = "nixpkgs_java_runtime",
+        attribute_path = "jdk21.home",
+        repository = "@nixpkgs",
+        toolchain = True,
+        register = False,
+        toolchain_name = "nixpkgs_java",
+        toolchain_version = "21",
+    )
+
+non_module_deps = module_extension(
+    implementation = _non_module_deps_impl,
+)

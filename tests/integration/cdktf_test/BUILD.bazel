@@ -1,5 +1,5 @@
-# CDKTF generation moved to repository rules - use @rules_tf2//tf:cdktf_extensions.bzl
-# load("//tf:def.bzl", "cdktf_generate", "cdktf_go_library")
+# CDKTF generation moved to repository rules - use @rules_tf2//tf2:cdktf_extensions.bzl
+# load("//tf2:def.bzl", "cdktf_generate", "cdktf_go_library")
 
 # Test CDKTF generation with local provider
 # cdktf_generate(

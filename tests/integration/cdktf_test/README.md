@@ -15,7 +15,7 @@ The tf2 module now supports generating CDKTF provider bindings using the same pr
 ### Generate CDKTF Bindings
 
 ```starlark
-load("@tf2//tf:def.bzl", "cdktf_generate")
+load("@tf2//tf2:def.bzl", "cdktf_generate")
 
 cdktf_generate(
     name = "aws_bindings",
@@ -29,7 +29,7 @@ This creates a target that generates CDKTF bindings for the specified provider.
 ### Go Library Generation (with compilation)
 
 ```starlark
-load("@tf2//tf:def.bzl", "cdktf_go_library")
+load("@tf2//tf2:def.bzl", "cdktf_go_library")
 
 cdktf_go_library(
     name = "aws_cdktf_lib",

@@ -229,11 +229,11 @@ provider_alias_validation_test = unittest.make(_test_provider_alias_validation)
 def provider_validation_test_suite(name):
     """Create provider validation test suite"""
     
-    semver_validation_test(name = name + "_semver")
-    provider_namespace_parsing_test(name = name + "_namespace")
-    provider_version_constraints_test(name = name + "_constraints")
-    provider_aggregation_test(name = name + "_aggregation")
-    provider_alias_validation_test(name = name + "_alias")
+    semver_validation_test(name = name + "_semver", size = "small")
+    provider_namespace_parsing_test(name = name + "_namespace", size = "small")
+    provider_version_constraints_test(name = name + "_constraints", size = "small")
+    provider_aggregation_test(name = name + "_aggregation", size = "small")
+    provider_alias_validation_test(name = name + "_alias", size = "small")
     
     native.test_suite(
         name = name,

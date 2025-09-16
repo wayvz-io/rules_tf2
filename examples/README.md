@@ -76,4 +76,4 @@ Each module automatically generates several test targets:
 
 ## More Information
 
-For more examples and edge cases, see the integration tests in `//tf/tests/integration/`.
+For more examples and edge cases, see the integration tests in `//tf2/tests/integration/`.

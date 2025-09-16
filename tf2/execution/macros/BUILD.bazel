@@ -1,0 +1,32 @@
+"""High-level macros"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "macros.bzl",
+])
+
+bzl_library(
+    name = "macros",
+    srcs = ["macros.bzl"],
+    deps = [
+        "@bazel_skylib//lib:paths",
+        "//tf2/core/rules:module",
+        "//tf2/testing:validate",
+        "//tf2/testing:format", 
+        "//tf2/testing:lint",
+        "//tf2/testing:versions",
+        "//tf2/testing:docs",
+        "//tf2/testing:module_deps",
+        "//tf2/testing:organization",
+        "//tf2/testing:lockfile",
+        "//tf2/testing:test",
+        "//tf2/publish/oci:oci_push",
+        "//tf2/utilities/tools:terraform",
+        "//tf2/utilities/tools:tflint",
+        "//tf2/utilities/tools:tfdoc",
+        "//tf2/utilities/utils:runfiles",
+    ],
+)

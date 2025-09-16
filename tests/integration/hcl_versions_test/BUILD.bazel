@@ -1,4 +1,4 @@
-load("//tf:def.bzl", "tf_module")
+load("//tf2:def.bzl", "tf_module")
 
 # Test module to verify HCL-based version management
 tf_module(

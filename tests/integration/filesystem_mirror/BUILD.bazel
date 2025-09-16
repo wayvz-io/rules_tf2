@@ -2,7 +2,7 @@
 # The filesystem_mirror rule is still used internally by terraform_providers.bzl
 # to create automatic mirrors, but manual mirror creation is no longer needed.
 
-# load("//tf/core/providers:filesystem_mirror.bzl", "filesystem_mirror")
+# load("//tf2/core/providers:filesystem_mirror.bzl", "filesystem_mirror")
 
 # filesystem_mirror(
 #     name = "test_mirror_single", 

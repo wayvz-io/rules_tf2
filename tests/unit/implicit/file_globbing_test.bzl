@@ -213,11 +213,11 @@ generated_file_exclusion_test = unittest.make(_test_generated_file_exclusion)
 def file_globbing_test_suite(name):
     """Create file globbing test suite"""
     
-    default_srcs_globbing_test(name = name + "_default_glob")
-    terraform_file_detection_test(name = name + "_tf_detection")
-    special_file_handling_test(name = name + "_special_files")
-    nested_directory_handling_test(name = name + "_nested_dirs")
-    generated_file_exclusion_test(name = name + "_gen_exclusion")
+    default_srcs_globbing_test(name = name + "_default_glob", size = "small")
+    terraform_file_detection_test(name = name + "_tf_detection", size = "small")
+    special_file_handling_test(name = name + "_special_files", size = "small")
+    nested_directory_handling_test(name = name + "_nested_dirs", size = "small")
+    generated_file_exclusion_test(name = name + "_gen_exclusion", size = "small")
     
     native.test_suite(
         name = name,

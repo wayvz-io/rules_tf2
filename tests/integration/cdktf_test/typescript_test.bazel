@@ -1,4 +1,4 @@
-load("//tf:def.bzl", "cdktf_generate")
+load("//tf2:def.bzl", "cdktf_generate")
 
 # Test CDKTF generation for TypeScript
 cdktf_generate(

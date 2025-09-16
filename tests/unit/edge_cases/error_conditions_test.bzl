@@ -271,12 +271,12 @@ long_module_paths_test = unittest.make(_test_long_module_paths)
 def error_conditions_test_suite(name):
     """Create error conditions test suite"""
     
-    missing_providers_error_test(name = name + "_missing_providers")
-    circular_dependency_detection_test(name = name + "_circular_deps")
-    invalid_version_format_test(name = name + "_invalid_version")
-    empty_module_handling_test(name = name + "_empty_module")
-    conflicting_provider_configs_test(name = name + "_conflicting_configs")
-    long_module_paths_test(name = name + "_long_paths")
+    missing_providers_error_test(name = name + "_missing_providers", size = "small")
+    circular_dependency_detection_test(name = name + "_circular_deps", size = "small")
+    invalid_version_format_test(name = name + "_invalid_version", size = "small")
+    empty_module_handling_test(name = name + "_empty_module", size = "small")
+    conflicting_provider_configs_test(name = name + "_conflicting_configs", size = "small")
+    long_module_paths_test(name = name + "_long_paths", size = "small")
     
     native.test_suite(
         name = name,

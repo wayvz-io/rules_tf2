@@ -232,11 +232,11 @@ auto_version_file_generation_test = unittest.make(_test_auto_version_file_genera
 def version_aggregation_test_suite(name):
     """Create version aggregation test suite"""
     
-    version_aggregation_from_modules_test(name = name + "_module_aggregation")
-    terraform_version_aggregation_test(name = name + "_terraform_version")
-    version_conflict_detection_test(name = name + "_conflict_detection")
-    version_priority_inheritance_test(name = name + "_priority_inheritance")
-    auto_version_file_generation_test(name = name + "_auto_generation")
+    version_aggregation_from_modules_test(name = name + "_module_aggregation", size = "small")
+    terraform_version_aggregation_test(name = name + "_terraform_version", size = "small")
+    version_conflict_detection_test(name = name + "_conflict_detection", size = "small")
+    version_priority_inheritance_test(name = name + "_priority_inheritance", size = "small")
+    auto_version_file_generation_test(name = name + "_auto_generation", size = "small")
     
     native.test_suite(
         name = name,
