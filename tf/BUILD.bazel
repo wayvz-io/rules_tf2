@@ -1,0 +1,40 @@
+"""tf package exports"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+exports_files(["extensions.bzl", "def.bzl"])
+
+# Aliases for core targets
+alias(
+    name = "private_repositories", 
+    actual = "//tf/core/repositories",
+    visibility = ["//visibility:private"],
+)
+
+# Public API
+bzl_library(
+    name = "def",
+    srcs = ["def.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tf/core/providers:provider_mirror",
+        "//tf/core/providers:provider_cache",
+        "//tf/core/providers:provider_alias",
+        "//tf/core/providers:provider_registry_alias",
+        "//tf/execution/macros:macros",
+        "//tf/publish/oci:oci_push",
+        "//tf/execution:tf_cloud_runner",
+        "//tf/execution:tf_runner",
+        "//tf/core/rules:variables",
+    ],
+)
+
+# Extensions for MODULE.bazel
+bzl_library(
+    name = "extensions",
+    srcs = ["extensions.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":private_repositories",
+    ],
+)

@@ -1,0 +1,14 @@
+"""High-level macros"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "macros.bzl",
+])
+
+bzl_library(
+    name = "macros",
+    srcs = ["macros.bzl"],
+)

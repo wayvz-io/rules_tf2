@@ -1,0 +1,10 @@
+load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+
+package(default_visibility = ["//visibility:public"])
+
+# Shell script to update Terraform provider versions
+sh_binary(
+    name = "tf_update",
+    srcs = ["update_providers.sh"],
+    visibility = ["//visibility:public"],
+)

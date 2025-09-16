@@ -1,0 +1,10 @@
+{
+  "hashicorp/aws": ["5.0.0", "6.2.0"],
+  "hashicorp/azurerm": ["4.35.0"],
+  "hashicorp/random": ["3.7.2"],
+  "hashicorp/null": ["3.2.0"],
+  "hashicorp/time": ["0.13.1"],
+  "paloaltonetworks/panos": ["2.16.0"],
+  "terraform-redhat/rhcs": ["1.8.0"],
+  "hashicorp/tfe": ["0.62.0"]
+}

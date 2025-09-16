@@ -1,0 +1,52 @@
+"""Terraform rules for Bazel"""
+
+module(
+    name = "rules_tf2",
+    version = "0.1.0",
+)
+
+# Core Dependencies
+bazel_dep(name = "bazel_skylib", version = "1.7.1")
+bazel_dep(name = "platforms", version = "0.0.10")
+bazel_dep(name = "rules_license", version = "0.0.8")
+
+# Documentation generation
+bazel_dep(name = "stardoc", version = "0.7.2")
+
+# Go support
+bazel_dep(name = "rules_go", version = "0.50.1")
+bazel_dep(name = "gazelle", version = "0.39.1")
+
+# Note: When used as a dependency module, rules_tf2 will use the Go SDK
+# from the parent module. The parent module should configure rules_go
+# and any nixpkgs setup if needed.
+
+# Go dependencies for HCL tool
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//hcl_tool:go.mod")
+
+# These are the dependencies that the HCL tool needs
+use_repo(
+    go_deps,
+    "com_github_hashicorp_hcl_v2",
+    "com_github_spf13_cobra",
+    "com_github_stretchr_testify",
+    "com_github_zclconf_go_cty",
+)
+
+# Module extension for provider management
+tf_providers = use_extension("//tf:extensions.bzl", "tf_providers")
+
+# Download providers for examples and tests  
+tf_providers.download(
+    lock_file = "iac/providers/terraform.lock.hcl",
+    versions_file = "iac/providers/versions.json",
+)
+
+# Download test providers for tf2 module testing
+tf_providers.download(
+    lock_file = "test_providers/terraform.lock.hcl",
+    versions_file = "test_providers/versions.json",
+)
+
+use_repo(tf_providers, "tf_provider_registry", "tf_providers_test")

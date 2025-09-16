@@ -1,0 +1,1 @@
+# Variables for simple_module example

@@ -1,0 +1,11 @@
+"""Test module with lock file generation"""
+
+load("//tf:def.bzl", "tf_module")
+
+tf_module(
+    name = "test_stack",
+    providers = [
+        "@tf_provider_registry//:null_3",
+        "@tf_provider_registry//:local_2",
+    ],
+)

@@ -1,0 +1,27 @@
+load("@rules_tf2//tf:def.bzl", "tf_module")
+
+# A basic Terraform module example demonstrating provider inheritance
+# 
+# PROVIDER ALIASING EXPLAINED:
+# - Providers are aliased to their major version (e.g., aws_6, random_3)
+# - For 0.x versions, providers are aliased as _0 (e.g., time_0, tfe_0)
+# - The 0.x aliasing exists because 0.x versions can have breaking changes between minor versions
+#
+# This module uses:
+# - aws_5: AWS provider version 5.x
+# - random_3: Random provider version 3.x (used here but NOT in parent)
+# - null_3: Null provider version 3.x (used here but NOT in parent, demonstrates inheritance)
+#
+# When this module is used as a dependency, the parent module/stack will inherit
+# these provider requirements. The final terraform.lock.hcl will contain ALL
+# providers from the entire dependency tree.
+tf_module(
+    name = "basic_module",
+    # Providers this module requires directly
+    providers = [
+        "@tf_provider_registry//:aws_5",    # AWS provider v5.x 
+        "@tf_provider_registry//:random_3",  # Random provider v3.x (child only)
+        "@tf_provider_registry//:null_3",    # Null provider v3.x (child only, demonstrates inheritance)
+    ],
+    visibility = ["//visibility:public"],
+)

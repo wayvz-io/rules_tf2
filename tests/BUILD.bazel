@@ -1,0 +1,20 @@
+# Legacy test location - configs moved to tf/tests/fixtures
+# This file kept for backwards compatibility
+
+alias(
+    name = "tfdoc-config",
+    actual = "//tf/tests/fixtures:tfdoc-config",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tflint-config-modules", 
+    actual = "//tf/tests/fixtures:tflint-config-modules",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tflint-config-stacks",
+    actual = "//tf/tests/fixtures:tflint-config-stacks", 
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,10 @@
+load("//tf:def.bzl", "tf_module")
+
+# Test module to verify HCL-based version management
+tf_module(
+    name = "hcl_versions_test",
+    providers = [
+        "@tf_provider_registry//:random_3",
+        "@tf_provider_registry//:local_2",
+    ],
+)

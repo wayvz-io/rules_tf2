@@ -1,0 +1,14 @@
+load("//tf:def.bzl", "tf_module")
+
+# Define the module
+tf_module(
+    name = "simple_module",
+    providers = [
+        "@tf_provider_registry//:random_3",
+        "@tf_provider_registry//:local_2",
+        "@tf_provider_registry//:null_3",
+    ],
+    tflint_config = "//tf/tests/fixtures:tflint-config-modules",
+    tfdoc_config = "//tf/tests/fixtures:tfdoc-config",
+    visibility = ["//visibility:public"],
+)

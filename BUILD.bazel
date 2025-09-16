@@ -1,0 +1,10 @@
+"""Public exports for tf2 module"""
+
+exports_files(["MODULE.bazel"])
+
+# Alias to run tf-update from tf2 module context
+alias(
+    name = "tf-update",
+    actual = "@rules_tf2//scripts:tf_update",
+    visibility = ["//visibility:public"],
+)

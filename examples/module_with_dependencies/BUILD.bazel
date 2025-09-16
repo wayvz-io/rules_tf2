@@ -1,0 +1,37 @@
+load("@rules_tf2//tf:def.bzl", "tf_module")
+
+# Example of a module that uses other modules and demonstrates provider inheritance
+#
+# PROVIDER INHERITANCE EXPLAINED:
+# This parent module directly uses ONLY:
+# - aws_5: AWS provider v5.x
+#
+# From the basic_module dependency, it INHERITS:
+# - random_3: Random provider v3.x (NOT directly used by parent)
+# - null_3: Null provider v3.x (NOT directly used by parent)
+#
+# The final terraform.lock.hcl will contain ALL providers:
+# - aws v5.x (used by both parent and child)
+# - random v3.x (inherited from child, not used by parent)
+# - null v3.x (inherited from child, not used by parent)
+#
+# This demonstrates that even though the parent doesn't use random or time,
+# they MUST be in the lockfile because the child module needs them.
+tf_module(
+    name = "module_with_dependencies",
+    # Declare module dependencies“
+    modules = [
+        "@rules_tf2//examples/basic_module",  # This brings in aws_5, random_3, and null_3
+    ],
+    # Providers this module directly requires
+    # NOTE: We ONLY declare providers we directly use.
+    # random_3 and null_3 are NOT listed here because this parent module
+    # doesn't use them directly - but they WILL appear in terraform.lock.hcl
+    # because basic_module needs them.
+    providers = [
+        "@tf_provider_registry//:aws_5",     # AWS provider v5.x (same as child)
+        # random_3 - NOT HERE but will be in lockfile (inherited from child)
+        # null_3 - NOT HERE but will be in lockfile (inherited from child)
+    ],
+    visibility = ["//visibility:public"],
+)

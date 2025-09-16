@@ -1,0 +1,5 @@
+# Make scripts available as data files for repository rules
+exports_files([
+    "generate_cdktf.sh",
+    "fix_imports.sh",
+])

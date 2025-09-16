@@ -1,0 +1,19 @@
+# Legacy filesystem_mirror tests disabled
+# The filesystem_mirror rule is still used internally by terraform_providers.bzl
+# to create automatic mirrors, but manual mirror creation is no longer needed.
+
+# load("//tf/core/providers:filesystem_mirror.bzl", "filesystem_mirror")
+
+# filesystem_mirror(
+#     name = "test_mirror_single", 
+#     providers = [
+#         "@tf_provider_registry//:download_null_3_2_4_linux_arm64",
+#     ],
+# )
+
+# sh_test(
+#     name = "verify_mirror_structure",
+#     srcs = ["verify_mirror.sh"],
+#     data = [":test_mirror_single"],
+#     args = ["$(location :test_mirror_single)"],
+# )

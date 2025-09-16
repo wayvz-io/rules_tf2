@@ -1,0 +1,11 @@
+# Repository rules
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "terraform_providers.bzl",
+])
+
+filegroup(
+    name = "repositories",
+    srcs = glob(["*.bzl"]),
+)

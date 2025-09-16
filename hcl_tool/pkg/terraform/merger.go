@@ -1,0 +1,116 @@
+package terraform
+
+import (
+	tfhcl "github.com/wayvz-io/network_intent_manager/build/rules/tf2/hcl_tool/pkg/hcl"
+)
+
+// MergeTerraformBlocks merges two terraform blocks, with the second block taking precedence
+// for conflicting values, except for configuration_aliases which are always preserved
+func MergeTerraformBlocks(existing, new *tfhcl.TerraformBlock) *tfhcl.TerraformBlock {
+	if existing == nil {
+		return new
+	}
+	if new == nil {
+		return existing
+	}
+
+	result := &tfhcl.TerraformBlock{
+		RequiredProviders: make(map[string]tfhcl.Provider),
+	}
+
+	// Merge required_version (first one wins - keeps original behavior)
+	if existing.RequiredVersion != "" {
+		result.RequiredVersion = existing.RequiredVersion
+	} else if new.RequiredVersion != "" {
+		result.RequiredVersion = new.RequiredVersion
+	}
+
+	// Start with existing providers
+	for name, provider := range existing.RequiredProviders {
+		result.RequiredProviders[name] = provider
+	}
+
+	// Merge new providers
+	for name, newProvider := range new.RequiredProviders {
+		if existingProvider, exists := result.RequiredProviders[name]; exists {
+			// Merge the provider, preserving configuration_aliases
+			result.RequiredProviders[name] = MergeProviders(existingProvider, newProvider)
+		} else {
+			// Add new provider
+			result.RequiredProviders[name] = newProvider
+		}
+	}
+
+	return result
+}
+
+// MergeProviders merges two provider configurations
+// The existing provider takes precedence for source and version (first one wins),
+// but configuration_aliases are always preserved from the existing provider
+func MergeProviders(existing, new tfhcl.Provider) tfhcl.Provider {
+	result := tfhcl.Provider{}
+
+	// Existing source and version take precedence (first one wins)
+	if existing.Source != "" {
+		result.Source = existing.Source
+	} else {
+		result.Source = new.Source
+	}
+
+	if existing.Version != "" {
+		result.Version = existing.Version
+	} else {
+		result.Version = new.Version
+	}
+
+	// Always preserve configuration_aliases from existing
+	// unless new explicitly has them (which is rare in updates)
+	if len(new.ConfigurationAliases) > 0 {
+		result.ConfigurationAliases = new.ConfigurationAliases
+	} else if len(existing.ConfigurationAliases) > 0 {
+		result.ConfigurationAliases = existing.ConfigurationAliases
+	}
+
+	return result
+}
+
+// MergeWithUpdates merges providers from BUILD file with existing configuration
+// This is specifically for the update-versions use case where we want to:
+// 1. Update source and version from BUILD file
+// 2. Preserve configuration_aliases from existing file
+// 3. Keep any custom providers not in BUILD file
+func MergeWithUpdates(existing *tfhcl.TerraformBlock, updates map[string]tfhcl.Provider, tfVersion string) *tfhcl.TerraformBlock {
+	result := &tfhcl.TerraformBlock{
+		RequiredProviders: make(map[string]tfhcl.Provider),
+	}
+
+	// Set terraform version
+	if tfVersion != "" {
+		result.RequiredVersion = tfVersion
+	} else if existing != nil {
+		result.RequiredVersion = existing.RequiredVersion
+	}
+
+	// Start with providers from updates (BUILD file)
+	for name, provider := range updates {
+		result.RequiredProviders[name] = provider
+	}
+
+	// Merge with existing providers to preserve configuration_aliases and custom providers
+	if existing != nil && existing.RequiredProviders != nil {
+		for name, existingProvider := range existing.RequiredProviders {
+			if updatedProvider, exists := result.RequiredProviders[name]; exists {
+				// Provider exists in both - preserve configuration_aliases from existing
+				if len(existingProvider.ConfigurationAliases) > 0 {
+					updatedProvider.ConfigurationAliases = existingProvider.ConfigurationAliases
+					result.RequiredProviders[name] = updatedProvider
+				}
+			} else {
+				// Custom provider not in BUILD file - preserve it entirely
+				result.RequiredProviders[name] = existingProvider
+			}
+		}
+	}
+
+	return result
+}

@@ -1,0 +1,9 @@
+{
+  "providers": {
+    "hashicorp/random": ["3.7.2"],
+    "hashicorp/null": ["3.2.4"],
+    "hashicorp/local": ["2.5.3"],
+    "hashicorp/archive": ["2.7.1"],
+    "hashicorp/aws": ["5.100.0"]
+  }
+}

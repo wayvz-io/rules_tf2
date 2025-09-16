@@ -1,0 +1,30 @@
+# Bazel configuration for rules_tf2
+
+# Use the Bazel 7 compatibility flag
+build --enable_bzlmod
+
+# Use local disk cache
+build --disk_cache=~/.cache/bazel-disk-cache
+
+# Show test errors
+test --test_output=errors
+
+# Build with optimization
+build -c opt
+
+# Ensure we use the platform's host configuration
+build --host_platform=@platforms//host
+
+# Enable runfiles
+build --enable_runfiles
+
+# Show progress
+build --show_progress
+build --show_progress_rate_limit=5
+
+# Test configuration
+test --test_verbose_timeout_warnings
+
+# Coverage settings
+coverage --combined_report=lcov
+coverage --coverage_report_generator=@bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main

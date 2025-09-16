@@ -1,0 +1,18 @@
+load("//tf:def.bzl", "tf_module")
+
+# Module that uses nested modules
+tf_module(
+    name = "stack_with_modules",
+    modules = [
+        "//tests/simple_module",
+        "//tests/another_module",
+    ],
+    providers = [
+        "@tf_provider_registry//:random_3",
+        "@tf_provider_registry//:local_2",
+        "@tf_provider_registry//:null_3",
+    ],
+    tflint_config = "//tf/tests/fixtures:tflint-config-stacks",
+    tfdoc_config = "//tf/tests/fixtures:tfdoc-config",
+    visibility = ["//visibility:public"],
+)

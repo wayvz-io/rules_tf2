@@ -1,0 +1,18 @@
+load("//tf:def.bzl", "tf_module")
+
+# This should pass validation because it declares the nested modules
+tf_module(
+    name = "module_with_deps_correct",
+    modules = [
+        "//tf/tests/integration/simple_module",
+        "//tf/tests/integration/another_module",
+    ],
+    providers = [
+        "@tf_provider_registry//:aws_5",
+        "@tf_provider_registry//:random_3",
+        "@tf_provider_registry//:local_2",
+        "@tf_provider_registry//:null_3",
+    ],
+    tflint_config = "//tf/tests/fixtures:tflint-config-modules",
+    tfdoc_config = "//tf/tests/fixtures:tfdoc-config",
+)
