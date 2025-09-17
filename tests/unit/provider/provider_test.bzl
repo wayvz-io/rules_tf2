@@ -212,6 +212,7 @@ def provider_test_suite(name):
     provider_configuration_test(
         name = "provider_configuration_test",
         target_under_test = ":test_single_provider",
+        size = "small",
     )
 
     # Test multiple providers
@@ -227,6 +228,7 @@ def provider_test_suite(name):
     multiple_providers_test(
         name = "multiple_providers_test",
         target_under_test = ":test_multiple_providers",
+        size = "small",
     )
 
     # Test version constraints
@@ -242,6 +244,7 @@ def provider_test_suite(name):
     provider_version_constraints_test(
         name = "provider_version_constraints_test",
         target_under_test = ":test_version_constraints",
+        size = "small",
     )
 
     # Create test mirror

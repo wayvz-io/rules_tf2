@@ -92,4 +92,5 @@ go_test(
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
+    size = "small",
 )

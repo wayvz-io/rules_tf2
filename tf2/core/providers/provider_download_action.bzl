@@ -69,8 +69,15 @@ else
     exit 1
 fi
 
-# Verify checksum if provided
+# Verify checksum (required for security)
 # SHA256 contains comma-separated list of hex SHA256 hashes (zh format)
+if [ -z "$SHA256" ]; then
+    echo "ERROR: No SHA256 hashes provided for provider verification"
+    echo "Provider downloads require hash verification for security"
+    echo "Run 'bazel run //:tf-update' to generate provider locks with hashes"
+    exit 1
+fi
+
 if [ -n "$SHA256" ]; then
     # Calculate the actual SHA256 of the downloaded file
     if command -v sha256sum >/dev/null 2>&1; then

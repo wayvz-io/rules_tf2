@@ -116,7 +116,10 @@ EOF
         exit 1
     fi
 else
-    echo "ERROR: Provider mirror directory not found at $PROVIDER_MIRROR_PATH"
+    # Provider mirror is empty or missing - this is now an error
+    echo "ERROR: Provider mirror is empty or missing at: $PROVIDER_MIRROR_PATH"
+    echo "This usually means provider locks are missing."
+    echo "Run 'bazel run //:tf-update' to generate provider locks."
     exit 1
 fi
 """.format(plugin_path = plugin_path, placeholder="{placeholder}", cmd = " ".join(cmd_parts))

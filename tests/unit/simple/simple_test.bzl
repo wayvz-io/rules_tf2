@@ -105,6 +105,7 @@ def simple_test_suite(name):
     provider_test(
         name = name + "_provider",
         target_under_test = ":" + name + "_dummy",
+        size = "small",
     )
 
     # Aggregate tests

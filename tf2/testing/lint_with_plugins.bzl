@@ -98,3 +98,23 @@ tf_lint_plugin_negative_test = rule(
     test = True,
     doc = "Tests that tflint detects issues in problematic Terraform configuration with plugins",
 )
+
+def tf_lint_plugin_negative_test_sized(name, srcs, config = None, plugins = None, size = None, **kwargs):
+    """Wrapper macro for tf_lint_plugin_negative_test with proper size handling.
+
+    Args:
+        name: Test name
+        srcs: Source files with intentional lint issues
+        config: Optional tflint configuration file
+        plugins: Optional list of tflint plugin binaries
+        size: Test size (small, medium, large)
+        **kwargs: Additional arguments passed to the underlying rule
+    """
+    tf_lint_plugin_negative_test(
+        name = name,
+        srcs = srcs,
+        config = config,
+        plugins = plugins,
+        size = size,
+        **kwargs
+    )

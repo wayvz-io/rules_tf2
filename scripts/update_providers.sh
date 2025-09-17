@@ -38,7 +38,382 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+<<<<<<< HEAD
 # Function to log messages
+=======
+# Get script directory for later use
+if [ -n "${BASH_SOURCE[0]}" ]; then
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+else
+    SCRIPT_DIR="$(pwd)"
+fi
+
+# Cache directory for provider locks
+CACHE_DIR="${HOME}/.cache/bazel/tf_provider_locks"
+
+# Function to generate lock for a single provider and append to JSON
+generate_single_provider_lock_json() {
+    local provider=$1
+    local version=$2
+    local temp_dir=$3
+    local json_file=$4
+    local is_first_entry=$5
+
+    log "  Generating lock for $provider:$version"
+
+    # Create terraform configuration for this specific provider
+    cat > "$temp_dir/main.tf" << 'EOF'
+terraform {
+  required_version = ">= 1.0"
+}
+EOF
+
+    # Create versions.tf with just this provider
+    cat > "$temp_dir/versions.tf" << EOF
+terraform {
+  required_providers {
+    $(echo "$provider" | cut -d'/' -f2) = {
+      source  = "$provider"
+      version = "= $version"
+    }
+  }
+}
+EOF
+
+    # Run terraform init and providers lock
+    cd "$temp_dir"
+    if timeout 1800 "$TERRAFORM_CMD" init -backend=false >/dev/null 2>&1; then
+        if timeout 1800 "$TERRAFORM_CMD" providers lock \
+            -platform=linux_amd64 \
+            -platform=linux_arm64 \
+            -platform=darwin_amd64 \
+            -platform=darwin_arm64 \
+            -platform=windows_amd64 \
+            >/dev/null 2>&1; then
+
+            # Extract hashes from the generated lock file
+            if [ -f ".terraform.lock.hcl" ]; then
+                # Parse the lock file to extract hashes
+                local hashes_json
+                hashes_json=$(python3 - << 'PYTHON_EOF'
+import re
+import json
+import sys
+
+# Read the terraform lock file
+with open('.terraform.lock.hcl', 'r') as f:
+    content = f.read()
+
+# Extract hashes using regex
+hashes_match = re.search(r'hashes\s*=\s*\[(.*?)\]', content, re.DOTALL)
+if hashes_match:
+    hashes_text = hashes_match.group(1)
+    # Extract individual hash strings
+    hash_lines = re.findall(r'"([^"]+)"', hashes_text)
+
+    # Separate h1 and zh hashes
+    h1_hashes = [h[3:] for h in hash_lines if h.startswith('h1:')]
+    zh_hashes = [h[3:] for h in hash_lines if h.startswith('zh:')]
+
+    # Create JSON structure
+    result = {}
+    if h1_hashes:
+        result['h1'] = h1_hashes
+    if zh_hashes:
+        result['zh'] = zh_hashes
+
+    print(json.dumps(result))
+else:
+    print('{}')
+PYTHON_EOF
+)
+
+                # Add JSON entry to the locks file
+                if [ "$is_first_entry" = "false" ]; then
+                    echo "," >> "$json_file"
+                fi
+
+                local provider_key="${provider}:${version}"
+                echo "  \"$provider_key\": $hashes_json" >> "$json_file"
+
+                log "    ✓ Successfully extracted hashes for $provider:$version"
+                return 0
+            else
+                log "    ⚠ No lock file generated for $provider:$version"
+                return 1
+            fi
+        else
+            log "    ⚠ Providers lock failed for $provider:$version"
+            return 1
+        fi
+    else
+        log "    ⚠ Init failed for $provider:$version"
+        return 1
+    fi
+
+}
+
+# Legacy function for backward compatibility
+generate_single_provider_lock() {
+    local provider=$1
+    local version=$2
+    local temp_dir=$3
+
+    log "${BLUE}Generating lock for $provider:$version${NC}"
+
+    # Create terraform configuration for this specific provider
+    cat > "$temp_dir/main.tf" << 'EOF'
+terraform {
+  required_version = ">= 1.0"
+}
+EOF
+
+    # Create versions.tf with just this provider
+    cat > "$temp_dir/versions.tf" << EOF
+terraform {
+  required_providers {
+    $(echo "$provider" | cut -d'/' -f2) = {
+      source  = "$provider"
+      version = "= $version"
+    }
+  }
+}
+EOF
+
+    # Run terraform init and providers lock
+    cd "$temp_dir"
+    if timeout 300 terraform init -backend=false >/dev/null 2>&1; then
+        if timeout 300 terraform providers lock \
+            -platform=linux_amd64 \
+            -platform=linux_arm64 \
+            -platform=darwin_amd64 \
+            -platform=darwin_arm64 \
+            -platform=windows_amd64 \
+            >/dev/null 2>&1; then
+            # Return the provider block from the generated lock file
+            if [ -f ".terraform.lock.hcl" ]; then
+                echo "SUCCESS:$provider:$version"
+                cat ".terraform.lock.hcl"
+                return 0
+            else
+                echo "FAILED:$provider:$version:No lock file generated"
+                return 1
+            fi
+        else
+            echo "FAILED:$provider:$version:Providers lock failed"
+            return 1
+        fi
+    else
+        echo "FAILED:$provider:$version:Init failed"
+        return 1
+    fi
+}
+
+# Function to generate provider locks JSON file
+generate_provider_lock_file() {
+    log "${BLUE}Generating provider locks JSON file...${NC}"
+
+    # Parse paths from MODULE.bazel tf_providers.download() call
+    local module_bazel="$WORKSPACE_ROOT/MODULE.bazel"
+    if [ ! -f "$module_bazel" ]; then
+        log "${RED}Error: MODULE.bazel not found at $module_bazel${NC}"
+        return 1
+    fi
+
+    # Extract versions_file and lock_file from tf_providers.download()
+    VERSIONS_FILE=$(grep -A 10 "tf_providers\.download(" "$module_bazel" | grep "versions_file" | sed 's/.*versions_file = "\([^"]*\)".*/\1/')
+    LOCKS_FILE=$(grep -A 10 "tf_providers\.download(" "$module_bazel" | grep "lock_file" | sed 's/.*lock_file = "\([^"]*\)".*/\1/')
+
+    if [ -z "$VERSIONS_FILE" ]; then
+        log "${RED}Error: Could not find versions_file in MODULE.bazel tf_providers.download()${NC}"
+        return 1
+    fi
+
+    if [ -z "$LOCKS_FILE" ]; then
+        log "${RED}Error: Could not find lock_file in MODULE.bazel tf_providers.download()${NC}"
+        return 1
+    fi
+
+    # Convert to absolute paths
+    VERSIONS_FILE="$WORKSPACE_ROOT/$VERSIONS_FILE"
+    LOCKS_FILE="$WORKSPACE_ROOT/$LOCKS_FILE"
+
+    if [ ! -f "$VERSIONS_FILE" ]; then
+        log "${RED}Error: versions.json not found at $VERSIONS_FILE${NC}"
+        return 1
+    fi
+
+    local providers
+    providers=$(python3 -c "
+import json
+import sys
+with open('$VERSIONS_FILE', 'r') as f:
+    data = json.load(f)
+    providers = data.get('providers', {})
+    for provider, versions in providers.items():
+        for version in versions:
+            print(f'{provider}:{version}')
+")
+
+    if [ -z "$providers" ]; then
+        log "${YELLOW}No providers found in versions.json${NC}"
+        return 0
+    fi
+
+    log "Found $(echo "$providers" | wc -l) provider versions to process"
+
+    # Find terraform binary - try Bazel runfiles first, then system paths
+    TERRAFORM_CMD=""
+
+    # Try to locate runfiles directory
+    RUNFILES_BASE=""
+
+    # Debug info
+    if [ "$VERBOSE" = "true" ]; then
+        log "Debug: Script path: $0"
+        log "Debug: Script directory: $(dirname "$0")"
+        log "Debug: Working directory: $(pwd)"
+        log "Debug: RUNFILES_DIR: ${RUNFILES_DIR:-<not set>}"
+    fi
+
+    # Method 1: Use RUNFILES_DIR if set
+    if [ -n "${RUNFILES_DIR:-}" ] && [ -d "${RUNFILES_DIR:-}" ]; then
+        RUNFILES_BASE="$RUNFILES_DIR"
+        [ "$VERBOSE" = "true" ] && log "Debug: Using RUNFILES_DIR: $RUNFILES_BASE"
+    else
+        # Method 2: Look for .runfiles directory relative to script or current working directory
+        SCRIPT_DIR="$(dirname "$0")"
+        PWD_DIR="$(pwd)"
+
+        # Check if we're already in a runfiles directory
+        if [[ "$PWD_DIR" == *".runfiles"* ]]; then
+            # Extract the runfiles base from the current working directory
+            # The working directory is something like: /path/to/tf_update.runfiles/_main
+            # We want: /path/to/tf_update.runfiles
+            # Use a different approach: find the .runfiles part and cut there
+            RUNFILES_BASE="${PWD_DIR%/.runfiles/*}.runfiles"
+            # If that didn't work, try a more direct approach
+            if [[ ! -d "$RUNFILES_BASE" ]]; then
+                # Find the .runfiles directory by going up from current directory
+                current="$PWD_DIR"
+                while [[ "$current" == *".runfiles"* ]] && [[ "$current" != "/" ]]; do
+                    if [[ "$current" == *".runfiles" ]]; then
+                        RUNFILES_BASE="$current"
+                        break
+                    fi
+                    current="$(dirname "$current")"
+                done
+            fi
+            [ "$VERBOSE" = "true" ] && log "Debug: Detected runfiles from PWD: $RUNFILES_BASE"
+        else
+            # Look for .runfiles directory relative to script
+            for candidate in "$SCRIPT_DIR.runfiles" "$(dirname "$SCRIPT_DIR")/.runfiles" ".runfiles"; do
+                [ "$VERBOSE" = "true" ] && log "Debug: Checking candidate: $candidate"
+                if [ -d "$candidate" ]; then
+                    RUNFILES_BASE="$candidate"
+                    [ "$VERBOSE" = "true" ] && log "Debug: Found runfiles at: $RUNFILES_BASE"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    # If we found runfiles, try to locate terraform
+    if [ -n "$RUNFILES_BASE" ]; then
+        # Try different possible runfiles paths for terraform
+        POSSIBLE_PATHS=(
+            "$RUNFILES_BASE/_main~tf_tools~terraform_tool/terraform"
+            "$RUNFILES_BASE/rules_tf2~~tf_tools~terraform_tool/terraform"
+            "$RUNFILES_BASE/tf_tools~terraform_tool/terraform"
+        )
+
+        for path in "${POSSIBLE_PATHS[@]}"; do
+            if [ -f "$path" ]; then
+                TERRAFORM_CMD="$path"
+                break
+            fi
+        done
+    fi
+
+    # Fall back to system terraform if not found in runfiles
+    if [ -z "$TERRAFORM_CMD" ]; then
+        if command -v terraform >/dev/null 2>&1; then
+            TERRAFORM_CMD="terraform"
+        else
+            # Try common system locations
+            for path in /usr/local/bin/terraform /opt/homebrew/bin/terraform ~/.local/bin/terraform; do
+                if [ -f "$path" ]; then
+                    TERRAFORM_CMD="$path"
+                    break
+                fi
+            done
+        fi
+    fi
+
+    if [ -z "$TERRAFORM_CMD" ] || ! command -v "$TERRAFORM_CMD" >/dev/null 2>&1; then
+        log "${RED}Error: Terraform binary not found${NC}"
+        log "Tried:"
+        log "  - Bazel runfiles: ${RUNFILES_BASE:-<not found>}"
+        log "  - System PATH"
+        log "  - Common system locations"
+        log ""
+        log "Provider locks will not be generated - builds will fall back to network downloads"
+        return 1
+    fi
+
+    log "${BLUE}Using terraform binary: $TERRAFORM_CMD${NC}"
+
+    # Create base temporary directory
+    BASE_TEMP_DIR=$(mktemp -d)
+    trap "rm -rf $BASE_TEMP_DIR" EXIT
+
+    # Initialize JSON structure
+    echo "{" > "$BASE_TEMP_DIR/provider_locks.json"
+    local first_entry=true
+
+    # Process each provider version sequentially for reliability
+    local success_count=0
+    local failure_count=0
+
+    while IFS=':' read -r provider version; do
+        [ -z "$provider" ] && continue
+
+        # Create temporary directory for this provider
+        local provider_temp_dir="$BASE_TEMP_DIR/provider_$(echo "$provider" | tr '/' '_')_$version"
+        mkdir -p "$provider_temp_dir"
+
+        log "Processing $provider:$version"
+
+        # Generate lock for this individual provider
+        if generate_single_provider_lock_json "$provider" "$version" "$provider_temp_dir" "$BASE_TEMP_DIR/provider_locks.json" "$first_entry"; then
+            success_count=$((success_count + 1))
+            first_entry=false
+        else
+            failure_count=$((failure_count + 1))
+        fi
+    done <<< "$providers"
+
+    # Close JSON structure
+    echo "}" >> "$BASE_TEMP_DIR/provider_locks.json"
+
+    echo ""
+    log "Lock generation summary:"
+    log "  ✓ Successful: $success_count providers"
+    log "  ⚠ Failed: $failure_count providers"
+
+    if [ $success_count -gt 0 ]; then
+        # Copy provider locks to final location
+        cp "$BASE_TEMP_DIR/provider_locks.json" "$LOCKS_FILE"
+        log "${GREEN}✓ Provider locks JSON generated successfully${NC}"
+        log "Locks file location: $LOCKS_FILE"
+    else
+        log "${RED}Error: No providers were successfully processed${NC}"
+        return 1
+    fi
+}
+
+# Function to log messages to stderr to avoid corrupting data output
+>>>>>>> d88d2c3 (Updates to warnings, and tflint, so that all tests now pass)
 log() {
     if [ "$VERBOSE" = true ]; then
         echo -e "$1"
@@ -419,6 +794,25 @@ else
     echo -e "${YELLOW}Dry run mode - no changes made${NC}"
     echo ""
     echo "Run without --dry-run to apply updates"
+fi
+
+# Generate provider locks JSON file if updates were made or locks file doesn't exist
+# Parse lock_file path from MODULE.bazel
+module_bazel="$WORKSPACE_ROOT/MODULE.bazel"
+LOCKS_FILE=$(grep -A 10 "tf_providers\.download(" "$module_bazel" | grep "lock_file" | sed 's/.*lock_file = "\([^"]*\)".*/\1/')
+if [ -n "$LOCKS_FILE" ]; then
+    LOCKS_FILE="$WORKSPACE_ROOT/$LOCKS_FILE"
+else
+    # Fallback for repos without lock_file specified
+    LOCKS_FILE="$WORKSPACE_ROOT/tests/providers/provider_locks.json"
+fi
+
+if [ "$UPDATES_MADE" = true ] || [ ! -f "$LOCKS_FILE" ]; then
+    echo ""
+    echo -e "${BLUE}Generating provider lock file...${NC}"
+
+    # Generate provider lock file directly
+    generate_provider_lock_file
 fi
 
 echo ""
