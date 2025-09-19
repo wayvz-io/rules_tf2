@@ -1,6 +1,7 @@
 """TFLint command execution utilities"""
 
 load("//tf2/utilities/utils:runfiles.bzl", "get_runfiles_dir_script", "create_temp_dir_script", "create_runfiles_path")
+load(":tool_paths.bzl", "get_tflint_path")
 
 def create_tflint_script(ctx, name, srcs, config = None, expect_issues = False):
     """Creates a script that runs tflint.
@@ -16,6 +17,7 @@ def create_tflint_script(ctx, name, srcs, config = None, expect_issues = False):
         Script file and runfiles
     """
     script = ctx.actions.declare_file(name)
+    tflint_bin = get_tflint_path(ctx)
     
     copy_config = ""
     if config:
@@ -41,11 +43,11 @@ fi
 
 # Run tflint
 cd "$WORK_DIR"
-tflint --init >/dev/null 2>&1
+{tflint_bin} --init >/dev/null 2>&1
 # Run tflint with minimum-failure-severity to fail on warnings
 # Disable errexit temporarily to capture exit code
 set +e
-tflint --call-module-type=none --minimum-failure-severity=warning
+{tflint_bin} --call-module-type=none --minimum-failure-severity=warning
 TFLINT_EXIT_CODE=$?
 set -e
 
@@ -75,6 +77,7 @@ fi
         module_dir = ctx.label.package,
         copy_config = copy_config,
         expect_issues = str(expect_issues),
+        tflint_bin = tflint_bin,
     )
     
     ctx.actions.write(
@@ -86,5 +89,9 @@ fi
     runfiles_files = list(srcs)
     if config:
         runfiles_files.append(config)
+    
+    # Include tool binaries in runfiles
+    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+        runfiles_files.extend(ctx.files._tools)
     
     return script, ctx.runfiles(files = runfiles_files)

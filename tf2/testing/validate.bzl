@@ -1,6 +1,7 @@
 """Terraform validation test rule"""
 
 load("//tf2/utilities/tools:terraform.bzl", "create_terraform_script", "terraform_init_script")
+load("//tf2/utilities/tools:tool_paths.bzl", "get_terraform_path")
 
 def _tf_validate_test_impl(ctx):
     """Implementation of tf_validate_test rule"""
@@ -31,7 +32,8 @@ def _tf_validate_test_impl(ctx):
     
     # Create terraform init and validate commands
     init_cmd = terraform_init_script(ctx, plugin_dir = plugin_dir)
-    validate_cmd = "terraform validate -no-color"
+    terraform_bin = get_terraform_path(ctx)
+    validate_cmd = "{} validate -no-color".format(terraform_bin)
     
     script, runfiles = create_terraform_script(
         ctx,
@@ -88,6 +90,10 @@ tf_validate_test = rule(
         "_terraform_init_script": attr.label(
             default = "//tf2/execution/scripts:terraform_init.sh",
             allow_single_file = True,
+        ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
         ),
     },
     test = True,

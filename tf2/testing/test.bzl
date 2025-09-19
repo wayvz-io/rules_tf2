@@ -1,6 +1,7 @@
 """Terraform test execution rule"""
 
 load("//tf2/utilities/tools:terraform.bzl", "create_terraform_script", "terraform_init_script")
+load("//tf2/utilities/tools:tool_paths.bzl", "get_terraform_path")
 
 def _tf_test_impl(ctx):
     """Implementation of tf_test rule"""
@@ -22,7 +23,8 @@ def _tf_test_impl(ctx):
     
     # Create terraform init and test commands
     init_cmd = terraform_init_script(ctx, plugin_dir = plugin_dir)
-    test_cmd = "terraform test -no-color"
+    terraform_bin = get_terraform_path(ctx)
+    test_cmd = "{} test -no-color".format(terraform_bin)
     
     # Add specific test file if provided
     if ctx.attr.test_files:
@@ -85,6 +87,10 @@ tf_test = rule(
         "_terraform_init_script": attr.label(
             default = "//tf2/execution/scripts:terraform_init.sh",
             allow_single_file = True,
+        ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
         ),
     },
     test = True,

@@ -6,7 +6,6 @@
     # Latest stable Nixpkgs
     nixpkgs.url = "https://flakehub.com/f/NixOS/nixpkgs/0";
     nixpkgs-unstable.url = "https://flakehub.com/f/NixOS/nixpkgs/0.1";
-    nixpkgs-terraform.url = "https://flakehub.com/f/stackbuilders/nixpkgs-terraform/5.7.0";
     flake-compat.url = "https://flakehub.com/f/edolstra/flake-compat/1.1.0.tar.gz";
     flake-utils.url = "https://flakehub.com/f/numtide/flake-utils/0.1.102.tar.gz";
   };
@@ -16,7 +15,6 @@
     {
       nixpkgs,
       nixpkgs-unstable,
-      nixpkgs-terraform,
       flake-utils,
       ...
     }:
@@ -33,7 +31,6 @@
           config.allowUnfree = true;
         };
 
-        terraform = nixpkgs-terraform.packages.${system}."1.12.2";
 
       in
       {
@@ -41,8 +38,6 @@
           with pkgs;
           mkShell {
             name = "rules_tf2-dev";
-
-            buildInputs = [ terraform ];
 
             packages = [
               # Bazel 7
@@ -66,9 +61,7 @@
               go-outline
               gopkgs
 
-              # Terraform from nixpkgs-terraform flake
-              pkgs-unstable.tflint
-              pkgs-unstable.terraform-docs
+              # Keep CDKTF CLI since it's not replaced by our tool system
               pkgs-unstable.nodePackages_latest.cdktf-cli
 
               # Development tools
@@ -111,7 +104,7 @@
               echo "rules_tf2 development environment"
               echo "Bazel version: $(bazel --version)"
               echo "Go version: $(go version)"
-              echo "Terraform version: $(terraform --version | head -n1)"
+              echo "Note: Terraform tools are now managed by Bazel (terraform, tflint, terraform-docs)"
 
               # Don't mess with library paths - let providers use system libraries
               # The Terraform providers are standard Linux binaries that should work

@@ -1,6 +1,7 @@
 """terraform-docs command execution utilities"""
 
 load("//tf2/utilities/utils:runfiles.bzl", "get_runfiles_dir_script", "create_temp_dir_script", "get_workspace_dir_script", "create_runfiles_path")
+load(":tool_paths.bzl", "get_terraform_docs_path")
 
 def create_tfdoc_test_script(ctx, name, srcs, config = None):
     """Creates a script that tests documentation is up-to-date.
@@ -15,6 +16,7 @@ def create_tfdoc_test_script(ctx, name, srcs, config = None):
         Script file and runfiles
     """
     script = ctx.actions.declare_file(name)
+    terraform_docs_bin = get_terraform_docs_path(ctx)
     
     config_setup = ""
     config_arg = ""
@@ -56,10 +58,10 @@ cp "$WORK_DIR/README.md" "$WORK_DIR/README-original.md"
 # Generate documentation (this will inject into README.md)
 cd "$WORK_DIR"
 # Redirect ALL output to suppress terraform init noise during test
-if ! terraform-docs markdown . {config_arg} >/dev/null 2>&1; then
+if ! {terraform_docs_bin} markdown . {config_arg} >/dev/null 2>&1; then
     echo "ERROR: terraform-docs failed"
     # Show output only on failure for debugging
-    terraform-docs markdown . {config_arg}
+    {terraform_docs_bin} markdown . {config_arg}
     exit 1
 fi
 
@@ -80,6 +82,7 @@ echo "✓ README.md is up-to-date"
         config_setup = config_setup,
         config_arg = config_arg,
         target_base = ctx.label.name.replace("_doc_test", ""),
+        terraform_docs_bin = terraform_docs_bin,
     )
     
     ctx.actions.write(
@@ -91,6 +94,10 @@ echo "✓ README.md is up-to-date"
     runfiles_files = list(srcs)
     if config:
         runfiles_files.append(config)
+    
+    # Include tool binaries in runfiles
+    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+        runfiles_files.extend(ctx.files._tools)
     
     return script, ctx.runfiles(files = runfiles_files)
 
@@ -106,6 +113,7 @@ def create_tfdoc_generate_script(ctx, name, config = None):
         Script file and runfiles
     """
     script = ctx.actions.declare_file(name)
+    terraform_docs_bin = get_terraform_docs_path(ctx)
     
     config_arg = ""
     if config:
@@ -127,9 +135,9 @@ mkdir -p "$MODULE_DIR"
 echo "Generating documentation for {package}..."
 cd "$MODULE_DIR"
 # Suppress terraform init output but show terraform-docs errors
-if ! terraform-docs markdown . {config_arg} 2>/dev/null; then
+if ! {terraform_docs_bin} markdown . {config_arg} 2>/dev/null; then
     echo "ERROR: terraform-docs failed for {package}"
-    terraform-docs markdown . {config_arg}
+    {terraform_docs_bin} markdown . {config_arg}
     exit 1
 fi
 
@@ -138,6 +146,7 @@ echo "Generated $TARGET_FILE"
         workspace_script = get_workspace_dir_script(),
         package = ctx.label.package,
         config_arg = config_arg,
+        terraform_docs_bin = terraform_docs_bin,
     )
     
     ctx.actions.write(
@@ -149,5 +158,9 @@ echo "Generated $TARGET_FILE"
     runfiles_files = []
     if config:
         runfiles_files.append(config)
+    
+    # Include tool binaries in runfiles
+    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+        runfiles_files.extend(ctx.files._tools)
     
     return script, ctx.runfiles(files = runfiles_files)
