@@ -1,5 +1,5 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
-load("//tf2/core/providers:regenerate_all.bzl", "tf_regenerate_all")
+load("//tf2/providers/repository:regenerate_all.bzl", "tf_regenerate_all")
 
 package(default_visibility = ["//visibility:public"])
 

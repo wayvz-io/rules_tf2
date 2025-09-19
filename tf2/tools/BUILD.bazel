@@ -1,0 +1,21 @@
+"""Tool management - terraform, tflint, terraform-docs"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+# Aliases for tools in runners subdirectory
+alias(
+    name = "terraform",
+    actual = "//tf2/tools/runners:terraform",
+)
+
+alias(
+    name = "tflint",
+    actual = "//tf2/tools/runners:tflint",
+)
+
+alias(
+    name = "tfdoc",
+    actual = "//tf2/tools/runners:tfdoc",
+)

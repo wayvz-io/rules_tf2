@@ -3,24 +3,10 @@
 
 
 load(
-    "//tf2/core/providers:provider_mirror.bzl",
+    "//tf2/providers/registry:provider_mirror.bzl",
     _provider_mirror = "provider_mirror",
 )
 
-load(
-    "//tf2/core/providers:provider_cache.bzl",
-    _provider_cache = "provider_cache",
-)
-
-load(
-    "//tf2/core/providers:provider_alias.bzl",
-    _provider_alias = "provider_alias",
-)
-
-load(
-    "//tf2/core/providers:provider_registry_alias.bzl",
-    _provider_registry_alias = "provider_registry_alias",
-)
 
 load(
     "//tf2/execution/macros:macros.bzl",
@@ -33,18 +19,18 @@ load(
 )
 
 load(
-    "//tf2/execution:tf_cloud_runner.bzl",
+    "//tf2/publish/cloud:tf_cloud_runner.bzl",
     _tf_cloud_configuration = "tf_cloud_configuration",
     _tf_cloud_workspace = "tf_cloud_workspace",
 )
 
 load(
-    "//tf2/execution:tf_runner.bzl",
+    "//tf2/runner:tf_runner.bzl",
     _tf_runner = "tf_runner",
 )
 
 load(
-    "//tf2/core/rules:variables.bzl",
+    "//tf2/module/core:variables.bzl",
     _tf_variables = "tf_variables",
 )
 
@@ -57,9 +43,6 @@ load(
 
 # Provider management
 provider_mirror = _provider_mirror
-provider_cache = _provider_cache
-provider_alias = _provider_alias
-provider_registry_alias = _provider_registry_alias
 
 # Core rules
 tf_module = _tf_module

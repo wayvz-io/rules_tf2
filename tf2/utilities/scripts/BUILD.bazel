@@ -2,4 +2,10 @@
 exports_files([
     "generate_cdktf.sh",
     "fix_imports.sh",
+    "terraform_provider_wrapper.sh",
+    "copy_module_files.sh",
+    "copy_source_files.sh",
+    "terraform_init.sh",
+    "terraform_runner.sh",
+    "terraform_wrapper.sh",
 ])

@@ -1,7 +1,7 @@
 """Unit tests for Terraform validation rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf2/testing:validate.bzl", "tf_validate_test")
+load("//tf2/module/validation:validate.bzl", "tf_validate_test")
 
 # Test that validation test rule is created correctly
 def _tf_validate_test_creation_test_impl(ctx):

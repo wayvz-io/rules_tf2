@@ -1,0 +1,32 @@
+"""Provider registry and metadata management"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "provider_mirror",
+    srcs = ["provider_mirror.bzl"],
+    deps = [
+        "//tf2/internal/providers:info",
+    ],
+)
+
+bzl_library(
+    name = "filesystem_mirror",
+    srcs = ["filesystem_mirror.bzl"],
+    deps = [
+        ":provider_mirror",
+        "//tf2/internal/utils:files",
+    ],
+)
+
+bzl_library(
+    name = "provider_metadata",
+    srcs = ["provider_metadata.bzl"],
+    deps = [
+        "//tf2/internal/providers:info",
+    ],
+)

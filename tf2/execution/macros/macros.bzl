@@ -1,18 +1,19 @@
 """Terraform rules macros"""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("//tf2/core/rules:module.bzl", "tf_module_rule", "tf_module_deps")
+load("//tf2/module/core:tf_module.bzl", "tf_module_rule", "tf_module_deps")
 # tf_stack_rule removed - functionality merged into tf_module
-load("//tf2/testing:validate.bzl", "tf_validate_test")
-load("//tf2/testing:format.bzl", "tf_format_test", "tf_format")
-load("//tf2/testing:lint.bzl", "tf_lint_test")
-load("//tf2/testing:versions.bzl", "tf_versions_check_test", "tf_generate_versions", "tf_generate_versions_from_mirrors")
-load("//tf2/testing:docs.bzl", "tf_doc_test", "tf_generate_docs")
-load("//tf2/testing:module_deps.bzl", "tf_module_deps_test")
-load("//tf2/testing:organization.bzl", "tf_organization_check_test", "tf_reorganize")
-load("//tf2/testing:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
-load("//tf2/testing:tflint_rules.bzl", "tf_tflint_validate_test", "tf_tflint_fix")
-load("//tf2/testing:test.bzl", "tf_test")
+load("//tf2/module/validation:validate.bzl", "tf_validate_test")
+load("//tf2/module/quality:format.bzl", "tf_format_test", "tf_format")
+load("//tf2/module/quality:lint.bzl", "tf_lint_test")
+load("//tf2/module/versions:versions.bzl", "tf_versions_check_test", "tf_generate_versions", "tf_generate_versions_from_mirrors")
+load("//tf2/module/docs:docs.bzl", "tf_doc_test", "tf_generate_docs")
+load("//tf2/module/quality:tflint_config.bzl", "tf_generate_tflint_config")
+load("//tf2/module/deps:module_deps.bzl", "tf_module_deps_test")
+load("//tf2/module/deps:organization.bzl", "tf_organization_check_test", "tf_reorganize")
+load("//tf2/module/versions:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
+load("//tf2/module/quality:tflint_rules.bzl", "tf_tflint_validate_test", "tf_tflint_fix")
+load("//tf2/module/deps:test.bzl", "tf_test")
 load("//tf2/publish/oci:oci_push.bzl", "oci_push", "tf_module_push_oci")
 
 def tf_module(

@@ -1,7 +1,7 @@
 """Unit tests for TFLint integration functionality"""
 
 load("@bazel_skylib//lib:unittest.bzl", "unittest", "asserts")
-load("//tf2/testing:tflint_rules.bzl", "tf_tflint_validate_test", "tf_tflint_fix")
+load("//tf2/module/quality:tflint_rules.bzl", "tf_tflint_validate_test", "tf_tflint_fix")
 
 def _basic_tflint_validate_test_impl(ctx):
     """Test that tf_tflint_validate_test rule can be created."""

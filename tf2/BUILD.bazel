@@ -5,12 +5,6 @@ load("@stardoc//stardoc:stardoc.bzl", "stardoc")
 
 exports_files(["extensions.bzl", "def.bzl"])
 
-# Aliases for core targets
-alias(
-    name = "private_repositories",
-    actual = "//tf2/core/repositories",
-    visibility = ["//visibility:private"],
-)
 
 # Public API
 bzl_library(
@@ -18,15 +12,12 @@ bzl_library(
     srcs = ["def.bzl"],
     visibility = ["//visibility:public"],
     deps = [
-        "//tf2/core/providers:provider_mirror",
-        "//tf2/core/providers:provider_cache",
-        "//tf2/core/providers:provider_alias",
-        "//tf2/core/providers:provider_registry_alias",
+        "//tf2/providers/registry:provider_mirror",
         "//tf2/execution/macros:macros",
         "//tf2/publish/oci:oci_push",
-        "//tf2/execution:tf_cloud_runner",
-        "//tf2/execution:tf_runner",
-        "//tf2/core/rules:variables",
+        "//tf2/publish/cloud:tf_cloud_runner",
+        "//tf2/runner:tf_runner",
+        "//tf2/module/core:variables",
     ],
 )
 
@@ -36,7 +27,8 @@ bzl_library(
     srcs = ["extensions.bzl"],
     visibility = ["//visibility:public"],
     deps = [
-        ":private_repositories",
+        "//tf2/providers/repository:terraform_providers",
+        "//tf2/tools/download:tools_repository",
     ],
 )
 
