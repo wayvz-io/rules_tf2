@@ -364,20 +364,24 @@ with open('$VERSIONS_FILE', 'r') as f:
             echo -e "${YELLOW}⚠ Warning: bazel mod tidy may have encountered issues${NC}"
         fi
 
-        # Call the regenerate_versions script to update terraform.tf files and docs
-        echo ""
-        SCRIPT_DIR="$(dirname "${BASH_SOURCE[0]}")"
-        REGENERATE_SCRIPT="$SCRIPT_DIR/regenerate_versions.sh"
-        
-        if [ -f "$REGENERATE_SCRIPT" ]; then
-            if [ "$VERBOSE" = true ]; then
-                "$REGENERATE_SCRIPT" --verbose
-            else
-                "$REGENERATE_SCRIPT"
-            fi
+    fi
+    
+    # Always call the regenerate_versions script to update terraform.tf files and docs
+    # This ensures that any changes to version generation logic are applied
+    echo ""
+    REGENERATE_SCRIPT="$WORKSPACE_ROOT/scripts/regenerate_versions.sh"
+    
+    if [ -f "$REGENERATE_SCRIPT" ]; then
+        if [ "$VERBOSE" = true ]; then
+            "$REGENERATE_SCRIPT" --verbose
         else
-            echo -e "${YELLOW}⚠${NC} regenerate_versions.sh not found at $REGENERATE_SCRIPT"
+            "$REGENERATE_SCRIPT"
         fi
+    else
+        echo -e "${YELLOW}⚠${NC} regenerate_versions.sh not found at $REGENERATE_SCRIPT"
+    fi
+    
+    if [ "$UPDATES_MADE" = true ] || [ "$LOCK_FILE_EXISTS" = false ]; then
 
         # Regenerate lock files for stacks using Bazel built-in rules
         echo ""

@@ -1,7 +1,7 @@
 """Module extensions for tf2"""
 
 load("//tf2/core/repositories:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
-load("//tf2/core/repositories:tools.bzl", "tool_registry", "download_tool")
+load("//tf2/core/repositories:tools.bzl", "tool_registry", "download_tool", "download_tflint_plugin", "tflint_plugin_registry")
 # CDKTF support is disabled - not yet functional
 # load("//tf2/core/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
 
@@ -366,6 +366,9 @@ def _tf_tools_impl(module_ctx):
     tflint_version = None
     terraform_docs_version = None
     
+    # Collect plugin configurations
+    tflint_plugins = {}
+    
     # Collect tool configuration from modules
     for mod in module_ctx.modules:
         for config in mod.tags.configure:
@@ -375,6 +378,12 @@ def _tf_tools_impl(module_ctx):
                 tflint_version = config.tflint_version
             if config.terraform_docs_version:
                 terraform_docs_version = config.terraform_docs_version
+        
+        # Collect tflint plugin configurations
+        for plugin in mod.tags.tflint_plugin:
+            plugin_name = plugin.name
+            plugin_version = plugin.version
+            tflint_plugins[plugin_name] = plugin_version
     
     # Create individual tool repositories
     download_tool(
@@ -395,10 +404,25 @@ def _tf_tools_impl(module_ctx):
         version = terraform_docs_version,
     )
     
+    # Create individual tflint plugin repositories
+    for plugin_name, plugin_version in tflint_plugins.items():
+        download_tflint_plugin(
+            name = "tflint_plugin_{}".format(plugin_name),
+            plugin_name = plugin_name,
+            version = plugin_version,
+        )
+    
     # Create tool registry repository (just for aliases)
     tool_registry(
         name = "tf_tool_registry",
     )
+    
+    # Create tflint plugin registry if we have plugins
+    if tflint_plugins:
+        tflint_plugin_registry(
+            name = "tflint_plugin_registry",
+            plugins = tflint_plugins.keys(),
+        )
 
 # Tag class for tool configuration
 _tools_configure = tag_class(
@@ -418,9 +442,24 @@ _tools_configure = tag_class(
     },
 )
 
+# Tag class for tflint plugin configuration
+_tflint_plugin = tag_class(
+    attrs = {
+        "name": attr.string(
+            doc = "Name of the tflint plugin (aws, azurerm, google, opa)",
+            mandatory = True,
+        ),
+        "version": attr.string(
+            doc = "Version of the plugin to download",
+            mandatory = True,
+        ),
+    },
+)
+
 tf_tools = module_extension(
     implementation = _tf_tools_impl,
     tag_classes = {
         "configure": _tools_configure,
+        "tflint_plugin": _tflint_plugin,
     },
 )

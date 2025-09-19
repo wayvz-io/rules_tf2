@@ -23,6 +23,7 @@ def tf_module(
         tflint_config = None,
         tfdoc_config = None,
         skip_validation = None,
+        terraform_version = None,
         visibility = None,
         testonly = None,
         tags = None,
@@ -89,6 +90,7 @@ def tf_module(
         name = name + "_provider_config",
         providers = providers,
         modules = modules,  # Pass modules to collect their providers
+        terraform_version = terraform_version or "1.13.2",  # Use configured version from tf_tools
         visibility = ["//visibility:private"],
         testonly = testonly,
     )

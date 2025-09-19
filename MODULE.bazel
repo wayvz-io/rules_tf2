@@ -108,9 +108,30 @@ tf_tools = use_extension("//tf2:extensions.bzl", "tf_tools")
 
 # Configure tool versions
 tf_tools.configure(
-    terraform_version = "1.12.2",
-    tflint_version = "0.54.0", 
+    terraform_version = "1.13.2",
+    tflint_version = "0.59.1", 
     terraform_docs_version = "0.20.0",
 )
 
-use_repo(tf_tools, "tf_tool_registry")
+# Configure tflint plugins for testing
+tf_tools.tflint_plugin(
+    name = "aws",
+    version = "0.42.0",
+)
+
+tf_tools.tflint_plugin(
+    name = "azurerm",
+    version = "0.29.0",
+)
+
+tf_tools.tflint_plugin(
+    name = "google",
+    version = "0.35.0",
+)
+
+tf_tools.tflint_plugin(
+    name = "opa",
+    version = "0.9.0",
+)
+
+use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")

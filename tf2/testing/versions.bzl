@@ -204,41 +204,17 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
                         if name not in providers:
                             providers[name] = spec
 
-    # Create a script to detect Terraform version
-    detect_script = ctx.actions.declare_file(ctx.label.name + "_detect_tf_version.sh")
-    detect_script_content = """#!/usr/bin/env bash
-set -euo pipefail
-
-# Try to get Terraform version
-if command -v terraform >/dev/null 2>&1; then
-    # Try JSON output first (newer versions)
-    if TF_VERSION=$(terraform version -json 2>/dev/null | jq -r .terraform_version 2>/dev/null); then
-        echo "$TF_VERSION"
-    else
-        # Fall back to parsing text output
-        terraform version | head -1 | grep -oE '[0-9]+\\.[0-9]+\\.[0-9]+' || echo "1.0.0"
-    fi
-else
-    echo "1.0.0"  # Default if terraform not found
-fi
-"""
-    ctx.actions.write(
-        output = detect_script,
-        content = detect_script_content,
-        is_executable = True,
-    )
-
-    # Declare output for detected version
+    # Use the configured terraform version instead of detecting it
+    # The version is passed from the tf_tools configuration in MODULE.bazel
+    tf_version = ctx.attr.terraform_version or "1.0.0"
+    
+    # Declare output for terraform version
     tf_version_file = ctx.actions.declare_file(ctx.label.name + "_tf_version.txt")
 
-    # Run detection script (this must stay as shell due to terraform CLI requirement)
-    ctx.actions.run_shell(
-        outputs = [tf_version_file],
-        inputs = [],
-        tools = [detect_script],
-        command = "{} > {}".format(detect_script.path, tf_version_file.path),
-        mnemonic = "DetectTfVersion",
-        use_default_shell_env = True,
+    # Write the configured version to the file
+    ctx.actions.write(
+        output = tf_version_file,
+        content = tf_version,
     )
 
     # Generate versions configuration JSON for HCL tool
@@ -374,6 +350,10 @@ tf_generate_versions_from_mirrors = rule(
             doc = "List of tf_module targets to collect transitive providers from",
             providers = [TfModuleInfo],
             default = [],
+        ),
+        "terraform_version": attr.string(
+            doc = "Terraform version to use in required_version constraint",
+            default = "1.0.0",
         ),
     },
     doc = "Generates provider configurations from provider mirrors",

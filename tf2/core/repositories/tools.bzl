@@ -43,6 +43,26 @@ TOOL_CONFIG = {
     },
 }
 
+# TFLint plugin configuration
+TFLINT_PLUGIN_CONFIG = {
+    "aws": {
+        "repo": "terraform-linters/tflint-ruleset-aws",
+        "binary_name": "tflint-ruleset-aws",
+    },
+    "azurerm": {
+        "repo": "terraform-linters/tflint-ruleset-azurerm",
+        "binary_name": "tflint-ruleset-azurerm",
+    },
+    "google": {
+        "repo": "terraform-linters/tflint-ruleset-google",
+        "binary_name": "tflint-ruleset-google",
+    },
+    "opa": {
+        "repo": "terraform-linters/tflint-ruleset-opa",
+        "binary_name": "tflint-ruleset-opa",
+    },
+}
+
 def _get_platform_info(repository_ctx):
     """Determine the current platform for tool downloads."""
     os_name = repository_ctx.os.name.lower()
@@ -256,4 +276,127 @@ tool_registry = repository_rule(
     implementation = _tool_registry_impl,
     attrs = {},
     doc = "Creates a registry of downloaded tools with aliases",
+)
+
+def _build_plugin_download_url(plugin_name, version, platform):
+    """Build the download URL for a tflint plugin."""
+    if plugin_name not in TFLINT_PLUGIN_CONFIG:
+        fail("Unknown tflint plugin: {}".format(plugin_name))
+    
+    config = TFLINT_PLUGIN_CONFIG[plugin_name]
+    repo = config["repo"]
+    binary_name = config["binary_name"]
+    
+    return "https://github.com/{repo}/releases/download/v{version}/{binary_name}_{platform}.zip".format(
+        repo = repo,
+        version = version,
+        binary_name = binary_name,
+        platform = platform,
+    )
+
+def _download_tflint_plugin_impl(repository_ctx):
+    """Implementation of tflint plugin download repository rule."""
+    plugin_name = repository_ctx.attr.plugin_name
+    version = repository_ctx.attr.version
+    platform = _get_platform_info(repository_ctx)
+    
+    if plugin_name not in TFLINT_PLUGIN_CONFIG:
+        fail("Unknown tflint plugin: {}. Supported plugins: {}".format(
+            plugin_name, 
+            ", ".join(TFLINT_PLUGIN_CONFIG.keys())
+        ))
+    
+    config = TFLINT_PLUGIN_CONFIG[plugin_name]
+    binary_name = config["binary_name"]
+    
+    # Build download URL
+    download_url = _build_plugin_download_url(plugin_name, version, platform)
+    
+    print("Downloading tflint plugin {} version {} from {}".format(plugin_name, version, download_url))
+    
+    # Download and extract the plugin
+    repository_ctx.download_and_extract(
+        url = download_url,
+        type = "zip",
+    )
+    
+    # Make binary executable
+    repository_ctx.execute(["chmod", "+x", binary_name])
+    
+    # Create BUILD file
+    build_content = '''package(default_visibility = ["//visibility:public"])
+
+exports_files(["{binary_name}"])
+
+sh_binary(
+    name = "bin",
+    srcs = ["{binary_name}"],
+)
+'''.format(binary_name = binary_name)
+    
+    repository_ctx.file("BUILD.bazel", build_content)
+    
+    # Create version info file
+    repository_ctx.file("VERSION", version)
+    
+    # Create plugin info file
+    repository_ctx.file("PLUGIN_NAME", plugin_name)
+
+download_tflint_plugin = repository_rule(
+    implementation = _download_tflint_plugin_impl,
+    attrs = {
+        "plugin_name": attr.string(mandatory = True, doc = "Name of the tflint plugin to download"),
+        "version": attr.string(mandatory = True, doc = "Version of the plugin to download"),
+    },
+    doc = "Downloads a tflint plugin binary from its official releases",
+)
+
+def _tflint_plugin_registry_impl(repository_ctx):
+    """Implementation of tflint plugin registry repository rule."""
+    plugins = repository_ctx.attr.plugins
+    
+    # Build aliases for each plugin
+    plugin_aliases = ""
+    plugin_filegroup_srcs = []
+    
+    for plugin_name in plugins:
+        repo_name = "tflint_plugin_{}".format(plugin_name)
+        plugin_aliases += '''
+alias(
+    name = "{plugin_name}",
+    actual = "@{repo_name}//:bin",
+)
+
+alias(
+    name = "{plugin_name}_bin",
+    actual = "@{repo_name}//:bin",
+)
+'''.format(plugin_name = plugin_name, repo_name = repo_name)
+        plugin_filegroup_srcs.append('"@{}//:{}"'.format(repo_name, plugin_name))
+    
+    # Create registry BUILD file with aliases
+    build_content = '''package(default_visibility = ["//visibility:public"])
+
+{plugin_aliases}
+
+# Filegroup to include all plugins
+filegroup(
+    name = "all_plugins",
+    srcs = [
+        {plugin_srcs}
+    ],
+)
+'''.format(
+        plugin_aliases = plugin_aliases,
+        plugin_srcs = ",\n        ".join(plugin_filegroup_srcs) if plugin_filegroup_srcs else "",
+    )
+    
+    repository_ctx.file("BUILD.bazel", build_content)
+
+tflint_plugin_registry = repository_rule(
+    implementation = _tflint_plugin_registry_impl,
+    attrs = {
+        "plugins": attr.string_list(doc = "List of plugin names to register"),
+    },
+    doc = "Creates a registry of downloaded tflint plugins with aliases",
 )
