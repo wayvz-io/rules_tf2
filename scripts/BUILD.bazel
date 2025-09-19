@@ -1,10 +1,38 @@
 load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("//tf2/core/providers:regenerate_all.bzl", "tf_regenerate_all")
 
 package(default_visibility = ["//visibility:public"])
 
-# Shell script to update Terraform provider versions
+# Shell script to upgrade provider versions only
+sh_binary(
+    name = "tf_upgrade_providers",
+    srcs = ["tf_upgrade_providers.sh"],
+    visibility = ["//visibility:public"],
+)
+
+# Shell script to generate provider locks and update terraform.tf files
+sh_binary(
+    name = "tf_mod",
+    srcs = ["tf_mod.sh"],
+    data = [
+        "@tf_tool_registry//:all",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Shell script wrapper for complete provider update workflow
 sh_binary(
     name = "tf_update",
     srcs = ["update_providers.sh"],
+    data = [
+        "tf_upgrade_providers.sh",
+        "tf_mod.sh",
+        "@tf_tool_registry//:all",
+    ],
     visibility = ["//visibility:public"],
+)
+
+# Starlark rule to regenerate all versions and docs
+tf_regenerate_all(
+    name = "tf_regenerate_all_starlark",
 )

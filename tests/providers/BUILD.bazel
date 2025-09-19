@@ -1,0 +1,9 @@
+"""Test provider configurations for tf2 module testing"""
+
+package(default_visibility = ["//visibility:public"])
+
+# Export test provider files for use by other packages
+exports_files([
+    "versions.json",
+    "provider_locks.json",
+])

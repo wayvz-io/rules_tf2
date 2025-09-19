@@ -277,7 +277,7 @@ func TestUpdateVersionsInDir(t *testing.T) {
 		},
 	}
 
-	err = terraform.UpdateVersionsInDir(tmpDir, newProviders, "")
+	err = terraform.UpdateVersionsInDir(tmpDir, newProviders, "", false)
 	require.NoError(t, err)
 
 	// Check what files exist after update
@@ -413,7 +413,7 @@ func TestConfigurationAliasesPreservation(t *testing.T) {
 		},
 	}
 	
-	err = terraform.UpdateVersionsInDir(tmpDir, newProviders, ">= 1.12.2")
+	err = terraform.UpdateVersionsInDir(tmpDir, newProviders, ">= 1.12.2", false)
 	require.NoError(t, err)
 
 	// Read the updated file

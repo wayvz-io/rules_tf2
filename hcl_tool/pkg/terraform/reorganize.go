@@ -470,6 +470,64 @@ func deleteFile(path string) error {
 	return os.Remove(path)
 }
 
+// OrganizationError represents a specific organization issue with a filename
+type OrganizationError struct {
+	Filename string
+	Message  string
+}
+
+// CheckOrganizationDetailed checks organization and returns detailed errors with filenames
+func CheckOrganizationDetailed(current *tfhcl.ModuleOrganization) (bool, []OrganizationError) {
+	var errors []OrganizationError
+	needsReorg := false
+
+	// Check for terraform blocks not in terraform.tf
+	for _, block := range current.TerraformBlocks {
+		if block.SourceFile != "terraform.tf" && block.SourceFile != "" {
+			needsReorg = true
+			errors = append(errors, OrganizationError{
+				Filename: block.SourceFile,
+				Message:  "Terraform block should be in terraform.tf",
+			})
+		}
+	}
+
+	// Check for misplaced provider blocks
+	for _, block := range current.ProviderBlocks {
+		if block.SourceFile != "" && block.SourceFile != "providers.tf" {
+			needsReorg = true
+			errors = append(errors, OrganizationError{
+				Filename: block.SourceFile,
+				Message:  "Provider block should be in providers.tf",
+			})
+		}
+	}
+
+	// Check for misplaced variable blocks
+	for _, block := range current.VariableBlocks {
+		if block.SourceFile != "" && block.SourceFile != "variables.tf" {
+			needsReorg = true
+			errors = append(errors, OrganizationError{
+				Filename: block.SourceFile,
+				Message:  "Variable block should be in variables.tf",
+			})
+		}
+	}
+
+	// Check for misplaced output blocks
+	for _, block := range current.OutputBlocks {
+		if block.SourceFile != "" && block.SourceFile != "outputs.tf" {
+			needsReorg = true
+			errors = append(errors, OrganizationError{
+				Filename: block.SourceFile,
+				Message:  "Output block should be in outputs.tf",
+			})
+		}
+	}
+
+	return needsReorg, errors
+}
+
 // CheckOrganization checks if the configuration needs reorganization
 func CheckOrganization(current *tfhcl.ModuleOrganization) (bool, []string) {
 	var differences []string

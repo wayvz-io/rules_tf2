@@ -11,6 +11,7 @@ load("//tf2/testing:docs.bzl", "tf_doc_test", "tf_generate_docs")
 load("//tf2/testing:module_deps.bzl", "tf_module_deps_test")
 load("//tf2/testing:organization.bzl", "tf_organization_check_test", "tf_reorganize")
 load("//tf2/testing:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
+load("//tf2/testing:tflint_rules.bzl", "tf_tflint_validate_test", "tf_tflint_fix")
 load("//tf2/testing:test.bzl", "tf_test")
 load("//tf2/publish/oci:oci_push.bzl", "oci_push", "tf_module_push_oci")
 
@@ -194,10 +195,31 @@ def tf_module(
         size = "small",
         tags = tags,
     )
-    
+
     tf_reorganize(
         name = name + "_reorganize",
         visibility = visibility,
+    )
+
+    # Create new hybrid tflint validation test
+    # Use processed sources if modules exist, otherwise raw sources (same logic as validate_test)
+    tflint_srcs = [":" + name + "_processed"] if modules else srcs
+    tf_tflint_validate_test(
+        name = name + "_tflint_validate_test",
+        srcs = tflint_srcs,
+        provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
+        visibility = ["//visibility:private"],
+        testonly = True,
+        size = "small",
+        tags = tags,
+    )
+
+    # Create new hybrid tflint fix target
+    tf_tflint_fix(
+        name = name + "_tflint_fix",
+        provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
+        visibility = visibility,
+        testonly = testonly,
     )
     
     # For modules with nested modules, create a processed filegroup (used by both tests and validation)

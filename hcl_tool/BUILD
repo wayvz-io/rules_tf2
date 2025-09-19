@@ -50,6 +50,7 @@ go_library(
         "cmd/parse_lock.go",
         "cmd/read_versions.go",
         "cmd/reorganize.go",
+        "cmd/tflint_validate_versions.go",
         "cmd/validate_organization.go",
         "cmd/validate_versions.go",
         "cmd/write_versions.go",

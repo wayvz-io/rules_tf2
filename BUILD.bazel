@@ -2,9 +2,58 @@
 
 exports_files(["MODULE.bazel"])
 
-# Alias to run tf-update from tf2 module context
+# Clean, user-friendly aliases for external repositories
+# Usage from other repos: bazel run @rules_tf2//:mod
+
+# Complete terraform workflow (update versions + generate locks + regenerate files)
+alias(
+    name = "update",
+    actual = "//scripts:tf_update",
+    visibility = ["//visibility:public"],
+)
+
+# Generate provider locks and regenerate terraform.tf files
+alias(
+    name = "mod",
+    actual = "//scripts:tf_mod",
+    visibility = ["//visibility:public"],
+)
+
+# Update provider versions only
+alias(
+    name = "upgrade",
+    actual = "//scripts:tf_upgrade_providers",
+    visibility = ["//visibility:public"],
+)
+
+# Regenerate terraform.tf and docs only (Starlark)
+alias(
+    name = "regenerate",
+    actual = "//scripts:tf_regenerate_all_starlark",
+    visibility = ["//visibility:public"],
+)
+
+# Legacy aliases for backward compatibility
+alias(
+    name = "tf-upgrade-providers",
+    actual = "//scripts:tf_upgrade_providers",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tf-mod",
+    actual = "//scripts:tf_mod",
+    visibility = ["//visibility:public"],
+)
+
 alias(
     name = "tf-update",
-    actual = "@rules_tf2//scripts:tf_update",
+    actual = "//scripts:tf_update",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "tf-regenerate-all-starlark",
+    actual = "//scripts:tf_regenerate_all_starlark",
     visibility = ["//visibility:public"],
 )

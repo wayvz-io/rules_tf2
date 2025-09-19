@@ -1,6 +1,8 @@
 package terraform
 
 import (
+	"fmt"
+
 	tfhcl "github.com/wayvz-io/network_intent_manager/build/rules/tf2/hcl_tool/pkg/hcl"
 )
 
@@ -76,10 +78,10 @@ func MergeProviders(existing, new tfhcl.Provider) tfhcl.Provider {
 
 // MergeWithUpdates merges providers from BUILD file with existing configuration
 // This is specifically for the update-versions use case where we want to:
-// 1. Update source and version from BUILD file
+// 1. Update source and version from BUILD file (version differences are auto-updated)
 // 2. Preserve configuration_aliases from existing file
-// 3. Keep any custom providers not in BUILD file
-func MergeWithUpdates(existing *tfhcl.TerraformBlock, updates map[string]tfhcl.Provider, tfVersion string) *tfhcl.TerraformBlock {
+// 3. Error if terraform.tf contains providers not declared in BUILD file (unless force=true)
+func MergeWithUpdates(existing *tfhcl.TerraformBlock, updates map[string]tfhcl.Provider, tfVersion string, force bool) (*tfhcl.TerraformBlock, error) {
 	result := &tfhcl.TerraformBlock{
 		RequiredProviders: make(map[string]tfhcl.Provider),
 	}
@@ -96,7 +98,8 @@ func MergeWithUpdates(existing *tfhcl.TerraformBlock, updates map[string]tfhcl.P
 		result.RequiredProviders[name] = provider
 	}
 
-	// Merge with existing providers to preserve configuration_aliases and custom providers
+	// Check for providers in terraform.tf that aren't in BUILD file
+	var missingProviders []string
 	if existing != nil && existing.RequiredProviders != nil {
 		for name, existingProvider := range existing.RequiredProviders {
 			if updatedProvider, exists := result.RequiredProviders[name]; exists {
@@ -106,11 +109,23 @@ func MergeWithUpdates(existing *tfhcl.TerraformBlock, updates map[string]tfhcl.P
 					result.RequiredProviders[name] = updatedProvider
 				}
 			} else {
-				// Custom provider not in BUILD file - preserve it entirely
-				result.RequiredProviders[name] = existingProvider
+				// Provider in terraform.tf but not in BUILD file
+				missingProviders = append(missingProviders, name)
 			}
 		}
 	}
 
-	return result
+	// Handle missing providers
+	if len(missingProviders) > 0 {
+		if !force {
+			return nil, fmt.Errorf("terraform.tf contains providers not declared in BUILD file: %v\n\n"+
+				"To fix this, either:\n"+
+				"1. Add the missing providers to your BUILD file's 'providers' list\n"+
+				"2. Add the providers to MODULE.bazel and run //:tf-update to sync to lockfile\n"+
+				"3. Use --force flag to automatically remove these providers", missingProviders)
+		}
+		// force=true: silently skip missing providers (they won't be in result)
+	}
+
+	return result, nil
 }

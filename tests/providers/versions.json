@@ -4,6 +4,8 @@
     "hashicorp/null": ["3.2.4"],
     "hashicorp/local": ["2.5.3"],
     "hashicorp/archive": ["2.7.1"],
-    "hashicorp/aws": ["5.100.0"]
+    "hashicorp/aws": ["5.100.0","6.14.0"],
+    "hashicorp/azurerm": ["4.45.0"],
+    "hashicorp/google": ["6.49.3"]
   }
 }
