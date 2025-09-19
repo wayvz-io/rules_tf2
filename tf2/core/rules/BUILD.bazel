@@ -1,0 +1,36 @@
+"""Core Terraform rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "module.bzl",
+    "info.bzl",
+    "nested_modules.bzl",
+    "variables.bzl",
+])
+
+bzl_library(
+    name = "variables",
+    srcs = ["variables.bzl"],
+)
+
+bzl_library(
+    name = "module",
+    srcs = ["module.bzl"],
+    deps = [
+        ":info",
+        ":nested_modules",
+    ],
+)
+
+bzl_library(
+    name = "info",
+    srcs = ["info.bzl"],
+)
+
+bzl_library(
+    name = "nested_modules",
+    srcs = ["nested_modules.bzl"],
+)

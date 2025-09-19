@@ -1,0 +1,20 @@
+# Build file for runner package
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "tf_runner.bzl",
+    "tf_cloud_runner.bzl",
+])
+
+bzl_library(
+    name = "tf_runner",
+    srcs = ["tf_runner.bzl"],
+)
+
+bzl_library(
+    name = "tf_cloud_runner", 
+    srcs = ["tf_cloud_runner.bzl"],
+)

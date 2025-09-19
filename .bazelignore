@@ -1,0 +1,6 @@
+.direnv
+.terraform
+bazel-bin
+bazel-out
+bazel-test
+bazel-tf2

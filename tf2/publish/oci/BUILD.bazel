@@ -1,0 +1,21 @@
+"""OCI publishing rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["oci_push.bzl"])
+
+bzl_library(
+    name = "config",
+    srcs = ["config.bzl"],
+)
+
+bzl_library(
+    name = "oci_push",
+    srcs = ["oci_push.bzl"],
+    deps = [
+        ":config",
+        "//tf2/core/rules:info",
+    ],
+)

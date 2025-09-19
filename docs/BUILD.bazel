@@ -1,29 +1,21 @@
 """Documentation generation for rules_tf2"""
 
-load("@stardoc//stardoc:stardoc.bzl", "stardoc")
 
-# Generate documentation for all public API
-stardoc(
-    name = "api_docs",
-    out = "api.md",
-    input = "//tf:def.bzl",
-    deps = ["//tf:def"],
-)
 
-# Generate documentation for extensions
-stardoc(
-    name = "extensions_docs",
-    out = "extensions.md",
-    input = "//tf:extensions.bzl",
-    deps = ["//tf:extensions"],
-)
+# # Generate documentation for extensions
+# stardoc(
+#     name = "extensions_docs",
+#     out = "extensions.md",
+#     input = "//tf2:extensions.bzl",
+#     deps = ["//tf2:extensions"],
+# )
 
-# Aggregate all documentation
+# Placeholder for documentation
 filegroup(
     name = "all_docs",
     srcs = [
-        ":api_docs",
-        ":extensions_docs",
+        # ":api_docs",
+        # ":extensions_docs",
     ],
     visibility = ["//visibility:public"],
 )

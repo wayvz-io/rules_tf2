@@ -1,4 +1,4 @@
-load("@rules_tf2//tf:def.bzl", "tf_module")
+load("@rules_tf2//tf2:def.bzl", "tf_module")
 
 # A basic Terraform module example demonstrating provider inheritance
 # 

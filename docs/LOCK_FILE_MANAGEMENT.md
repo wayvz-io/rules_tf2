@@ -39,7 +39,7 @@ For each `tf_stack`, the system automatically:
 ### Basic Stack Definition
 
 ```python
-load("@tf2//tf:def.bzl", "tf_stack")
+load("@tf2//tf2:def.bzl", "tf_stack")
 
 tf_stack(
     name = "my_stack",

@@ -14,7 +14,7 @@ This module creates:
 ### In Bazel
 
 ```starlark
-load("//tf:def.bzl", "tf_module")
+load("//tf2:def.bzl", "tf_module")
 
 tf_module(
     name = "my_infrastructure",

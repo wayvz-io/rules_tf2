@@ -1,8 +1,8 @@
 """Unit tests for nested module processing"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf/core/rules:module.bzl", "tf_module_rule")
-load("//tf/core/rules:info.bzl", "TfModuleInfo")
+load("//tf2/core/rules:module.bzl", "tf_module_rule")
+load("//tf2/core/rules:info.bzl", "TfModuleInfo")
 
 # Test path rewriting patterns
 def _test_path_rewriting_patterns(ctx):
@@ -245,11 +245,11 @@ def nested_modules_test_suite(name):
     """Create nested modules test suite"""
     
     # Unit tests for functions
-    path_rewriting_patterns_test(name = name + "_path_rewriting")
-    service_intents_platform_prefixing_test(name = name + "_platform_prefixing")
-    module_name_collision_handling_test(name = name + "_name_collision")
-    path_normalization_test(name = name + "_path_normalization")
-    sed_pattern_generation_test(name = name + "_sed_patterns")
+    path_rewriting_patterns_test(name = name + "_path_rewriting", size = "small")
+    service_intents_platform_prefixing_test(name = name + "_platform_prefixing", size = "small")
+    module_name_collision_handling_test(name = name + "_name_collision", size = "small")
+    path_normalization_test(name = name + "_path_normalization", size = "small")
+    sed_pattern_generation_test(name = name + "_sed_patterns", size = "small")
     
     # Analysis test setup
     # Create a simple module for testing
@@ -261,7 +261,8 @@ def nested_modules_test_suite(name):
     
     nested_modules_processing_test(
         name = name + "_processing",
-        target_under_test = ":" + name + "_test_module"
+        target_under_test = ":" + name + "_test_module",
+        size = "small"
     )
     
     # Aggregate tests

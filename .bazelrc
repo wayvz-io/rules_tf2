@@ -3,6 +3,9 @@
 # Use the Bazel 7 compatibility flag
 build --enable_bzlmod
 
+# Enable isolated extension usages for conditional nixpkgs setup
+build --experimental_isolated_extension_usages
+
 # Use local disk cache
 build --disk_cache=~/.cache/bazel-disk-cache
 
@@ -25,6 +28,12 @@ build --show_progress_rate_limit=5
 # Test configuration
 test --test_verbose_timeout_warnings
 
-# Coverage settings
-coverage --combined_report=lcov
-coverage --coverage_report_generator=@bazel_tools//tools/test/CoverageOutputGenerator/java/com/google/devtools/coverageoutputgenerator:Main
+# Alias for testing the main codebase without vendored modules
+# Usage: bazel test :all-tests
+# This is defined in the root BUILD file
+
+build --host_platform=@rules_nixpkgs_core//platforms:host
+build --java_runtime_version=nixpkgs_java_21
+build --tool_java_runtime_version=nixpkgs_java_21
+build --java_language_version=21
+build --tool_java_language_version=21

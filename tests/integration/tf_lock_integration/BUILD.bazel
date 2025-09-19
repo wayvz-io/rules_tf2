@@ -1,6 +1,6 @@
 """Test module with lock file generation"""
 
-load("//tf:def.bzl", "tf_module")
+load("//tf2:def.bzl", "tf_module")
 
 tf_module(
     name = "test_stack",

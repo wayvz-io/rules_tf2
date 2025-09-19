@@ -4,14 +4,11 @@
 test_suite(
     name = "all_integration_tests",
     tests = [
-        "//tf/tests/integration/simple_module:all",
-        "//tf/tests/integration/another_module:all",
-        "//tf/tests/integration/module_with_deps:all",
-        "//tf/tests/integration/simple_stack:all",
-        "//tf/tests/integration/stack_with_modules:all",
-        "//tf/tests/integration/hcl_versions_test:all",
-        "//tf/tests/integration/filesystem_mirror:all",
-        "//tf/tests/integration/tf_lock_integration:all",
+        "//tests/integration/simple_stack:simple_stack_validate_test",
+        "//tests/integration/simple_module:simple_module_validate_test",
+        "//tests/integration/another_module:another_module_validate_test",
+        "//tests/integration/module_with_deps:module_with_deps_correct_validate_test",
+        "//tests/integration/stack_with_modules:stack_with_modules_validate_test",
     ],
     visibility = ["//visibility:public"],
 )

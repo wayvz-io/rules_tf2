@@ -53,7 +53,7 @@ local_path_override(
 # )
 
 # Configure providers
-tf_providers = use_extension("@rules_tf2//tf:extensions.bzl", "tf_providers")
+tf_providers = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_providers")
 tf_providers.download(
     providers = {
         "hashicorp/aws": ["6.2.0", "5.0.0"],
@@ -69,7 +69,7 @@ use_repo(tf_providers, "tf_provider_registry")
 Create a reusable Terraform module:
 
 ```starlark
-load("@tf2//tf:def.bzl", "tf_module")
+load("@tf2//tf2:def.bzl", "tf_module")
 
 tf_module(
     name = "vpc",
@@ -93,7 +93,7 @@ This automatically generates:
 Create a deployable stack:
 
 ```starlark
-load("@tf2//tf:def.bzl", "tf_stack", "tf_variables")
+load("@tf2//tf2:def.bzl", "tf_stack", "tf_variables")
 
 # Define variables
 tf_variables(
@@ -123,7 +123,7 @@ Stack targets include all module targets plus:
 Deploy to Terraform Cloud/Enterprise:
 
 ```starlark
-load("@tf2//tf:def.bzl", "tf_cloud_configuration")
+load("@tf2//tf2:def.bzl", "tf_cloud_configuration")
 
 tf_cloud_configuration(
     name = "production",
@@ -155,7 +155,7 @@ op run -- bazel run //infrastructure:production_tfc_plan
 Use `tf_runner` for full terraform CLI access:
 
 ```starlark
-load("@tf2//tf:def.bzl", "tf_runner")
+load("@tf2//tf2:def.bzl", "tf_runner")
 
 tf_runner(
     name = "terraform",
@@ -220,7 +220,7 @@ tf_module(
 For air-gapped environments or custom providers:
 
 ```starlark
-load("@tf2//tf:def.bzl", "provider_mirror")
+load("@tf2//tf2:def.bzl", "provider_mirror")
 
 provider_mirror(
     name = "custom_provider",
@@ -270,7 +270,7 @@ Generate CDK for Terraform bindings:
 
 ```starlark
 # In MODULE.bazel
-cdktf_providers = use_extension("@tf2//tf:extensions.bzl", "cdktf_providers")
+cdktf_providers = use_extension("@tf2//tf2:extensions.bzl", "cdktf_providers")
 cdktf_providers.generate(
     provider = "hashicorp/aws",
     version = "6.2.0",
@@ -294,7 +294,7 @@ go_library(
 Deploy Terraform configurations as OCI artifacts:
 
 ```starlark
-load("@tf2//tf:def.bzl", "tf_stack_push_oci")
+load("@tf2//tf2:def.bzl", "tf_stack_push_oci")
 
 tf_stack_push_oci(
     name = "push",
@@ -340,7 +340,7 @@ Configure via environment or MODULE.bazel:
 
 ```starlark
 # In MODULE.bazel
-tfc_config = use_extension("@tf2//tf:extensions.bzl", "tfc_config")
+tfc_config = use_extension("@tf2//tf2:extensions.bzl", "tfc_config")
 tfc_config.configure(
     organization = "my-default-org",
     tfe_host = "app.terraform.io",  # Or your TFE instance
@@ -356,13 +356,13 @@ The module structure has been reorganized for better maintainability:
 
 | Old Location | New Location |
 |--------------|--------------|
-| `//tf/private/rules/*` | `//tf/core/rules/*` |
-| `//tf/private/providers/*` | `//tf/core/providers/*` |
-| `//tf/private/tests/*` | `//tf/testing/*` |
-| `//tf/private/runner/*` | `//tf/execution/*` |
-| `//tf/private/oci/*` | `//tf/publish/oci/*` |
-| `//tf/private/tools/*` | `//tf/utilities/tools/*` |
-| `//tf/private/rules:variables.bzl` | `//tf/core/rules:variables.bzl` |
+| `//tf2/private/rules/*` | `//tf2/core/rules/*` |
+| `//tf2/private/providers/*` | `//tf2/core/providers/*` |
+| `//tf2/private/tests/*` | `//tf2/testing/*` |
+| `//tf2/private/runner/*` | `//tf2/execution/*` |
+| `//tf2/private/oci/*` | `//tf2/publish/oci/*` |
+| `//tf2/private/tools/*` | `//tf2/utilities/tools/*` |
+| `//tf2/private/rules:variables.bzl` | `//tf2/core/rules:variables.bzl` |
 
 API changes:
 - Removed experimental `*_native` rules
@@ -412,6 +412,37 @@ bazel test //infrastructure:my_module_format_test --test_output=all
 
 # Check test logs
 cat bazel-testlogs/infrastructure/my_module_format_test/test.log
+```
+
+## Development
+
+### Local Development Setup
+
+For local development and testing of rules_tf2, you need:
+
+1. **Nix with flakes enabled** - The project uses Nix for reproducible development environments
+2. **direnv** - Automatically loads the Nix environment when you enter the directory
+
+```bash
+# Enable direnv for the project
+direnv allow
+
+# The environment will automatically load, providing:
+# - Bazel 7
+# - Go 1.24  
+# - Terraform 1.12.2
+# - Other required tools
+```
+
+**Note:** When rules_tf2 is used as a dependency in other projects, it creates empty provider registries. The actual providers are configured by the root module (your project).
+
+### Testing
+
+The most reliable way to test rules_tf2 changes is from a project that uses it:
+
+```bash
+# From a project using rules_tf2 (e.g., network_intent_manager)
+bazel test @rules_tf2//...
 ```
 
 ## Contributing

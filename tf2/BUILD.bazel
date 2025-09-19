@@ -1,0 +1,50 @@
+"""tf package exports"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("@stardoc//stardoc:stardoc.bzl", "stardoc")
+
+exports_files(["extensions.bzl", "def.bzl"])
+
+# Aliases for core targets
+alias(
+    name = "private_repositories",
+    actual = "//tf2/core/repositories",
+    visibility = ["//visibility:private"],
+)
+
+# Public API
+bzl_library(
+    name = "def",
+    srcs = ["def.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//tf2/core/providers:provider_mirror",
+        "//tf2/core/providers:provider_cache",
+        "//tf2/core/providers:provider_alias",
+        "//tf2/core/providers:provider_registry_alias",
+        "//tf2/execution/macros:macros",
+        "//tf2/publish/oci:oci_push",
+        "//tf2/execution:tf_cloud_runner",
+        "//tf2/execution:tf_runner",
+        "//tf2/core/rules:variables",
+    ],
+)
+
+# Extensions for MODULE.bazel
+bzl_library(
+    name = "extensions",
+    srcs = ["extensions.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":private_repositories",
+    ],
+)
+
+# Generate documentation for all public API
+stardoc(
+    name = "api_docs",
+    out = "api.md",
+    input = "def.bzl",
+    deps = [":def"],
+    tags = ["manual"],  # Manual due to Java toolchain complexity
+)
