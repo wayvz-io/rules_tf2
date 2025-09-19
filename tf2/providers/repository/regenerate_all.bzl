@@ -1,6 +1,6 @@
 """Macro for creating targets that regenerate versions and docs across the workspace"""
 
-load("//tf2/internal/utils:runfiles.bzl", "get_workspace_dir_script")
+load("//tf2/tools/runners:shell_utils.bzl", "get_workspace_dir_script")
 
 def _tf_regenerate_all_impl(ctx):
     """Implementation of tf_regenerate_all rule"""

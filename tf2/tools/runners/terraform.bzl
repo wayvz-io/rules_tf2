@@ -1,143 +1,158 @@
 """Terraform command execution utilities"""
 
-load("//tf2/internal/utils:runfiles.bzl", "get_runfiles_dir_script", "create_temp_dir_script", "create_runfiles_path")
+load(":shell_utils.bzl", "get_runfiles_dir_script", "create_temp_dir_script")
 load(":tool_paths.bzl", "get_terraform_path")
 
-def terraform_init_script(ctx, plugin_dir = None, backend = False, upgrade = False, lockfile_readonly = True):
-    """Generates terraform init command with appropriate flags.
-    
+def create_terraform_format_test(ctx, name, srcs):
+    """Creates a Terraform format test using Starlark actions.
+
     Args:
         ctx: Rule context
-        plugin_dir: Optional plugin directory file (for filesystem_mirror)
+        name: Test name
+        srcs: Source files
+
+    Returns:
+        Terraform format result file
+    """
+    # Get terraform binary from tools
+    terraform_binary = None
+    for tool_file in ctx.files._tools:
+        if tool_file.basename == "terraform":
+            terraform_binary = tool_file
+            break
+
+    if not terraform_binary:
+        fail("Terraform binary not found in tools")
+
+    # Copy sources to a controlled location
+    copied_srcs = _copy_sources_action(ctx, srcs, "_format")
+
+    # Run terraform fmt in check mode
+    result = _run_terraform_action(
+        ctx,
+        terraform_binary,
+        ["fmt", "-check", "-diff", "-no-color"],
+        copied_srcs,
+        name_suffix = "_format"
+    )
+
+    return result
+
+def create_terraform_validate_test(ctx, name, srcs, plugin_dir = None):
+    """Creates a Terraform validate test using Starlark actions.
+
+    Args:
+        ctx: Rule context
+        name: Test name
+        srcs: Source files
+        plugin_dir: Optional plugin directory
+
+    Returns:
+        Terraform validate result file
+    """
+    # Get terraform binary from tools
+    terraform_binary = None
+    for tool_file in ctx.files._tools:
+        if tool_file.basename == "terraform":
+            terraform_binary = tool_file
+            break
+
+    if not terraform_binary:
+        fail("Terraform binary not found in tools")
+
+    # Copy sources to a controlled location
+    copied_srcs = _copy_sources_action(ctx, srcs, "_validate")
+
+    # Generate config if plugin_dir is provided
+    config_file = None
+    if plugin_dir:
+        config_file = _create_terraform_config_action(ctx, plugin_dir, "_validate")
+
+    # First run terraform init
+    init_args = ["init", "-backend=false", "-upgrade=false", "-lockfile=readonly", "-no-color"]
+    init_result = _run_terraform_action(
+        ctx,
+        terraform_binary,
+        init_args,
+        copied_srcs,
+        config_file,
+        "_init"
+    )
+
+    # Then run terraform validate (depends on init)
+    validate_inputs = copied_srcs + ([init_result] if init_result else [])
+    validate_result = _run_terraform_action(
+        ctx,
+        terraform_binary,
+        ["validate", "-no-color"],
+        validate_inputs,
+        config_file,
+        "_validate"
+    )
+
+    return validate_result
+
+def terraform_init_script(ctx, plugin_dir = None, backend = False, upgrade = False, lockfile_readonly = True):
+    """Generates simple terraform init command.
+
+    Args:
+        ctx: Rule context
+        plugin_dir: Optional plugin directory (simplified, just pass the path)
         backend: Whether to initialize backend
         upgrade: Whether to upgrade providers
         lockfile_readonly: Whether to enforce lock file as read-only (default: True)
-        
+
     Returns:
         String containing terraform init command
     """
     terraform_bin = get_terraform_path(ctx)
     cmd_parts = [terraform_bin, "init"]
-    
+
     if not backend:
         cmd_parts.append("-backend=false")
     if not upgrade:
         cmd_parts.append("-upgrade=false")
-    # Apply lockfile=readonly to enforce lock file integrity
     if lockfile_readonly:
         cmd_parts.append("-lockfile=readonly")
-    
-    if plugin_dir:
-        plugin_path = create_runfiles_path(ctx, plugin_dir)
-        # Use filesystem_mirror configuration instead of -plugin-dir
-        return """
-# Set up Terraform CLI configuration for filesystem mirror
-# The plugin_dir is a marker file, get the actual directory
-MARKER_FILE="$RUNFILES/{plugin_path}"
-if [ -f "$MARKER_FILE" ]; then
-    # Read the directory name from the marker
-    PROVIDER_DIR_NAME=$(cat "$MARKER_FILE")
-    # Get the parent directory of the marker file
-    MARKER_DIR=$(dirname "$MARKER_FILE")
-    
-    # Dynamically find the provider directory in runfiles
-    # Look for any directory matching tf*~~tf_providers~tf_provider* pattern
-    PROVIDER_MIRROR_PATH=""
-    
-    # First check in the same directory as the marker file
-    CANDIDATE="$MARKER_DIR/$PROVIDER_DIR_NAME"
-    if [ -d "$CANDIDATE" ]; then
-        PROVIDER_MIRROR_PATH="$CANDIDATE"
-    fi
-    
-    # If not found, try various possible locations
-    if [ -z "$PROVIDER_MIRROR_PATH" ]; then
-        for PREFIX in "_main/external" "external" "../external"; do
-            for REPO in rules_tf2~~tf_providers~tf_provider_registry tf2~~tf_providers~tf_provider_registry tf_provider_registry; do
-                CANDIDATE="$RUNFILES/$PREFIX/$REPO/$PROVIDER_DIR_NAME"
-                if [ -d "$CANDIDATE" ]; then
-                    PROVIDER_MIRROR_PATH="$CANDIDATE"
-                    break 2
-                fi
-            done
-        done
-    fi
-    
-    # If still not found, try a broader search
-    if [ -z "$PROVIDER_MIRROR_PATH" ] || [ ! -d "$PROVIDER_MIRROR_PATH" ]; then
-        # Look for the mirror directory by searching for a known provider structure
-        SEARCH_PATHS=("$RUNFILES/_main/external" "$RUNFILES/external" "$RUNFILES/../external")
-        for SEARCH_PATH in "${{SEARCH_PATHS[@]}}"; do
-            if [ -d "$SEARCH_PATH" ]; then
-                FOUND_DIR=$(find "$SEARCH_PATH" -maxdepth 2 -name "$PROVIDER_DIR_NAME" -type d 2>/dev/null | head -1)
-                if [ -n "$FOUND_DIR" ] && [ -d "$FOUND_DIR" ]; then
-                    PROVIDER_MIRROR_PATH="$FOUND_DIR"
-                    break
-                fi
-            fi
-        done
-    fi
-else
-    # Fallback to direct directory path
-    PROVIDER_MIRROR_PATH="$RUNFILES/{plugin_path}"
-fi
 
-if [ -d "$PROVIDER_MIRROR_PATH" ]; then
-    # Create temporary CLI config file
-    CLI_CONFIG_FILE="$WORK_DIR/.terraformrc"
-    cat > "$CLI_CONFIG_FILE" <<'EOF'
+    cmd_parts.append("-no-color")
+
+    if plugin_dir:
+        # Simple approach: set up CLI config if plugin_dir provided
+        plugin_path = plugin_dir.short_path if plugin_dir.short_path.startswith("bazel-out/") else "_main/{}".format(plugin_dir.short_path)
+        return """
+# Set up Terraform with provider mirror
+if [ -d "$RUNFILES/{plugin_path}" ]; then
+    cat > "$WORK_DIR/.terraformrc" <<'EOF'
 provider_installation {{
   filesystem_mirror {{
-    path = "{placeholder}"
+    path = "$RUNFILES/{plugin_path}"
   }}
 }}
 disable_checkpoint = true
 EOF
-    
-    # Replace placeholder with actual path
-    sed -i "s|{{placeholder}}|$PROVIDER_MIRROR_PATH|g" "$CLI_CONFIG_FILE" 2>/dev/null || \
-    sed -i '' "s|{{placeholder}}|$PROVIDER_MIRROR_PATH|g" "$CLI_CONFIG_FILE" 2>/dev/null || true
-    
-    # Export CLI config file path
-    export TF_CLI_CONFIG_FILE="$CLI_CONFIG_FILE"
-    
-    # Disable network access for providers
-    export TF_DISABLE_CHECKPOINT=true
-    export CHECKPOINT_DISABLE=true
-    
-    # Run terraform init with reduced output
-    {cmd} -no-color 2>&1 | grep -v "^Initializing" | grep -v "^- Finding" | grep -v "^- Installing" | grep -v "^Terraform has been successfully initialized" | grep -v "^You may now begin working" | grep -v "^If you ever set or change" | grep -v "^rerun this command" | grep -v "^Terraform has created a lock file" | grep -v "^selections it made above" | grep -v "^so that Terraform can guarantee" | grep -v 'you run "terraform init"' | grep -v "Warning: Incomplete lock file" | grep -v "Due to your customized provider" | grep -v "to calculate lock file" | grep -v "The current .terraform.lock.hcl" | grep -v "so Terraform running on another" | grep -v "To calculate additional checksums" | grep -v "terraform providers lock" | grep -v "(where .* is the platform" || true
-    
-    # Check if init actually succeeded
-    if [ ${{PIPESTATUS[0]}} -ne 0 ]; then
-        echo "ERROR: terraform init failed"
-        # Re-run to show full error output
-        {cmd} -no-color
-        exit 1
-    fi
-else
-    # Provider mirror is empty or missing - this is now an error
-    echo "ERROR: Provider mirror is empty or missing at: $PROVIDER_MIRROR_PATH"
-    echo "This usually means provider locks are missing."
-    echo "Run 'bazel run //:tf-update' to generate provider locks."
-    exit 1
+
+    export TF_CLI_CONFIG_FILE="$WORK_DIR/.terraformrc"
 fi
-""".format(plugin_path = plugin_path, placeholder="{placeholder}", cmd = " ".join(cmd_parts))
-    
+
+export TF_DISABLE_CHECKPOINT=true
+export CHECKPOINT_DISABLE=true
+
+{cmd}
+""".format(plugin_path = plugin_path, cmd = " ".join(cmd_parts))
+
     return " ".join(cmd_parts)
 
-def copy_module_files_script(ctx, module_dir, include_versions = True):
+def _copy_module_files_script(ctx, module_dir):
     """Generates script to copy module files to work directory.
-    
+
     Args:
         ctx: Rule context
         module_dir: Module directory path
-        include_versions: Whether to include versions file
-        
+
     Returns:
         Shell script string
     """
-    # Always use inline version for simplicity
     repo_name = ctx.label.workspace_name
     if repo_name:
         return """
@@ -168,46 +183,43 @@ if [ -d "$MODULE_DIR" ]; then
 fi
 """.format(module_dir = module_dir)
 
-def copy_source_files_script(ctx, srcs):
+def _copy_source_files_script(ctx, srcs):
     """Generates script to copy individual source files to work directory.
-    
+
     Args:
         ctx: Rule context
         srcs: List of source files to copy
-        
+
     Returns:
         Shell script string
     """
     if not srcs:
         return "# No source files to copy"
-    
-    # Always use inline version for simplicity
+
     copy_commands = []
     seen_basenames = {}
     module_package = ctx.label.package
-    
+
     for src in srcs:
         # Skip files that are in the module package directory
-        # These are already copied by copy_module_files_script
         if src.short_path.startswith(module_package + "/"):
             continue
-        
+
         # Also skip files from the same package in external repositories
-        # e.g., ../tf2~/tests/tf_lock_integration/file.tf when module_package is tests/tf_lock_integration
         if "/" + module_package + "/" in src.short_path:
             continue
-            
-        src_path = create_runfiles_path(ctx, src)
+
+        src_path = src.short_path if src.short_path.startswith("bazel-out/") else "_main/{}".format(src.short_path)
         basename = src.basename
-        
+
         if basename in seen_basenames:
             fail("File name conflict: '{}' appears in both '{}' and '{}'".format(
-                basename, 
+                basename,
                 seen_basenames[basename],
                 src.short_path
             ))
         seen_basenames[basename] = src.short_path
-        
+
         copy_commands.append("""
 # Copy {short_path} to working directory
 SRC_FILE="$RUNFILES/{src_path}"
@@ -217,76 +229,271 @@ else
     echo "WARNING: Source file not found: $SRC_FILE"
 fi""".format(
             short_path = src.short_path,
-            src_path = src_path, 
+            src_path = src_path,
             basename = basename
         ))
-    
+
     if not copy_commands:
         return "# All source files are from the module directory"
-    
+
     return "\n".join(copy_commands)
 
 def create_terraform_script(ctx, name, commands, srcs, extra_runfiles = None):
-    """Creates a script that runs terraform commands.
-    
+    """Creates a simplified terraform script.
+
     Args:
         ctx: Rule context
         name: Script name
         commands: List of command strings to execute
-        srcs: Source files to include in runfiles
-        extra_runfiles: Additional files to include in runfiles
-        
+        srcs: Source files
+        extra_runfiles: Additional files
+
     Returns:
         Script file and runfiles
     """
     script = ctx.actions.declare_file(name)
-    
-    # For now, always use inline script generation to avoid complexity
-    # The external scripts can be used in specific rules that need them
-    copy_files_script = copy_module_files_script(ctx, ctx.label.package) + "\n" + copy_source_files_script(ctx, srcs)
-    
+
+    # Simple script that copies files and runs commands
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
 
-{runfiles_script}
-{temp_dir_script}
+# Find runfiles
+if [ -n "${{RUNFILES_DIR:-}}" ]; then
+    RUNFILES="$RUNFILES_DIR"
+elif [ -f "$0.runfiles_manifest" ]; then
+    RUNFILES="$0.runfiles"
+else
+    RUNFILES="$0.runfiles"
+fi
 
-# Disable Terraform from accessing the network
+# Create work directory
+WORK_DIR=$(mktemp -d)
+trap "rm -rf $WORK_DIR" EXIT
+
+# Copy source files
+for file in "$RUNFILES"/_main/*; do
+    if [ -f "$file" ] && [[ "$file" == *.tf ]]; then
+        cp "$file" "$WORK_DIR/"
+    fi
+done
+
+cd "$WORK_DIR"
+
+# Set environment
 export TF_DISABLE_CHECKPOINT=true
 export CHECKPOINT_DISABLE=true
 
-# Copy module files
-{copy_files}
-
-# Change to work directory
-cd "$WORK_DIR"
-
 # Execute commands
 {commands}
-""".format(
-        runfiles_script = get_runfiles_dir_script(),
-        temp_dir_script = create_temp_dir_script(),
-        copy_files = copy_files_script,
-        commands = "\n".join(commands),
-    )
-    script_files = []
-    
+""".format(commands = "\n".join(commands))
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
-    runfiles_files = list(srcs) + script_files
+
+    runfiles_files = list(srcs)
     if extra_runfiles:
         runfiles_files.extend(extra_runfiles)
-    
-    # Create runfiles with transitive dependencies, including tool binaries
-    tools_runfiles = []
+
+    # Include tool binaries in runfiles
     if hasattr(ctx.attr, '_tools') and ctx.files._tools:
-        tools_runfiles.extend(ctx.files._tools)
-    
-    return script, ctx.runfiles(
-        files = runfiles_files + tools_runfiles,
-        transitive_files = depset(transitive = [f.files for f in extra_runfiles if hasattr(f, "files")])
+        runfiles_files.extend(ctx.files._tools)
+
+    return script, ctx.runfiles(files = runfiles_files)
+
+# Private functions merged from terraform_actions.bzl
+
+
+# Action-based implementations (Starlark approach)
+
+def _create_terraform_config_action(ctx, provider_mirror_path, name_suffix = ""):
+    """Creates terraform CLI configuration file using Starlark action.
+
+    Args:
+        ctx: Rule context
+        provider_mirror_path: Path to provider mirror directory
+        name_suffix: Optional suffix for output file name
+
+    Returns:
+        Generated terraform CLI config file
+    """
+    config_file = ctx.actions.declare_file(ctx.label.name + name_suffix + "_terraform_config")
+
+    config_content = """provider_installation {
+  filesystem_mirror {
+    path = "%s"
+  }
+}
+disable_checkpoint = true
+""" % provider_mirror_path
+
+    ctx.actions.write(
+        output = config_file,
+        content = config_content,
     )
+
+    return config_file
+
+def _read_provider_marker_action(ctx, plugin_dir, name_suffix = ""):
+    """Reads provider marker file content at build time.
+
+    Args:
+        ctx: Rule context
+        plugin_dir: Plugin marker file
+        name_suffix: Optional suffix for output file name
+
+    Returns:
+        File containing the provider directory name
+    """
+    marker_content = ctx.actions.declare_file(ctx.label.name + name_suffix + "_provider_marker")
+
+    ctx.actions.run_shell(
+        outputs = [marker_content],
+        inputs = [plugin_dir],
+        command = "cat %s > %s" % (plugin_dir.path, marker_content.path),
+        mnemonic = "ReadProviderMarker",
+        progress_message = "Reading provider marker",
+    )
+
+    return marker_content
+
+def _copy_sources_action(ctx, srcs, name_suffix = ""):
+    """Copies source files using Starlark actions.
+
+    Args:
+        ctx: Rule context
+        srcs: Source files to copy
+        name_suffix: Optional suffix for output directory name
+
+    Returns:
+        List of copied files
+    """
+    copied_files = []
+    output_dir = ctx.label.name + name_suffix + "_sources"
+
+    for src in srcs:
+        copied_file = ctx.actions.declare_file(output_dir + "/" + src.basename)
+        ctx.actions.symlink(
+            output = copied_file,
+            target_file = src,
+        )
+        copied_files.append(copied_file)
+
+    return copied_files
+
+def _create_module_directory_action(ctx, srcs, module_files, name_suffix = ""):
+    """Creates a working directory with all module files using Starlark actions."""
+    work_dir = ctx.label.name + name_suffix + "_workspace"
+    workspace_files = []
+
+    # Copy source files
+    for src in srcs:
+        dest_file = ctx.actions.declare_file(work_dir + "/" + src.basename)
+        ctx.actions.symlink(output = dest_file, target_file = src)
+        workspace_files.append(dest_file)
+
+    # Copy module files if different from source files
+    for module_file in module_files:
+        # Check if already copied as source file
+        already_copied = False
+        for src in srcs:
+            if src.basename == module_file.basename:
+                already_copied = True
+                break
+
+        if not already_copied:
+            dest_file = ctx.actions.declare_file(work_dir + "/" + module_file.basename)
+            ctx.actions.symlink(output = dest_file, target_file = module_file)
+            workspace_files.append(dest_file)
+
+    return workspace_files
+
+def _run_terraform_action(ctx, terraform_binary, args, srcs, config_file = None, name_suffix = ""):
+    """Runs terraform command using simple Starlark action.
+
+    Args:
+        ctx: Rule context
+        terraform_binary: Terraform binary file from tools
+        args: Terraform command arguments
+        srcs: Source files (for input dependencies)
+        config_file: Optional terraform CLI config file
+        name_suffix: Optional suffix for output file name
+
+    Returns:
+        Output file from terraform execution
+    """
+    output_file = ctx.actions.declare_file(ctx.label.name + name_suffix + "_output")
+
+    inputs = list(srcs)
+    if config_file:
+        inputs.append(config_file)
+
+    env = {
+        "TF_DISABLE_CHECKPOINT": "true",
+        "CHECKPOINT_DISABLE": "true",
+        "TF_IN_AUTOMATION": "true",
+        "TF_INPUT": "false",
+    }
+    if config_file:
+        env["TF_CLI_CONFIG_FILE"] = config_file.path
+
+    # Find working directory from sources
+    work_dir = "."
+    if srcs:
+        work_dir = srcs[0].dirname
+
+    ctx.actions.run_shell(
+        outputs = [output_file],
+        inputs = inputs,
+        tools = [terraform_binary],
+        command = "cd {} && {} {} > {} 2>&1".format(
+            work_dir,
+            terraform_binary.path,
+            " ".join(args),
+            output_file.path
+        ),
+        env = env,
+        mnemonic = "TerraformRun",
+        progress_message = "Running terraform %s" % " ".join(args),
+    )
+
+    return output_file
+
+
+def _generate_provider_search_candidates(provider_dir_name):
+    """Generate provider search path candidates in Starlark.
+
+    Args:
+        provider_dir_name: Placeholder for provider directory name
+
+    Returns:
+        List of candidate path patterns with placeholder
+    """
+    prefixes = ["_main/external", "external", "../external"]
+    repos = ["rules_tf2~~tf_providers~tf_provider_registry", "tf2~~tf_providers~tf_provider_registry", "tf_provider_registry"]
+
+    candidates = []
+    for prefix in prefixes:
+        for repo in repos:
+            candidates.append("$RUNFILES/{}/{}/{}".format(prefix, repo, provider_dir_name))
+
+    return candidates
+
+def _create_cli_config_content(path_placeholder):
+    """Create terraform CLI configuration content.
+
+    Args:
+        path_placeholder: Placeholder for the path
+
+    Returns:
+        CLI configuration template string
+    """
+    return """provider_installation {{
+  filesystem_mirror {{
+    path = "{}"
+  }}
+}}
+disable_checkpoint = true
+""".format(path_placeholder)

@@ -23,7 +23,7 @@ def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
     repository_ctx.file("go.mod", create_go_mod(provider_name, major_version))
 
     # Copy the generation script
-    script_label = Label("//tf2/utilities/scripts:generate_cdktf.sh")
+    script_label = Label("//tf2/cdktf/scripts:generate_cdktf.sh")
     repository_ctx.symlink(script_label, "generate_cdktf.sh")
     repository_ctx.execute(["chmod", "+x", "generate_cdktf.sh"])
 
@@ -43,7 +43,7 @@ def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
         print("Generation output:\n" + result.stdout)
 
     # Fix import paths in generated Go files
-    fix_script_label = Label("//tf2/utilities/scripts:fix_imports.sh")
+    fix_script_label = Label("//tf2/cdktf/scripts:fix_imports.sh")
     repository_ctx.symlink(fix_script_label, "fix_imports.sh")
     repository_ctx.execute(["chmod", "+x", "fix_imports.sh"])
 

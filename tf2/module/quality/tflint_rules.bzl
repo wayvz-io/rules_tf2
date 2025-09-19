@@ -1,7 +1,7 @@
 """Terraform validation and organization rules using tflint"""
 
-load("//tf2/internal/providers:info.bzl", "TfProviderConfigurationsInfo")
-load("//tf2/internal/utils:runfiles.bzl", "get_runfiles_dir_script", "get_workspace_dir_script", "create_runfiles_path")
+load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
+load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
 load("//tf2/module/quality:tflint_defaults.bzl", "get_base_rules", "get_tagged_overrides", "merge_rule_configs")
 
 def _generate_tflint_config_content(module_tags = None):

@@ -4,13 +4,12 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["*.bzl"]))
 
 bzl_library(
     name = "variables",
     srcs = ["variables.bzl"],
     deps = [
-        "//tf2/internal/providers:info",
+        "//tf2/providers/core:info",
     ],
 )
 
@@ -19,8 +18,7 @@ bzl_library(
     srcs = ["tf_module.bzl"],
     deps = [
         ":variables",
-        "//tf2/internal/providers:info",
-        "//tf2/internal/utils:files",
+        "//tf2/providers/core:info",
     ],
 )
 
@@ -31,3 +29,4 @@ bzl_library(
         ":tf_module",
     ],
 )
+

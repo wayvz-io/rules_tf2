@@ -1,7 +1,10 @@
 """Module extensions for tf2"""
 
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
-load("//tf2/tools/download:tools_repository.bzl", "tool_registry", "download_tool", "download_tflint_plugin", "tflint_plugin_registry")
+load("//tf2/tools/download:registry.bzl", "tool_registry", "tflint_plugin_registry")
+load("//tf2/tools/download:terraform.bzl", "download_terraform")
+load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
+load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
 # Version parsing functions - TODO: implement if from_versions_json feature is needed
 # load("//tf2/providers/repository:versions.bzl", "parse_versions_json", "get_tool_version", "get_tflint_plugin_version")
 # CDKTF support is disabled - not yet functional
@@ -454,21 +457,18 @@ def _tf_tools_impl(module_ctx):
             tflint_plugins[plugin_name] = plugin_version
     
     # Create individual tool repositories
-    download_tool(
+    download_terraform(
         name = "terraform_tool",
-        tool_name = "terraform",
         version = terraform_version,
     )
-    
-    download_tool(
-        name = "tflint_tool", 
-        tool_name = "tflint",
+
+    download_tflint(
+        name = "tflint_tool",
         version = tflint_version,
     )
-    
-    download_tool(
+
+    download_terraform_docs(
         name = "terraform_docs_tool",
-        tool_name = "terraform-docs", 
         version = terraform_docs_version,
     )
     

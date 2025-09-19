@@ -1,7 +1,7 @@
 """Terraform module rule implementation"""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
 load(":nested_modules.bzl", "process_nested_modules")
 
 def _tf_module_impl(ctx):

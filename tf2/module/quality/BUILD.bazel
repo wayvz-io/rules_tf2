@@ -4,14 +4,13 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["*.bzl"]))
 
 bzl_library(
     name = "format",
     srcs = ["format.bzl"],
     deps = [
         "//tf2/tools:terraform",
-        "//tf2/internal/utils:runfiles",
+        "//tf2/tools/runners:shell_utils",
     ],
 )
 
@@ -21,7 +20,6 @@ bzl_library(
     deps = [
         ":tflint_config",
         "//tf2/tools:tflint",
-        "//tf2/internal/utils:runfiles",
     ],
 )
 
@@ -38,7 +36,7 @@ bzl_library(
     srcs = ["tflint_config.bzl"],
     deps = [
         ":tflint_defaults",
-        "//tf2/internal/providers:info",
+        "//tf2/providers/core:info",
     ],
 )
 
@@ -52,6 +50,7 @@ bzl_library(
     srcs = ["tflint_rules.bzl"],
     deps = [
         "//tf2/tools:tflint",
-        "//tf2/internal/utils:runfiles",
+        "//tf2/tools/runners:shell_utils",
     ],
 )
+

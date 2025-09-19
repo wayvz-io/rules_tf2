@@ -1,7 +1,7 @@
 """Module dependency validation test rule"""
 
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo")
-load("//tf2/internal/utils:runfiles.bzl", "get_runfiles_dir_script")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script")
 
 def _tf_module_deps_test_impl(ctx):
     """Implementation of tf_module_deps_test rule"""

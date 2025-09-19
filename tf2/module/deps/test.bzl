@@ -73,19 +73,19 @@ tf_test = rule(
             allow_single_file = True,
         ),
         "_terraform_wrapper_script": attr.label(
-            default = "//tf2/utilities/scripts:terraform_wrapper.sh",
+            default = "//tf2/runner/scripts:terraform_wrapper.sh",
             allow_single_file = True,
         ),
         "_copy_module_files_script": attr.label(
-            default = "//tf2/utilities/scripts:copy_module_files.sh",
+            default = "//tf2/module/scripts:copy_module_files.sh",
             allow_single_file = True,
         ),
         "_copy_source_files_script": attr.label(
-            default = "//tf2/utilities/scripts:copy_source_files.sh",
+            default = "//tf2/module/scripts:copy_source_files.sh",
             allow_single_file = True,
         ),
         "_terraform_init_script": attr.label(
-            default = "//tf2/utilities/scripts:terraform_init.sh",
+            default = "//tf2/runner/scripts:terraform_init.sh",
             allow_single_file = True,
         ),
         "_tools": attr.label(

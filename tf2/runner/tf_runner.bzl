@@ -1,6 +1,6 @@
 """General-purpose Terraform runner rule for executing terraform commands."""
 
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/module/core:variables.bzl", "TfVariablesInfo")
 load("//tf2/tools/runners:terraform.bzl", "create_terraform_script", "terraform_init_script")
 
@@ -253,7 +253,7 @@ tf_runner = rule(
             doc = "Default command to run (e.g., 'plan' or 'apply') when no command is specified",
         ),
         "_terraform_runner_script": attr.label(
-            default = "//tf2/utilities/scripts:terraform_runner.sh",
+            default = "//tf2/runner/scripts:terraform_runner.sh",
             allow_single_file = True,
         ),
     },

@@ -29,6 +29,5 @@ bzl_library(
         "//tf2/tools:terraform",
         "//tf2/tools:tflint",
         "//tf2/tools:tfdoc",
-        "//tf2/internal/utils:runfiles",
     ],
 )

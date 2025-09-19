@@ -1,0 +1,6 @@
+# CDKTF generation scripts
+exports_files([
+    "generate_cdktf.sh",
+    "fix_imports.sh",
+    "terraform_provider_wrapper.sh",
+])
