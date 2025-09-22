@@ -52,7 +52,7 @@ git_override(
 )
 
 # Java runtime support (required by Bazel for tests)
-bazel_dep(name = "rules_java", version = "8.6.1")
+bazel_dep(name = "rules_java", version = "8.15.2")
 bazel_dep(name = "rules_nixpkgs_java", version = "0.13.0")
 git_override(
     module_name = "rules_nixpkgs_java",
@@ -72,10 +72,19 @@ use_repo(nixpkgs_repo_ext, "nixpkgs")
 
 # Non-module dependencies for toolchains (only when root module)
 non_module_deps = use_extension("//build/non_module_deps:non_module_deps.bzl", "non_module_deps", dev_dependency = True)
+# The Go toolchain requires a CC toolchain.
 use_repo(non_module_deps, "nixpkgs_config_cc")
-use_repo(non_module_deps, "nixpkgs_java_runtime")
+use_repo(non_module_deps, "nixpkgs_config_cc_info")
+use_repo(non_module_deps, "nixpkgs_config_cc_toolchains")
+register_toolchains("@nixpkgs_config_cc_toolchains//:all")
 
-# Note: Toolchains are registered by the root module that consumes this dependency
+# Bazel requires a Java runtime to run tests.
+use_repo(non_module_deps, "nixpkgs_java_runtime")
+use_repo(non_module_deps, "nixpkgs_java_runtime_toolchain")
+use_repo(non_module_deps, "nixpkgs_java_jdk_toolchain")
+register_toolchains("@nixpkgs_java_runtime_toolchain//:all")
+register_toolchains("@nixpkgs_java_jdk_toolchain//:all")
+
 
 # Go dependencies for HCL tool and tflint plugin
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")

@@ -29,7 +29,11 @@
       "Bash(echo $?)",
       "Bash(./scripts/check_buildifier.sh:*)",
       "Bash(timeout:*)",
-      "Read(//tmp/**)"
+      "Read(//tmp/**)",
+      "Bash(git commit:*)",
+      "Bash(nix develop:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ],
     "deny": [],
     "ask": []
