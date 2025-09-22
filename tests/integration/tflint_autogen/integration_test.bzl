@@ -1,6 +1,6 @@
 """Integration tests for TFLint auto-generation functionality"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 
 def _test_aws_module_generates_config_impl(ctx):
     env = analysistest.begin(ctx)
@@ -53,9 +53,6 @@ def _test_lint_test_target_exists_impl(ctx):
     # We can't directly check for the target, but we can verify the pattern
     label_name = str(target_under_test.label.name)
 
-    # The tf_module macro should create a {name}_lint_test target
-    expected_lint_test = label_name + "_lint_test"
-
     # This is more of a structural test - the lint test should be created
     # The actual existence is tested by the BUILD file dependencies
     asserts.true(env, label_name != "", "Module should have a name")
@@ -90,7 +87,11 @@ test_lint_test_target_exists_test = analysistest.make(
 )
 
 def tflint_autogen_integration_test_suite(name):
-    """Integration test suite for TFLint auto-generation"""
+    """Integration test suite for TFLint auto-generation.
+
+    Args:
+        name: Base name for the test suite targets.
+    """
 
     # Test AWS module
     test_aws_module_generates_config_test(

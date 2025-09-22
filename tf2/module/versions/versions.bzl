@@ -1,7 +1,7 @@
 """Terraform versions checking and generation rules"""
 
-load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo", "TfProviderAliasInfo", "TfModuleInfo")
-load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderAliasInfo", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo")
+load("//tf2/tools/runners:shell_utils.bzl", "get_workspace_dir_script")
 
 def _tf_versions_check_test_impl(ctx):
     """Implementation of tf_versions_check_test rule"""
@@ -15,13 +15,13 @@ def _tf_versions_check_test_impl(ctx):
         fail("provider_configurations must generate a versions_file")
 
     generated_file = provider_info.versions_file
-    
+
     # Get the hcl_tool binary
     hcl_tool = ctx.executable._hcl_tool
 
     # Create test executable that validates versions using HCL tool
     test_file = ctx.actions.declare_file(ctx.label.name + "_test.sh")
-    
+
     # The source directory is where the .tf files are
     # We'll validate that the HCL content matches expected versions
     ctx.actions.write(
@@ -202,6 +202,7 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
                 # The provider_configurations is a label to another tf_generate_versions_from_mirrors target
                 if TfProviderConfigurationsInfo in module_info.provider_configurations:
                     config_info = module_info.provider_configurations[TfProviderConfigurationsInfo]
+
                     # Merge module providers into our aggregated providers dict
                     for name, spec in config_info.providers.items():
                         if name not in aggregated_providers:
@@ -210,7 +211,7 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
     # Use the configured terraform version instead of detecting it
     # The version is passed from the tf_tools configuration in MODULE.bazel
     tf_version = ctx.attr.terraform_version or "1.0.0"
-    
+
     # Declare output for terraform version
     tf_version_file = ctx.actions.declare_file(ctx.label.name + "_tf_version.txt")
 
@@ -276,13 +277,13 @@ def _tf_versions_negative_test_impl(ctx):
         fail("provider_configurations must generate a versions_file")
 
     generated_file = provider_info.versions_file
-    
+
     # Get the hcl_tool binary
     hcl_tool = ctx.executable._hcl_tool
 
     # Create test executable that validates versions mismatch is detected
     test_file = ctx.actions.declare_file(ctx.label.name + "_test.sh")
-    
+
     ctx.actions.write(
         output = test_file,
         content = """#!/usr/bin/env bash

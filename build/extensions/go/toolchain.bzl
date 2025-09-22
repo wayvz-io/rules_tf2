@@ -1,7 +1,6 @@
 """Defines the go_sdk module extension with nixpkgs support."""
 
 load("@rules_nixpkgs_go//:go.bzl", "nixpkgs_go_configure")
-load("@rules_go//go/private:platforms.bzl", "PLATFORMS")
 
 def _nixpkgs_go_toolchain(nixpkgs_go):
     nixpkgs_go_configure(
@@ -18,7 +17,7 @@ def _go_sdk_impl(module_ctx):
 
     return module_ctx.extension_metadata(
         root_module_direct_deps = [tag.name for mod in module_ctx.modules for tag in mod.tags.nixpkgs] +
-                                [tag.name + "_toolchains" for mod in module_ctx.modules for tag in mod.tags.nixpkgs],
+                                  [tag.name + "_toolchains" for mod in module_ctx.modules for tag in mod.tags.nixpkgs],
         root_module_direct_dev_deps = [],
     )
 

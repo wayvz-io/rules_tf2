@@ -4,13 +4,13 @@ load("//tf2/tools/runners:shell_utils.bzl", "get_workspace_dir_script")
 
 def _tf_organization_check_test_impl(ctx):
     """Implementation of tf_organization_check_test rule"""
-    
+
     # Get the hcl_tool binary
     hcl_tool = ctx.executable._hcl_tool
-    
+
     # Create test executable that validates organization
     test_file = ctx.actions.declare_file(ctx.label.name + "_test.sh")
-    
+
     ctx.actions.write(
         output = test_file,
         content = """#!/usr/bin/env bash
@@ -37,7 +37,7 @@ exit 0
         ),
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([test_file]),
@@ -51,13 +51,13 @@ exit 0
 
 def _tf_reorganize_impl(ctx):
     """Implementation of tf_reorganize rule"""
-    
+
     # Get the hcl_tool binary
     hcl_tool = ctx.executable._hcl_tool
-    
+
     # Create script to reorganize files in source directory
     script = ctx.actions.declare_file(ctx.label.name + "_reorganize.sh")
-    
+
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
 
@@ -82,13 +82,13 @@ echo "Reorganized Terraform files in $TARGET_DIR"
         hcl_tool = hcl_tool.short_path if hcl_tool.short_path.startswith("bazel-out/") else "_main/{}".format(hcl_tool.short_path),
         package = ctx.label.package,
     )
-    
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script, hcl_tool]),
@@ -120,13 +120,13 @@ tf_organization_check_test = rule(
 
 def _tf_organization_negative_test_impl(ctx):
     """Implementation of tf_organization_negative_test rule that expects organization issues"""
-    
+
     # Get the hcl_tool binary
     hcl_tool = ctx.executable._hcl_tool
-    
+
     # Create test executable that validates organization fails as expected
     test_file = ctx.actions.declare_file(ctx.label.name + "_test.sh")
-    
+
     ctx.actions.write(
         output = test_file,
         content = """#!/usr/bin/env bash
@@ -150,7 +150,7 @@ fi
         ),
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([test_file]),

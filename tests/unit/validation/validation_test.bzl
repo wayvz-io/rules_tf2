@@ -1,6 +1,6 @@
 """Unit tests for Terraform validation rules"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//tf2/module/validation:validate.bzl", "tf_validate_test")
 
 # Test that validation test rule is created correctly
@@ -13,7 +13,7 @@ def _tf_validate_test_creation_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "tf_validate_test should provide DefaultInfo"
+        "tf_validate_test should provide DefaultInfo",
     )
 
     # Check that executable is set
@@ -21,7 +21,7 @@ def _tf_validate_test_creation_test_impl(ctx):
     asserts.true(
         env,
         default_info.files_to_run.executable != None,
-        "tf_validate_test should be executable"
+        "tf_validate_test should be executable",
     )
 
     return analysistest.end(env)
@@ -39,7 +39,7 @@ def _tf_validate_with_lockfile_test_impl(ctx):
     asserts.true(
         env,
         runfiles != None,
-        "Validation test should have runfiles"
+        "Validation test should have runfiles",
     )
 
     return analysistest.end(env)
@@ -57,7 +57,7 @@ def _tf_validate_with_registry_test_impl(ctx):
     asserts.true(
         env,
         runfiles != None,
-        "Validation test should include provider registry in runfiles"
+        "Validation test should include provider registry in runfiles",
     )
 
     return analysistest.end(env)
@@ -95,7 +95,7 @@ def _tf_validate_multiple_files_test_impl(ctx):
     asserts.true(
         env,
         len(tf_files) >= 2,
-        "Validation should handle multiple .tf files"
+        "Validation should handle multiple .tf files",
     )
 
     return analysistest.end(env)
@@ -229,7 +229,11 @@ create_mock_registry = rule(
 
 # Test suite setup
 def validation_test_suite(name):
-    """Create all validation test targets"""
+    """Create all validation test targets
+
+    Args:
+        name: Name of the test suite
+    """
 
     # Create test terraform files
     create_test_tf_files(

@@ -40,8 +40,10 @@ def _get_latest_tflint_version(repository_ctx):
         String version number
     """
     result = repository_ctx.execute([
-        "curl", "-s", "-L",
-        "https://api.github.com/repos/terraform-linters/tflint/releases/latest"
+        "curl",
+        "-s",
+        "-L",
+        "https://api.github.com/repos/terraform-linters/tflint/releases/latest",
     ])
     if result.return_code != 0:
         return TFLINT_CONFIG["fallback_version"]
@@ -86,8 +88,6 @@ def _download_tflint_impl(repository_ctx):
     # Build download URL
     download_url = _build_tflint_download_url(version, platform)
     binary_name = TFLINT_CONFIG["binary_name"]
-
-    print("Downloading tflint version {} from {}".format(version, download_url))
 
     # Download and extract
     repository_ctx.download_and_extract(
@@ -160,7 +160,7 @@ def _download_tflint_plugin_impl(repository_ctx):
     if plugin_name not in TFLINT_PLUGIN_CONFIG:
         fail("Unknown tflint plugin: {}. Supported plugins: {}".format(
             plugin_name,
-            ", ".join(TFLINT_PLUGIN_CONFIG.keys())
+            ", ".join(TFLINT_PLUGIN_CONFIG.keys()),
         ))
 
     config = TFLINT_PLUGIN_CONFIG[plugin_name]
@@ -168,8 +168,6 @@ def _download_tflint_plugin_impl(repository_ctx):
 
     # Build download URL
     download_url = _build_plugin_download_url(plugin_name, version, platform)
-
-    print("Downloading tflint plugin {} version {} from {}".format(plugin_name, version, download_url))
 
     # Download and extract the plugin
     repository_ctx.download_and_extract(

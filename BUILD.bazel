@@ -1,5 +1,8 @@
 """Public exports for tf2 module"""
 
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 exports_files(["MODULE.bazel"])
 
 # Clean, user-friendly aliases for external repositories
@@ -56,4 +59,34 @@ alias(
     name = "tf-regenerate-all-starlark",
     actual = "//scripts:tf_regenerate_all_starlark",
     visibility = ["//visibility:public"],
+)
+
+# Buildifier binary to check BUILD file formatting
+# Use as: bazel run //:buildifier_check
+sh_binary(
+    name = "buildifier_check",
+    srcs = ["//scripts:check_buildifier.sh"],
+    tags = ["lint"],
+)
+
+# For CI/testing purposes - validates that source is available
+sh_test(
+    name = "buildifier_test",
+    size = "small",
+    srcs = ["//scripts:check_buildifier.sh"],
+    data = glob(
+        [
+            "*.bzl",
+            "**/*.BUILD",
+            "**/*.bzl",
+            "**/BUILD.bazel",
+            "**/BUILD",
+        ],
+        exclude = ["BUILD.bazel"],
+    ) + [
+        "BUILD.bazel",
+    ],
+    tags = [
+        "lint",
+    ],
 )

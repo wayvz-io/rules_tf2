@@ -5,7 +5,7 @@ load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _tf_validate_test_impl(ctx):
     """Implementation of tf_validate_test rule"""
-    
+
     # Get unpacked providers directory from provider registry if available
     plugin_dir = None
     extra_runfiles = []
@@ -20,21 +20,22 @@ def _tf_validate_test_impl(ctx):
                 content = "mirror_linux_arm64",  # Use the actual mirror directory name
             )
             plugin_dir = plugin_dir_marker
+
             # For runfiles, we need to include all provider files
             extra_runfiles.append(plugin_dir_marker)
             extra_runfiles.extend(ctx.files.provider_registry)
-    
+
     # Add lock file to sources if provided
     all_srcs = ctx.files.srcs
     if ctx.attr.lock_file:
         all_srcs = ctx.files.srcs + ctx.files.lock_file
         extra_runfiles.extend(ctx.files.lock_file)
-    
+
     # Create terraform init and validate commands
     init_cmd = terraform_init_script(ctx, plugin_dir = plugin_dir)
     terraform_bin = get_terraform_path(ctx)
     validate_cmd = "{} validate -no-color".format(terraform_bin)
-    
+
     script, runfiles = create_terraform_script(
         ctx,
         name = ctx.label.name + "_validate.sh",
@@ -42,11 +43,11 @@ def _tf_validate_test_impl(ctx):
         srcs = all_srcs,
         extra_runfiles = extra_runfiles,
     )
-    
+
     # Merge runfiles from provider registry if available
     if ctx.attr.provider_registry and ctx.files.provider_registry:
         runfiles = runfiles.merge(ctx.runfiles(files = ctx.files.provider_registry))
-    
+
     return [
         DefaultInfo(
             files = depset([script]),

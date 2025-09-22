@@ -12,23 +12,23 @@ TfVariablesInfo = provider(
 
 def _tf_variables_impl(ctx):
     """Implementation of tf_variables rule."""
-    
+
     # Collect all variable files
     all_files = []
     tfvars_files = []
     json_files = []
-    
+
     for src in ctx.files.srcs:
         all_files.append(src)
         if src.path.endswith(".tfvars"):
             tfvars_files.append(src)
         elif src.path.endswith(".tfvars.json"):
             json_files.append(src)
-    
+
     # If validation is enabled, create a validation script
     if ctx.attr.validate:
         validation_script = ctx.actions.declare_file("{}_validate.sh".format(ctx.attr.name))
-        
+
         validation_content = """#!/usr/bin/env bash
 set -euo pipefail
 
@@ -60,19 +60,20 @@ else
 fi""".format(
                     file = f.path,
                     basename = f.basename,
-                ) for f in all_files
+                )
+                for f in all_files
             ]),
         )
-        
+
         ctx.actions.write(
             output = validation_script,
             content = validation_content,
             is_executable = True,
         )
-        
+
         # Note: Validation script is created but not executed during build
         # Users can run it separately if needed
-    
+
     return [
         DefaultInfo(
             files = depset(all_files),

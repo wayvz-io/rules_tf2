@@ -4,13 +4,12 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-
 bzl_library(
     name = "terraform_providers",
     srcs = ["terraform_providers.bzl"],
     deps = [
-        "//tf2/providers/registry:provider_metadata",
         "//tf2/providers/core:info",
+        "//tf2/providers/registry:provider_metadata",
     ],
 )
 

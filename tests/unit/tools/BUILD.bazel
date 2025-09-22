@@ -2,20 +2,25 @@
 
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load(":platform_test.bzl", "platform_test_suite")
-load(":tool_paths_test.bzl", "tool_paths_test_suite")
-load(":terraform_test.bzl", "terraform_test_suite")
 load(":terraform_actions_test.bzl", "terraform_actions_test_suite")
-load(":tflint_test.bzl", "tflint_test_suite")
+load(":terraform_test.bzl", "terraform_test_suite")
 load(":tfdoc_test.bzl", "tfdoc_test_suite")
+load(":tflint_test.bzl", "tflint_test_suite")
+load(":tool_paths_test.bzl", "tool_paths_test_suite")
 
 package(default_visibility = ["//tests:__subpackages__"])
 
 # Test suites
 platform_test_suite()
+
 tool_paths_test_suite()
+
 terraform_test_suite()
+
 terraform_actions_test_suite()
+
 tflint_test_suite()
+
 tfdoc_test_suite()
 
 # Test libraries for external use
@@ -23,8 +28,8 @@ bzl_library(
     name = "platform_test",
     srcs = ["platform_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/download:platform",
+        "@bazel_skylib//lib:unittest",
     ],
 )
 
@@ -32,8 +37,8 @@ bzl_library(
     name = "tool_paths_test",
     srcs = ["tool_paths_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/runners:tool_paths",
+        "@bazel_skylib//lib:unittest",
     ],
 )
 
@@ -41,8 +46,8 @@ bzl_library(
     name = "terraform_test",
     srcs = ["terraform_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/runners:terraform",
+        "@bazel_skylib//lib:unittest",
     ],
 )
 
@@ -50,8 +55,8 @@ bzl_library(
     name = "tflint_test",
     srcs = ["tflint_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/runners:tflint",
+        "@bazel_skylib//lib:unittest",
     ],
 )
 
@@ -59,8 +64,8 @@ bzl_library(
     name = "terraform_actions_test",
     srcs = ["terraform_actions_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/runners:terraform",
+        "@bazel_skylib//lib:unittest",
     ],
 )
 
@@ -68,7 +73,7 @@ bzl_library(
     name = "tfdoc_test",
     srcs = ["tfdoc_test.bzl"],
     deps = [
-        "@bazel_skylib//lib:unittest",
         "//tf2/tools/runners:tfdoc",
+        "@bazel_skylib//lib:unittest",
     ],
 )

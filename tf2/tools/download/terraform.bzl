@@ -43,8 +43,6 @@ def _download_terraform_impl(repository_ctx):
     download_url = _build_terraform_download_url(version, platform)
     binary_name = TERRAFORM_CONFIG["binary_name"]
 
-    print("Downloading terraform version {} from {}".format(version, download_url))
-
     # Download and extract
     repository_ctx.download_and_extract(
         url = download_url,

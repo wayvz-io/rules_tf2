@@ -5,7 +5,7 @@ load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _tf_test_impl(ctx):
     """Implementation of tf_test rule"""
-    
+
     # Get plugin directory from provider registry if available
     plugin_dir = None
     extra_runfiles = []
@@ -14,23 +14,23 @@ def _tf_test_impl(ctx):
         plugin_dir = ctx.file.provider_registry
         if plugin_dir:
             extra_runfiles.append(plugin_dir)
-    
+
     # Add lock file to sources if provided
     all_srcs = ctx.files.srcs
     if ctx.attr.lock_file:
         all_srcs = ctx.files.srcs + ctx.files.lock_file
         extra_runfiles.extend(ctx.files.lock_file)
-    
+
     # Create terraform init and test commands
     init_cmd = terraform_init_script(ctx, plugin_dir = plugin_dir)
     terraform_bin = get_terraform_path(ctx)
     test_cmd = "{} test -no-color".format(terraform_bin)
-    
+
     # Add specific test file if provided
     if ctx.attr.test_files:
         for test_file in ctx.files.test_files:
             test_cmd += " " + test_file.basename
-    
+
     script, runfiles = create_terraform_script(
         ctx,
         name = ctx.label.name + "_test.sh",
@@ -38,11 +38,11 @@ def _tf_test_impl(ctx):
         srcs = all_srcs + ctx.files.test_files,
         extra_runfiles = extra_runfiles,
     )
-    
+
     # Merge runfiles from provider registry if available
     if ctx.attr.provider_registry and ctx.files.provider_registry:
         runfiles = runfiles.merge(ctx.runfiles(files = ctx.files.provider_registry))
-    
+
     return [
         DefaultInfo(
             files = depset([script]),

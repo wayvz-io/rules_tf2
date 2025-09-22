@@ -1,14 +1,14 @@
 """TFLint test rule implementation with plugin support"""
 
-load("//tf2/tools/runners:tflint.bzl", "create_tflint_test", "create_tflint_autofix")
+load("//tf2/tools/runners:tflint.bzl", "create_tflint_test")
 
 def _tf_lint_plugin_test_impl(ctx):
     """Implementation of tf_lint_plugin_test rule"""
-    
+
     plugins = []
     if ctx.files.plugins:
         plugins = ctx.files.plugins
-    
+
     script, runfiles = create_tflint_test(
         ctx,
         name = ctx.label.name + "_lint.sh",
@@ -16,7 +16,7 @@ def _tf_lint_plugin_test_impl(ctx):
         config = ctx.file.config,
         plugins = plugins,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),
@@ -52,11 +52,11 @@ tf_lint_plugin_test = rule(
 
 def _tf_lint_plugin_negative_test_impl(ctx):
     """Implementation of tf_lint_plugin_negative_test rule"""
-    
+
     plugins = []
     if ctx.files.plugins:
         plugins = ctx.files.plugins
-    
+
     script, runfiles = create_tflint_test(
         ctx,
         name = ctx.label.name + "_lint.sh",
@@ -65,7 +65,7 @@ def _tf_lint_plugin_negative_test_impl(ctx):
         plugins = plugins,
         expect_issues = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),

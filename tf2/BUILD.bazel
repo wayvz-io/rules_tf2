@@ -3,8 +3,10 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@stardoc//stardoc:stardoc.bzl", "stardoc")
 
-exports_files(["extensions.bzl", "def.bzl"])
-
+exports_files([
+    "extensions.bzl",
+    "def.bzl",
+])
 
 # Public API
 bzl_library(
@@ -12,12 +14,12 @@ bzl_library(
     srcs = ["def.bzl"],
     visibility = ["//visibility:public"],
     deps = [
-        "//tf2/providers/registry:provider_mirror",
-        "//tf2/execution/macros:macros",
-        "//tf2/publish/oci:oci_push",
-        "//tf2/publish/cloud:tf_cloud_runner",
-        "//tf2/runner:tf_runner",
+        "//tf2/execution/macros",
         "//tf2/module/core:variables",
+        "//tf2/providers/registry:provider_mirror",
+        "//tf2/publish/cloud:tf_cloud_runner",
+        "//tf2/publish/oci:oci_push",
+        "//tf2/runner:tf_runner",
     ],
 )
 
@@ -30,8 +32,8 @@ bzl_library(
         "//tf2/providers/repository:terraform_providers",
         "//tf2/tools/download:registry",
         "//tf2/tools/download:terraform",
-        "//tf2/tools/download:tflint",
         "//tf2/tools/download:terraform_docs",
+        "//tf2/tools/download:tflint",
     ],
 )
 
@@ -40,6 +42,6 @@ stardoc(
     name = "api_docs",
     out = "api.md",
     input = "def.bzl",
-    deps = [":def"],
     tags = ["manual"],  # Manual due to Java toolchain complexity
+    deps = [":def"],
 )

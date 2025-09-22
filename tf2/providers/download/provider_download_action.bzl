@@ -2,13 +2,13 @@
 
 def _provider_download_action_impl(ctx):
     """Download and extract a single provider binary using Bazel actions."""
-    
+
     # Declare the output directory for the extracted provider
     provider_dir = ctx.actions.declare_directory(ctx.label.name)
-    
+
     # Create a script that will be run with shell access
     script = ctx.actions.declare_file(ctx.label.name + "_download.sh")
-    
+
     # Use Bazel's download_and_extract action if available
     # Otherwise fall back to a shell script that uses system tools
     script_content = """#!/usr/bin/env bash
@@ -130,13 +130,13 @@ chmod +x "$OUTPUT_DIR"/terraform-provider-* 2>/dev/null || true
 cd /
 rm -rf "$DOWNLOAD_DIR"
 """
-    
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
+
     # Run the download script with use_default_shell_env to get system tools
     ctx.actions.run_shell(
         outputs = [provider_dir],
@@ -155,7 +155,7 @@ rm -rf "$DOWNLOAD_DIR"
             "no-remote-cache": "1",  # Don't cache large binaries remotely
         },
     )
-    
+
     return [DefaultInfo(
         files = depset([provider_dir]),
         runfiles = ctx.runfiles(files = [provider_dir]),

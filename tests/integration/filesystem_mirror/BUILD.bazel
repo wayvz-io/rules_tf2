@@ -5,7 +5,7 @@
 # load("//tf2/core/providers:filesystem_mirror.bzl", "filesystem_mirror")
 
 # filesystem_mirror(
-#     name = "test_mirror_single", 
+#     name = "test_mirror_single",
 #     providers = [
 #         "@tf_provider_registry//:download_null_3_2_4_linux_arm64",
 #     ],

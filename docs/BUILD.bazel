@@ -1,7 +1,5 @@
 """Documentation generation for rules_tf2"""
 
-
-
 # # Generate documentation for extensions
 # stardoc(
 #     name = "extensions_docs",

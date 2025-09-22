@@ -1,17 +1,17 @@
 """Terraform documentation testing and generation rules"""
 
-load("//tf2/tools/runners:tfdoc.bzl", "create_tfdoc_test", "create_tfdoc_generator")
+load("//tf2/tools/runners:tfdoc.bzl", "create_tfdoc_generator", "create_tfdoc_test")
 
 def _tf_doc_test_impl(ctx):
     """Implementation of tf_doc_test rule"""
-    
+
     script, runfiles = create_tfdoc_test(
         ctx,
         name = ctx.label.name + "_test.sh",
         srcs = ctx.files.srcs,
         config = ctx.file.config,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),
@@ -22,13 +22,13 @@ def _tf_doc_test_impl(ctx):
 
 def _tf_generate_docs_impl(ctx):
     """Implementation of tf_generate_docs rule"""
-    
+
     script, runfiles = create_tfdoc_generator(
         ctx,
         name = ctx.label.name + "_generate.sh",
         config = ctx.file.config,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),

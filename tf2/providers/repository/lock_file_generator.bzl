@@ -2,13 +2,13 @@
 
 def _tf_lock_file_generator_impl(ctx):
     """Generate a .terraform.lock.hcl file from stored provider lock data"""
-    
+
     # Output lock file
     output_lock = ctx.actions.declare_file(".terraform.lock.hcl")
-    
+
     # Create a script to generate the lock file from provider_locks.bzl
     script = ctx.actions.declare_file(ctx.label.name + "_generate.py")
-    
+
     script_content = '''#!/usr/bin/env python3
 import json
 import sys
@@ -72,13 +72,13 @@ def main():
 if __name__ == "__main__":
     main()
 '''
-    
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
+
     # Run the script
     ctx.actions.run(
         outputs = [output_lock],
@@ -93,7 +93,7 @@ if __name__ == "__main__":
         progress_message = "Generating Terraform lock file from stored hashes",
         use_default_shell_env = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([output_lock]),

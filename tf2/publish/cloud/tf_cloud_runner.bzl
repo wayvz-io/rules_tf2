@@ -10,8 +10,8 @@ def tf_cloud_configuration(
         organization = None,
         tfe_host = None,
         auto_backend = True,
-        auto_apply = False,  # Ignored, kept for backward compatibility
-        enable_local_validation = True,  # Ignored, kept for backward compatibility
+        _auto_apply = False,  # Ignored, kept for backward compatibility
+        _enable_local_validation = True,  # Ignored, kept for backward compatibility
         **kwargs):
     """Creates Terraform Cloud runner targets for plan and apply operations.
 
@@ -23,17 +23,19 @@ def tf_cloud_configuration(
         organization: Terraform Cloud organization (defaults to "Wayvz" if not set)
         tfe_host: Terraform Enterprise hostname (optional, defaults to app.terraform.io)
         auto_backend: Automatically generate backend configuration (default True)
+        _auto_apply: Ignored, kept for backward compatibility
+        _enable_local_validation: Ignored, kept for backward compatibility
         **kwargs: Additional attributes passed to all rules
     """
-    
+
     # Default organization if not provided
     if not organization:
         organization = "Wayvz"
-    
+
     # Filter out kwargs that tf_runner doesn't accept
     # Remove auto_apply and enable_local_validation as they're handled differently now
     filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["auto_apply", "enable_local_validation"]}
-    
+
     # Main runner target - can run any terraform command
     if auto_backend:
         tf_runner(
@@ -54,7 +56,7 @@ def tf_cloud_configuration(
             backend_type = "",
             **filtered_kwargs
         )
-    
+
     # Local validation target (no backend)
     tf_runner(
         name = name + "_validate",
@@ -65,7 +67,7 @@ def tf_cloud_configuration(
         init_args = "-backend=false",  # Disable backend for init
         **filtered_kwargs
     )
-    
+
     # Plan target (speculative plan equivalent)
     if auto_backend:
         tf_runner(
@@ -88,7 +90,7 @@ def tf_cloud_configuration(
             default_plan_args = "",
             **filtered_kwargs
         )
-    
+
     # Apply target
     if auto_backend:
         tf_runner(

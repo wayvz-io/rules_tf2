@@ -1,7 +1,9 @@
+"""Non-module dependencies configuration for rules_tf2."""
+
 load("@rules_nixpkgs_cc//:cc.bzl", "nixpkgs_cc_configure")
 load("@rules_nixpkgs_java//:java.bzl", "nixpkgs_java_configure")
 
-def _non_module_deps_impl(ctx):
+def _non_module_deps_impl(_):
     nixpkgs_cc_configure(
         name = "nixpkgs_config_cc",
         repository = "@nixpkgs",

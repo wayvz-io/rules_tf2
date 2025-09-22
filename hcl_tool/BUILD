@@ -4,8 +4,8 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 go_library(
     name = "hcl_pkg",
     srcs = [
-        "pkg/hcl/types.go",
         "pkg/hcl/schema.go",
+        "pkg/hcl/types.go",
     ],
     importpath = "github.com/wayvz-io/network_intent_manager/build/rules/tf2/hcl_tool/pkg/hcl",
     visibility = ["//visibility:public"],
@@ -45,11 +45,11 @@ go_library(
 go_library(
     name = "cmd",
     srcs = [
-        "cmd/root.go",
         "cmd/extract_module_lock.go",
         "cmd/parse_lock.go",
         "cmd/read_versions.go",
         "cmd/reorganize.go",
+        "cmd/root.go",
         "cmd/tflint_validate_versions.go",
         "cmd/validate_organization.go",
         "cmd/validate_versions.go",
@@ -81,6 +81,7 @@ go_binary(
 
 go_test(
     name = "hcl_tool_test",
+    size = "small",
     srcs = [
         "test/integration_test.go",
         "test/lockfile_test.go",
@@ -93,5 +94,4 @@ go_test(
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
-    size = "small",
 )

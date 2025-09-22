@@ -1,8 +1,6 @@
 """Unit tests for Terraform provider rules"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf2/providers/registry:provider_mirror.bzl", "provider_mirror")
-load("//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
 
 # Test provider mirror rule
@@ -15,7 +13,7 @@ def _provider_mirror_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "provider_mirror should provide DefaultInfo"
+        "provider_mirror should provide DefaultInfo",
     )
 
     # Check that files are generated
@@ -23,7 +21,7 @@ def _provider_mirror_test_impl(ctx):
     asserts.true(
         env,
         len(files) > 0,
-        "provider_mirror should generate files"
+        "provider_mirror should generate files",
     )
 
     return analysistest.end(env)
@@ -40,7 +38,7 @@ def _filesystem_mirror_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "filesystem_mirror should provide DefaultInfo"
+        "filesystem_mirror should provide DefaultInfo",
     )
 
     # Check runfiles are properly set
@@ -48,7 +46,7 @@ def _filesystem_mirror_test_impl(ctx):
     asserts.true(
         env,
         runfiles != None,
-        "filesystem_mirror should provide runfiles"
+        "filesystem_mirror should provide runfiles",
     )
 
     return analysistest.end(env)
@@ -65,7 +63,7 @@ def _provider_configuration_test_impl(ctx):
     asserts.true(
         env,
         TfProviderConfigurationsInfo in target_under_test,
-        "Provider configuration should provide TfProviderConfigurationsInfo"
+        "Provider configuration should provide TfProviderConfigurationsInfo",
     )
 
     # Check provider versions
@@ -73,14 +71,14 @@ def _provider_configuration_test_impl(ctx):
     asserts.true(
         env,
         "aws" in provider_info.providers,
-        "Should contain AWS provider"
+        "Should contain AWS provider",
     )
 
     asserts.equals(
         env,
         "6.12.0",
         provider_info.providers["aws"],
-        "AWS provider version should match"
+        "AWS provider version should match",
     )
 
     return analysistest.end(env)
@@ -98,13 +96,13 @@ def _multiple_providers_test_impl(ctx):
     asserts.true(
         env,
         len(provider_info.providers) >= 2,
-        "Should support multiple providers"
+        "Should support multiple providers",
     )
 
     asserts.true(
         env,
         "azurerm" in provider_info.providers,
-        "Should contain Azure provider"
+        "Should contain Azure provider",
     )
 
     return analysistest.end(env)
@@ -119,13 +117,13 @@ def _provider_version_constraints_test_impl(ctx):
     provider_info = target_under_test[TfProviderConfigurationsInfo]
 
     # Check version format
-    for provider, version in provider_info.providers.items():
+    for _, version in provider_info.providers.items():
         parts = version.split(".")
         asserts.equals(
             env,
             3,
             len(parts),
-            "Provider version should be in semver format (x.y.z)"
+            "Provider version should be in semver format (x.y.z)",
         )
 
         # Check each part is numeric
@@ -133,7 +131,7 @@ def _provider_version_constraints_test_impl(ctx):
             asserts.true(
                 env,
                 part.isdigit(),
-                "Version parts should be numeric"
+                "Version parts should be numeric",
             )
 
     return analysistest.end(env)
@@ -199,7 +197,11 @@ test_mirror = rule(
 
 # Test suite setup
 def provider_test_suite(name):
-    """Create all provider test targets"""
+    """Create all provider test targets
+
+    Args:
+        name: Name of the test suite
+    """
 
     # Create test provider configurations
     test_provider_config(
