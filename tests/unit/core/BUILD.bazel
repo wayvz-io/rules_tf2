@@ -1,0 +1,8 @@
+load(":staging_test.bzl", "staging_test_suite")
+
+staging_test_suite(name = "staging_test")
+
+test_suite(
+    name = "all",
+    tests = [":staging_test"],
+)

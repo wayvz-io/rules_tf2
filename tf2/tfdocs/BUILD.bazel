@@ -1,0 +1,17 @@
+# Terraform documentation generation capability
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//tf2:__subpackages__"])
+
+bzl_library(
+    name = "generator",
+    srcs = ["generator.bzl"],
+)
+
+bzl_library(
+    name = "test",
+    srcs = ["test.bzl"],
+    deps = [
+        "//tf2/tools/runners:tfdoc",
+    ],
+)

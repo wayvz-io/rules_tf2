@@ -1,0 +1,45 @@
+# TFLint linting capability
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//tf2:__subpackages__"])
+
+bzl_library(
+    name = "defaults",
+    srcs = ["defaults.bzl"],
+)
+
+bzl_library(
+    name = "config",
+    srcs = ["config.bzl"],
+    deps = [
+        ":defaults",
+        "//tf2/providers/core:info",
+        "//tf2/tools/runners:tool_paths",
+    ],
+)
+
+bzl_library(
+    name = "test",
+    srcs = ["test.bzl"],
+    deps = [
+        "//tf2/tools/runners:tflint",
+    ],
+)
+
+bzl_library(
+    name = "validate",
+    srcs = ["validate.bzl"],
+    deps = [
+        ":defaults",
+        "//tf2/providers/core:info",
+        "//tf2/tools/runners:shell_utils",
+    ],
+)
+
+bzl_library(
+    name = "format",
+    srcs = ["format.bzl"],
+    deps = [
+        "//tf2/tools/runners:shell_utils",
+    ],
+)

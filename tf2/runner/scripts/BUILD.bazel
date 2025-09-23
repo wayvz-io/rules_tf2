@@ -1,6 +1,0 @@
-# Terraform runner scripts
-exports_files([
-    "terraform_runner.sh",
-    "terraform_wrapper.sh",
-    "terraform_init.sh",
-])

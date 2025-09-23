@@ -1,7 +1,7 @@
 """Unit tests for Terraform organization rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/module/deps:organization.bzl", "tf_organization_check_test", "tf_organization_negative_test", "tf_reorganize")
+load("//tf2/internal:organization.bzl", "tf_organization_check_test", "tf_organization_negative_test", "tf_reorganize")
 
 # Test organization check test creation
 def _tf_organization_check_test_creation_test_impl(ctx):

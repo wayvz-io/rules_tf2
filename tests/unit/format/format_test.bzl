@@ -1,7 +1,7 @@
 """Unit tests for Terraform format rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/module/quality:format.bzl", "tf_format", "tf_format_test")
+load("//tf2/tflint:format.bzl", "tf_format", "tf_format_test")
 
 # Test that format test rule is created correctly
 def _tf_format_test_creation_test_impl(ctx):

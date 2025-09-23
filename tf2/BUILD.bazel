@@ -14,12 +14,12 @@ bzl_library(
     srcs = ["def.bzl"],
     visibility = ["//visibility:public"],
     deps = [
-        "//tf2/execution/macros",
-        "//tf2/module/core:variables",
+        "//tf2/macros:tf_module",
         "//tf2/providers/registry:provider_mirror",
-        "//tf2/publish/cloud:tf_cloud_runner",
         "//tf2/publish/oci:oci_push",
-        "//tf2/runner:tf_runner",
+        "//tf2/tfcloud:runner",
+        "//tf2/tfcore:tf_runner",
+        "//tf2/tfcore:variables",
     ],
 )
 
