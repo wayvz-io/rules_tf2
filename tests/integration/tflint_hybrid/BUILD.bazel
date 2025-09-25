@@ -8,7 +8,7 @@ tf_module(
         "@tf_provider_registry//:aws_6",
         "@tf_provider_registry//:random_3",
     ],
-    module_tags = ["test_module"],  # Apply relaxed rules for test modules
+    tags = ["test_module"],  # Apply relaxed rules for test modules
     visibility = ["//visibility:public"],
 )
 
