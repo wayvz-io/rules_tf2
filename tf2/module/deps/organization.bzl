@@ -1,6 +1,6 @@
 """Terraform file organization checking and reorganization rules"""
 
-load("//tf2/internal/utils:runfiles.bzl", "get_workspace_dir_script", "create_runfiles_path")
+load("//tf2/tools/runners:shell_utils.bzl", "get_workspace_dir_script")
 
 def _tf_organization_check_test_impl(ctx):
     """Implementation of tf_organization_check_test rule"""
@@ -79,7 +79,7 @@ fi
 echo "Reorganized Terraform files in $TARGET_DIR"
 """.format(
         workspace_script = get_workspace_dir_script(),
-        hcl_tool = create_runfiles_path(ctx, hcl_tool),
+        hcl_tool = hcl_tool.short_path if hcl_tool.short_path.startswith("bazel-out/") else "_main/{}".format(hcl_tool.short_path),
         package = ctx.label.package,
     )
     

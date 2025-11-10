@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
 load("//tf2/module/core:tf_module.bzl", "tf_module_rule")
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 # Test path rewriting patterns
 def _test_path_rewriting_patterns(ctx):

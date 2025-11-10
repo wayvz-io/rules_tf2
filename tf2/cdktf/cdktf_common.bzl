@@ -76,19 +76,3 @@ def get_environment_for_cdktf(repository_ctx):
     
     return env
 
-def run_script_from_file(repository_ctx, script_path, args, timeout = 600):
-    """Run a script file with given arguments"""
-    # Copy the script to the repository
-    script_label = Label("//tf2/utilities/scripts:" + script_path)
-    repository_ctx.symlink(script_label, script_path)
-    
-    # Make it executable
-    repository_ctx.execute(["chmod", "+x", script_path])
-    
-    # Run the script
-    cmd = ["./" + script_path] + args
-    return repository_ctx.execute(
-        cmd,
-        timeout = timeout,
-        environment = get_environment_for_cdktf(repository_ctx),
-    )

@@ -1,6 +1,6 @@
 """Provider metadata rule that provides version information without downloads"""
 
-load("//tf2/internal/providers:info.bzl", "TfProviderAliasInfo")
+load("//tf2/providers/core:info.bzl", "TfProviderAliasInfo")
 
 def _provider_metadata_impl(ctx):
     """Implementation of provider_metadata rule - just metadata"""

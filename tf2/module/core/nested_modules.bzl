@@ -1,7 +1,7 @@
 """Nested module processing - copying and path rewriting"""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 def _process_module_files(ctx, module, module_name):
     """Process a module's files for inclusion in a parent module.

@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
 load("//tf2/module/core:tf_module.bzl", "tf_module_rule", "tf_module_deps")
-load("//tf2/internal/providers:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
 
 # Test that tf_module_rule creates proper providers
 def _tf_module_basic_test_impl(ctx):

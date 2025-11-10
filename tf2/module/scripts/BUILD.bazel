@@ -1,0 +1,5 @@
+# Module management scripts
+exports_files([
+    "copy_module_files.sh",
+    "copy_source_files.sh",
+])

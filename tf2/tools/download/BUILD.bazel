@@ -4,9 +4,39 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["*.bzl"]))
+exports_files([
+    "platform.bzl",
+    "terraform.bzl",
+    "tflint.bzl",
+    "terraform_docs.bzl",
+    "registry.bzl",
+])
 
 bzl_library(
-    name = "tools_repository",
-    srcs = ["tools_repository.bzl"],
+    name = "platform",
+    srcs = ["platform.bzl"],
 )
+
+bzl_library(
+    name = "terraform",
+    srcs = ["terraform.bzl"],
+    deps = [":platform"],
+)
+
+bzl_library(
+    name = "tflint",
+    srcs = ["tflint.bzl"],
+    deps = [":platform"],
+)
+
+bzl_library(
+    name = "terraform_docs",
+    srcs = ["terraform_docs.bzl"],
+    deps = [":platform"],
+)
+
+bzl_library(
+    name = "registry",
+    srcs = ["registry.bzl"],
+)
+

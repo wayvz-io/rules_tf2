@@ -62,7 +62,7 @@ def tf_module(
     # Default to all files in the module directory if srcs not specified
     # This follows the Terraform convention that modules include all files in their directory
     if srcs == None:
-        srcs = native.glob(["**/*"], exclude = ["*.bzl", "*.bazel", "BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel", "*.gen.tf"])
+        srcs = native.glob(["**/*"], exclude = ["*.bzl", "*.bazel", "BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel", "*.gen.tf", "test_data/**/*"])
     
     # The glob pattern above already includes all .tf files
     # No need to explicitly add versions.tf - it will be included if it exists

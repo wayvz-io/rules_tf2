@@ -4,14 +4,19 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["*.bzl"]))
+exports_files([
+    "terraform.bzl",
+    "tflint.bzl",
+    "tfdoc.bzl",
+    "tool_paths.bzl",
+])
 
 bzl_library(
     name = "terraform",
     srcs = ["terraform.bzl"],
     deps = [
+        ":shell_utils",
         ":tool_paths",
-        "//tf2/tools/download:tools_repository",
     ],
 )
 
@@ -20,7 +25,6 @@ bzl_library(
     srcs = ["tflint.bzl"],
     deps = [
         ":tool_paths",
-        "//tf2/tools/download:tools_repository",
     ],
 )
 
@@ -29,19 +33,15 @@ bzl_library(
     srcs = ["tfdoc.bzl"],
     deps = [
         ":tool_paths",
-        "//tf2/tools/download:tools_repository",
     ],
-)
-
-bzl_library(
-    name = "actions",
-    srcs = ["actions.bzl"],
 )
 
 bzl_library(
     name = "tool_paths",
     srcs = ["tool_paths.bzl"],
-    deps = [
-        "//tf2/tools/download:tools_repository",
-    ],
+)
+
+bzl_library(
+    name = "shell_utils",
+    srcs = ["shell_utils.bzl"],
 )

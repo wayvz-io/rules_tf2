@@ -1,6 +1,7 @@
 """Terraform format testing and fixing rules"""
 
-load("//tf2/internal/utils:runfiles.bzl", "get_workspace_dir_script", "get_runfiles_dir_script")
+load("//tf2/tools/runners:shell_utils.bzl", "get_workspace_dir_script")
+load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path", "TOOLS_ATTR")
 
 def _tf_format_test_impl(ctx):

@@ -4,13 +4,13 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-exports_files(glob(["*.bzl"]))
 
 bzl_library(
     name = "module_deps",
     srcs = ["module_deps.bzl"],
     deps = [
-        "//tf2/internal/providers:info",
+        "//tf2/providers/core:info",
+        "//tf2/tools/runners:shell_utils",
     ],
 )
 
@@ -19,8 +19,7 @@ bzl_library(
     srcs = ["organization.bzl"],
     deps = [
         "//tf2/tools:terraform",
-        "//tf2/internal/utils:runfiles",
-        "//tf2/internal/utils:files",
+        "//tf2/tools/runners:shell_utils",
     ],
 )
 
@@ -29,6 +28,5 @@ bzl_library(
     srcs = ["test.bzl"],
     deps = [
         "//tf2/tools:terraform",
-        "//tf2/internal/utils:runfiles",
     ],
 )

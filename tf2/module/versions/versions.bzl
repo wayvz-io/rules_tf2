@@ -1,7 +1,7 @@
 """Terraform versions checking and generation rules"""
 
-load("//tf2/internal/providers:info.bzl", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo", "TfProviderAliasInfo", "TfModuleInfo")
-load("//tf2/internal/utils:runfiles.bzl", "get_runfiles_dir_script", "get_workspace_dir_script", "create_runfiles_path")
+load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo", "TfProviderAliasInfo", "TfModuleInfo")
+load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
 
 def _tf_versions_check_test_impl(ctx):
     """Implementation of tf_versions_check_test rule"""
@@ -114,8 +114,8 @@ mkdir -p "$TARGET_DIR"
 echo "Updated Terraform versions in $TARGET_DIR"
 """.format(
         workspace_script = get_workspace_dir_script(),
-        versions_link = create_runfiles_path(ctx, versions_link),
-        hcl_tool = create_runfiles_path(ctx, hcl_tool),
+        versions_link = versions_link.short_path if versions_link.short_path.startswith("bazel-out/") else "_main/{}".format(versions_link.short_path),
+        hcl_tool = hcl_tool.short_path if hcl_tool.short_path.startswith("bazel-out/") else "_main/{}".format(hcl_tool.short_path),
         package = ctx.label.package,
     )
 

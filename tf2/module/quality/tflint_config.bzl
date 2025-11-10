@@ -1,6 +1,6 @@
 """TFLint configuration generator for tf2 rules"""
 
-load("//tf2/internal/providers:info.bzl", "TfProviderConfigurationsInfo")
+load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
 
 def _tf_tflint_config_impl(ctx):
     """Implementation of tf_tflint_config rule"""
