@@ -12,12 +12,22 @@ def _non_module_deps_impl(_):
 
     nixpkgs_java_configure(
         name = "nixpkgs_java_runtime",
-        attribute_path = "jdk21.home",
+        attribute_path = "jdk23.home",
         repository = "@nixpkgs",
         toolchain = True,
         register = False,
         toolchain_name = "nixpkgs_java",
-        toolchain_version = "21",
+        toolchain_version = "23",
+    )
+
+    nixpkgs_java_configure(
+        name = "nixpkgs_java_jdk",
+        attribute_path = "jdk23",
+        repository = "@nixpkgs",
+        toolchain = True,
+        register = False,
+        toolchain_name = "nixpkgs_java_jdk",
+        toolchain_version = "23",
     )
 
 non_module_deps = module_extension(

@@ -6,6 +6,34 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 rules_tf2 is a comprehensive Bazel module that provides advanced Terraform integration for Bazel builds. It enables managing Terraform modules, stacks, and infrastructure deployments with integrated testing, provider management, and Terraform Cloud support.
 
+## Development Workflow
+
+### Feature Development Process
+All feature development should follow this Graphite-based workflow:
+
+```bash
+# 1. Create a new branch with descriptive message
+gt create -am "Brief description of what you're implementing"
+
+# 2. Do the development work
+# ... implement features, fix bugs, etc.
+
+# 3. Ensure all tests pass before submitting
+bazel test //...
+
+# 4. Update the commit with final changes
+gt modify
+
+# 5. Submit the work for review
+gt submit
+```
+
+This workflow ensures:
+- Clean, descriptive commits with proper messaging
+- All tests pass before submission
+- Consistent branching and review process
+- Proper integration with Graphite stack management
+
 ## Common Development Commands
 
 ### Building and Testing

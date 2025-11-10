@@ -12,6 +12,7 @@ bzl_library(
     name = "macros",
     srcs = ["macros.bzl"],
     deps = [
+        "//tf2/module/core:nested_modules",
         "//tf2/module/core:tf_module",
         "//tf2/module/deps:module_deps",
         "//tf2/module/deps:organization",
