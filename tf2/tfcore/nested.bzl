@@ -207,10 +207,15 @@ def process_nested_modules(ctx, parent_srcs, modules):
     for src_file in parent_srcs:
         if src_file.basename.endswith(".tf") and module_mappings:
             # Rewrite parent module TF files to update module sources
-            # Use a unique output path to avoid conflicts with genrules
-            # Prefix with the module name to make it unique
-            unique_dest_path = ctx.label.name + "_" + src_file.basename
-            rewritten = _rewrite_terraform_file(ctx, src_file, unique_dest_path, module_mappings)
+            # Only prefix with module name if it's a generated file to avoid conflicts
+            # Generated files typically have "bazel-out" in their path
+            if "bazel-out" in src_file.path or "bazel-bin" in src_file.path:
+                # This is a generated file, use a unique name to avoid conflicts
+                unique_dest_path = ctx.label.name + "_" + src_file.basename
+                rewritten = _rewrite_terraform_file(ctx, src_file, unique_dest_path, module_mappings)
+            else:
+                # This is a source file, keep the original basename
+                rewritten = _rewrite_terraform_file(ctx, src_file, src_file.basename, module_mappings)
             parent_files.append(rewritten)
         else:
             # Keep non-TF files as-is
