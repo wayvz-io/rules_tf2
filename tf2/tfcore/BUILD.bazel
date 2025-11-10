@@ -1,0 +1,80 @@
+# Core Terraform module functionality
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//tf2:__subpackages__"])
+
+bzl_library(
+    name = "variables",
+    srcs = ["variables.bzl"],
+)
+
+bzl_library(
+    name = "module",
+    srcs = ["module.bzl"],
+    deps = [
+        ":nested",
+        "//tf2/providers/core:info",
+    ],
+)
+
+bzl_library(
+    name = "runner",
+    srcs = ["runner.bzl"],
+    deps = [
+        ":variables",
+        "//tf2/internal:staging",
+        "//tf2/providers/core:info",
+    ],
+)
+
+bzl_library(
+    name = "tf_runner",
+    srcs = ["tf_runner.bzl"],
+    deps = [
+        ":variables",
+        "//tf2/providers/core:info",
+    ],
+)
+
+bzl_library(
+    name = "validate",
+    srcs = ["validate.bzl"],
+    deps = [
+        "//tf2/tools/runners:terraform",
+    ],
+)
+
+bzl_library(
+    name = "test",
+    srcs = ["test.bzl"],
+    deps = [
+        "//tf2/tools/runners:terraform",
+    ],
+)
+
+bzl_library(
+    name = "deps",
+    srcs = ["deps.bzl"],
+    deps = [
+        "//tf2/providers/core:info",
+        "//tf2/tools/runners:shell_utils",
+    ],
+)
+
+bzl_library(
+    name = "versions",
+    srcs = glob(["versions/*.bzl"]),
+    deps = [
+        "//tf2/providers/core:info",
+        "//tf2/tools/runners:shell_utils",
+    ],
+)
+
+bzl_library(
+    name = "nested",
+    srcs = ["nested.bzl"],
+    deps = [
+        "//tf2/providers/core:info",
+        "@bazel_skylib//lib:paths",
+    ],
+)

@@ -1,0 +1,17 @@
+# Terraform Cloud integration capability
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//tf2:__subpackages__"])
+
+bzl_library(
+    name = "runner",
+    srcs = ["runner.bzl"],
+    deps = [
+        "//tf2/tfcore:tf_runner",
+    ],
+)
+
+bzl_library(
+    name = "workspace",
+    srcs = ["workspace.bzl"],
+)

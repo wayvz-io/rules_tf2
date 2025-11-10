@@ -33,7 +33,15 @@
       "Bash(git commit:*)",
       "Bash(nix develop:*)",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:raw.githubusercontent.com)"
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Read(//usr/bin/**)",
+      "Bash(/home/rorychatterton/.cache/bazel/_bazel_rorychatterton/2221d20e444358a79b0ce1870426bbe6/execroot/_main/bazel-out/aarch64-opt/bin/tests/unit/multi_version_providers/aws_v6/aws_v6_test_lint_test_lint.sh.sh)",
+      "Bash(bash:*)",
+      "Bash(/home/rorychatterton/.cache/bazel/_bazel_rorychatterton/2221d20e444358a79b0ce1870426bbe6/execroot/_main/bazel-out/aarch64-opt/bin/tests/unit/multi_version_providers/aws_v5/aws_v5_test_lint_test_lint.sh.sh)",
+      "Bash(/home/rorychatterton/.cache/bazel/_bazel_rorychatterton/2221d20e444358a79b0ce1870426bbe6/external/_main~tf_tools~tflint_tool/tflint --version)",
+      "Bash(/home/rorychatterton/.cache/bazel/_bazel_rorychatterton/2221d20e444358a79b0ce1870426bbe6/execroot/_main/bazel-out/aarch64-opt/bin/tests/integration/tflint_autogen/multi_provider_module/multi_provider_module_lint_test_lint.sh.sh)",
+      "Bash(direnv reload:*)",
+      "Bash(gt up:*)"
     ],
     "deny": [],
     "ask": []

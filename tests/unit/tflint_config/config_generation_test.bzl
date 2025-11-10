@@ -1,7 +1,7 @@
 """Unit tests for TFLint configuration generation"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
-load("//tf2/module/quality:tflint_config.bzl", "tf_generate_tflint_config")
+load("//tf2/tflint:config.bzl", "tf_generate_tflint_config")
 
 def _provider_name_from_label_test_impl(ctx):
     env = unittest.begin(ctx)

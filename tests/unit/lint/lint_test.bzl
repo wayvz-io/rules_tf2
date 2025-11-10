@@ -1,7 +1,7 @@
 """Unit tests for Terraform lint rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/module/quality:lint.bzl", "tf_lint_negative_test", "tf_lint_test")
+load("//tf2/tflint:test.bzl", "tf_lint_negative_test", "tf_lint_test")
 
 # Test that lint test rule is created correctly
 def _tf_lint_test_creation_test_impl(ctx):

@@ -77,16 +77,28 @@ bazel test //examples/basic_module:all
 
 ## Code Architecture
 
-### Core Structure
+### Core Structure (Updated)
 - **tf2/core/**: Core Bazel rule implementations
-  - `rules/`: Module, variable, and provider rules (`module.bzl`, `variables.bzl`)
-  - `providers/`: Provider management (registry, mirrors, aliases)
-- **tf2/execution/**: Terraform execution runtime
-  - `macros/`: High-level tf_module macro that generates test targets
-  - `tf_runner.bzl`, `tf_cloud_runner.bzl`: Execution engines
-- **tf2/testing/**: Comprehensive testing framework
-  - Auto-generates format, lint, validate, docs, versions tests for every tf_module
-- **tf2/publish/**: OCI artifact publishing
+  - `module.bzl`: Core tf_module_rule implementation
+  - `runner.bzl`: General-purpose tf_runner for executing terraform commands
+  - `providers.bzl`: Information providers (TfModuleInfo, TfProviderInfo, etc.)
+- **tf2/macros/**: Public API macros
+  - `tf_module.bzl`: High-level tf_module macro that generates test targets
+- **tf2/testing/**: Comprehensive testing framework (reorganized)
+  - `format/`: Terraform format testing and fixing
+  - `lint/`: Linting tests and rules
+  - `validate/`: Validation tests
+  - `docs/`: Documentation tests and generation
+  - `versions/`: Version checking and generation
+  - `deps/`: Dependency testing
+- **tf2/runtime/**: Runtime execution utilities
+  - `staging.bzl`: File staging utilities for terraform execution
+- **tf2/internal/**: Internal utilities
+  - `file_ops.bzl`: File operation utilities using Starlark actions
+- **tf2/module/**: Legacy module implementations (gradual migration target)
+- **tf2/providers/**: Provider management (registry, mirrors, aliases)
+- **tf2/publish/**: OCI artifact publishing and cloud runners
+- **tf2/tools/**: Tool management and runners
 - **tf2/extensions.bzl**: Module extensions for tools and providers
 
 ### Key Patterns
@@ -106,6 +118,7 @@ bazel test //examples/basic_module:all
 - Tools (terraform, tflint, terraform-docs) are downloaded as Bazel-managed binaries
 - Provider binaries are cached and managed by Bazel
 - No reliance on host PATH or external package managers
+- File operations use Starlark actions instead of shell scripts where possible
 
 ### Comprehensive Testing
 Every tf_module automatically generates:
@@ -122,9 +135,16 @@ Every tf_module automatically generates:
 - **Version handling**: Multiple provider versions supported simultaneously
 
 ### Testing Strategy
-- Unit tests in `tests/unit/` verify rule behavior
+- Unit tests in `tests/unit/` verify rule behavior, including new core components
 - Integration tests in `tests/integration/` test real Terraform scenarios
 - Examples in `examples/` demonstrate usage patterns and serve as integration tests
+- New staging utilities have dedicated unit tests in `tests/unit/core/`
+
+### Code Organization Improvements
+- **Clear separation of concerns**: Core rules, macros, testing, and utilities are separated
+- **Reduced shell script usage**: File operations moved to Starlark actions
+- **Improved testability**: Core utilities can be unit tested independently
+- **Better code reuse**: Shared utilities in `tf2/internal/` and `tf2/runtime/`
 
 ## Development Notes
 

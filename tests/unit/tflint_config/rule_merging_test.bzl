@@ -1,7 +1,7 @@
 """Unit tests for tagged overrides and rule merging functionality"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//tf2/module/quality:tflint_defaults.bzl", "get_base_rules", "get_provider_rules", "get_tagged_overrides", "merge_rule_configs")
+load("//tf2/tflint:defaults.bzl", "get_base_rules", "get_provider_rules", "get_tagged_overrides", "merge_rule_configs")
 
 def _test_basic_rule_merging_impl(ctx):
     env = unittest.begin(ctx)

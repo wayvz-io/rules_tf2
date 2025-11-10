@@ -2,7 +2,7 @@
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load(
-    "//tf2/module/quality:tflint_defaults.bzl",
+    "//tf2/tflint:defaults.bzl",
     "get_base_rules",
     "get_provider_rules",
     "get_tagged_overrides",

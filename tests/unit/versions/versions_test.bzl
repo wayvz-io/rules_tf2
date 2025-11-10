@@ -1,7 +1,7 @@
 """Unit tests for Terraform versions rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/module/versions:versions.bzl", "tf_generate_versions", "tf_generate_versions_from_mirrors", "tf_versions_check_test", "tf_versions_negative_test")
+load("//tf2/tfcore/versions:versions.bzl", "tf_generate_versions", "tf_generate_versions_from_mirrors", "tf_versions_check_test", "tf_versions_negative_test")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo")
 
 # Test versions check test creation

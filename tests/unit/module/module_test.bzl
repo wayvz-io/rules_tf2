@@ -1,7 +1,7 @@
 """Unit tests for Terraform module rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/module/core:tf_module.bzl", "tf_module_deps", "tf_module_rule")
+load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
 
 # Test that tf_module_rule creates proper providers
@@ -152,12 +152,33 @@ test_module_rule = rule(
     },
 )
 
-def _test_provider_config_impl(_):
+def _test_provider_config_impl(ctx):
     """Simple provider configuration for testing"""
+    # Create a dummy versions file
+    versions_file = ctx.actions.declare_file("test_versions.tf")
+    ctx.actions.write(
+        output = versions_file,
+        content = """terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "6.12.0"
+    }
+    azurerm = {
+      source  = "hashicorp/azurerm"
+      version = "4.11.0"
+    }
+  }
+}
+""",
+    )
+
     return [
-        DefaultInfo(files = depset()),
+        DefaultInfo(files = depset([versions_file])),
         TfProviderConfigurationsInfo(
             providers = {"aws": "6.12.0", "azurerm": "4.11.0"},
+            tf_version_constraint = ">= 1.0.0",
+            versions_file = versions_file,
         ),
     ]
 

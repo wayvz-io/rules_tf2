@@ -72,19 +72,29 @@ use_repo(nixpkgs_repo_ext, "nixpkgs")
 
 # Non-module dependencies for toolchains (only when root module)
 non_module_deps = use_extension("//build/non_module_deps:non_module_deps.bzl", "non_module_deps", dev_dependency = True)
-# The Go toolchain requires a CC toolchain.
+
+# Development-only toolchains (when rules_tf2 is the root module)
+# The Go toolchain requires a CC toolchain for building hcl_tool.
 use_repo(non_module_deps, "nixpkgs_config_cc")
 use_repo(non_module_deps, "nixpkgs_config_cc_info")
 use_repo(non_module_deps, "nixpkgs_config_cc_toolchains")
-register_toolchains("@nixpkgs_config_cc_toolchains//:all")
 
-# Bazel requires a Java runtime to run tests.
+# Bazel requires a Java runtime to run tests and stardoc.
 use_repo(non_module_deps, "nixpkgs_java_runtime")
 use_repo(non_module_deps, "nixpkgs_java_runtime_toolchain")
 use_repo(non_module_deps, "nixpkgs_java_jdk_toolchain")
-register_toolchains("@nixpkgs_java_runtime_toolchain//:all")
-register_toolchains("@nixpkgs_java_jdk_toolchain//:all")
 
+# Go SDK configuration for development (only when rules_tf2 is root module)
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
+go_sdk.host()  # Use host Go SDK for development
+
+# Register development-only toolchains when this is the root module
+register_toolchains(
+    "@nixpkgs_config_cc_toolchains//:all",
+    "@nixpkgs_java_runtime_toolchain//:all",
+    "@nixpkgs_java_jdk_toolchain//:all",
+    dev_dependency = True,
+)
 
 # Go dependencies for HCL tool and tflint plugin
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
