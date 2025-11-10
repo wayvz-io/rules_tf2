@@ -1,26 +1,26 @@
 """Rules for pushing Terraform stacks to OCI registries."""
 
-load(":config.bzl", "OCI_CONFIG")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load(":config.bzl", "OCI_CONFIG")
 
 def _oci_push_impl(ctx):
     """Implementation of oci_push rule."""
     tarball = ctx.actions.declare_file("{}.tar.gz".format(ctx.attr.name))
     config = ctx.actions.declare_file("{}.config.json".format(ctx.attr.name))
     push_script = ctx.actions.declare_file("{}_push.sh".format(ctx.attr.name))
-    
+
     # Create a staging directory and copy files with proper structure
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
-    
+
     # Build a command to create the staging directory and copy files
     copy_commands = []
     mkdir_commands = {}  # Track directories we need to create (use dict as set)
-    
+
     for src_file in ctx.files.srcs:
         # Extract just the filename, removing all directory paths
         # This will put all files in the root of the tarball
         dest_name = src_file.basename
-        
+
         # For files that might be in a modules/ subdirectory (from stack processing),
         # preserve that structure
         src_path = src_file.path
@@ -30,18 +30,18 @@ def _oci_push_impl(ctx):
             if modules_idx != -1:
                 # Get everything from modules/ onward
                 dest_name = src_path[modules_idx + 1:]  # +1 to skip the leading /
-                
+
                 # Extract directory path and add mkdir command if needed
                 dest_dir = dest_name.rsplit("/", 1)[0] if "/" in dest_name else ""
                 if dest_dir:
                     mkdir_commands["mkdir -p '{}/{}'".format(staging_dir.path, dest_dir)] = True
-        
+
         copy_commands.append("cp -L '{}' '{}/{}'".format(
             src_file.path,
             staging_dir.path,
-            dest_name
+            dest_name,
         ))
-    
+
     # Create the staging directory structure and copy files
     ctx.actions.run_shell(
         inputs = ctx.files.srcs,
@@ -59,7 +59,7 @@ mkdir -p '{staging_dir}'
         mnemonic = "PrepareOCIContent",
         progress_message = "Preparing OCI content for %s" % ctx.label,
     )
-    
+
     # Create tarball from the staging directory
     ctx.actions.run_shell(
         inputs = [staging_dir],
@@ -71,7 +71,7 @@ mkdir -p '{staging_dir}'
         mnemonic = "CreateOCITarball",
         progress_message = "Creating OCI tarball for %s" % ctx.label,
     )
-    
+
     # Create Flux-compatible config
     config_content = """{{
   "mediaType": "application/vnd.cncf.flux.config.v1+json",
@@ -83,12 +83,12 @@ mkdir -p '{staging_dir}'
         revision = ctx.attr.revision,
         path = ctx.attr.path,
     )
-    
+
     ctx.actions.write(
         output = config,
         content = config_content,
     )
-    
+
     # Create push script
     push_script_content = """#!/usr/bin/env bash
 set -euo pipefail
@@ -142,13 +142,13 @@ echo "Successfully pushed Terraform stack to $IMAGE"
         tarball.basename,  # Use basename instead of short_path
         ctx.attr.source_url,
     )
-    
+
     ctx.actions.write(
         output = push_script,
         content = push_script_content,
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([tarball, config, push_script, staging_dir]),
@@ -212,27 +212,28 @@ oci_push = rule(
 
 def _tf_module_push_oci_impl(ctx):
     """Implementation of tf_module_push_oci rule."""
+
     # Get the module's files
     module_info = ctx.attr.module[TfModuleInfo]
     srcs = module_info.srcs.to_list()
-    
+
     # Use the oci_push implementation logic
     tarball = ctx.actions.declare_file("{}.tar.gz".format(ctx.attr.name))
     config = ctx.actions.declare_file("{}.config.json".format(ctx.attr.name))
     push_script = ctx.actions.declare_file("{}_push.sh".format(ctx.attr.name))
-    
+
     # Create a staging directory and copy files with proper structure
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
-    
+
     # Build a command to create the staging directory and copy files
     copy_commands = []
     mkdir_commands = {}  # Track directories we need to create (use dict as set)
-    
+
     for src_file in srcs:
         # Extract just the filename, removing all directory paths
         # This will put all files in the root of the tarball
         dest_name = src_file.basename
-        
+
         # For files that might be in a modules/ subdirectory (from stack processing),
         # preserve that structure
         src_path = src_file.path
@@ -242,18 +243,18 @@ def _tf_module_push_oci_impl(ctx):
             if modules_idx != -1:
                 # Get everything from modules/ onward
                 dest_name = src_path[modules_idx + 1:]  # +1 to skip the leading /
-                
+
                 # Extract directory path and add mkdir command if needed
                 dest_dir = dest_name.rsplit("/", 1)[0] if "/" in dest_name else ""
                 if dest_dir:
                     mkdir_commands["mkdir -p '{}/{}'".format(staging_dir.path, dest_dir)] = True
-        
+
         copy_commands.append("cp -L '{}' '{}/{}'".format(
             src_file.path,
             staging_dir.path,
-            dest_name
+            dest_name,
         ))
-    
+
     # Create the staging directory structure and copy files
     ctx.actions.run_shell(
         inputs = srcs,
@@ -271,7 +272,7 @@ mkdir -p '{staging_dir}'
         mnemonic = "PrepareOCIContent",
         progress_message = "Preparing OCI content for %s" % ctx.label,
     )
-    
+
     # Create tarball from the staging directory
     ctx.actions.run_shell(
         inputs = [staging_dir],
@@ -283,16 +284,16 @@ mkdir -p '{staging_dir}'
         mnemonic = "CreateOCITarball",
         progress_message = "Creating OCI tarball for %s" % ctx.label,
     )
-    
+
     # Get package path for the source path in metadata
     package_path = ctx.label.package
-    
+
     # Build the image URL with explicit stack name
     registry = ctx.attr.registry or OCI_CONFIG["registry"]
     repository = ctx.attr.repository or OCI_CONFIG["repository"]
     tag = ctx.attr.tag or OCI_CONFIG["default_tag"]
     image = "{}/{}/tf/{}:{}".format(registry, repository, ctx.attr.stack_name, tag)
-    
+
     # Create Flux-compatible config
     config_content = """{{
   "mediaType": "application/vnd.cncf.flux.config.v1+json",
@@ -304,12 +305,12 @@ mkdir -p '{staging_dir}'
         revision = ctx.attr.revision or "$$(git rev-parse HEAD)",
         path = ctx.attr.path or package_path,
     )
-    
+
     ctx.actions.write(
         output = config,
         content = config_content,
     )
-    
+
     # Create push script
     push_script_content = """#!/usr/bin/env bash
 set -euo pipefail
@@ -363,13 +364,13 @@ echo "Successfully pushed Terraform stack to $IMAGE"
         tarball.basename,
         ctx.attr.source_url or "git@github.com:{}.git".format(repository),
     )
-    
+
     ctx.actions.write(
         output = push_script,
         content = push_script_content,
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([tarball, config, push_script, staging_dir]),

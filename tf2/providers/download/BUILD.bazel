@@ -1,4 +1,3 @@
 """Provider download mechanisms"""
 
 package(default_visibility = ["//visibility:public"])
-

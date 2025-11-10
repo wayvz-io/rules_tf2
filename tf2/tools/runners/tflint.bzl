@@ -57,7 +57,7 @@ def _create_tflint_test_action(ctx, name, srcs, config = None, expect_issues = F
     if config:
         config_path = config.short_path if config.short_path.startswith("bazel-out/") else "_main/{}".format(config.short_path)
         config_setup = '''cp "$RUNFILES/{config_path}" "$WORK_DIR/.tflint.hcl"'''.format(
-            config_path = config_path
+            config_path = config_path,
         )
 
     # Setup plugins if provided
@@ -71,7 +71,7 @@ def _create_tflint_test_action(ctx, name, srcs, config = None, expect_issues = F
 cp "$RUNFILES/{plugin_path}" "$WORK_DIR/.tflint.d/plugins/{plugin_name}"
 chmod +x "$WORK_DIR/.tflint.d/plugins/{plugin_name}"'''.format(
                 plugin_path = plugin_path,
-                plugin_name = plugin_name
+                plugin_name = plugin_name,
             )
 
     # Build test logic based on expect_issues
@@ -156,7 +156,7 @@ cd "$WORK_DIR"
         runfiles_files.append(config)
     if plugins:
         runfiles_files.extend(plugins)
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         runfiles_files.extend(ctx.files._tools)
 
     return script, ctx.runfiles(files = runfiles_files)
@@ -182,7 +182,7 @@ def _create_tflint_autofix_action(ctx, name, srcs, config = None, plugins = None
     if config:
         config_path = config.short_path if config.short_path.startswith("bazel-out/") else "_main/{}".format(config.short_path)
         config_setup = '''cp "$RUNFILES/{config_path}" "$WORK_DIR/.tflint.hcl"'''.format(
-            config_path = config_path
+            config_path = config_path,
         )
 
     # Setup plugins if provided
@@ -196,7 +196,7 @@ def _create_tflint_autofix_action(ctx, name, srcs, config = None, plugins = None
 cp "$RUNFILES/{plugin_path}" "$WORK_DIR/.tflint.d/plugins/{plugin_name}"
 chmod +x "$WORK_DIR/.tflint.d/plugins/{plugin_name}"'''.format(
                 plugin_path = plugin_path,
-                plugin_name = plugin_name
+                plugin_name = plugin_name,
             )
 
     # Build source file copy commands
@@ -298,7 +298,7 @@ fi
         runfiles_files.append(config)
     if plugins:
         runfiles_files.extend(plugins)
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         runfiles_files.extend(ctx.files._tools)
 
     return script, ctx.runfiles(files = runfiles_files)

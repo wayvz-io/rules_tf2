@@ -4,15 +4,14 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//visibility:public"])
 
-
 bzl_library(
     name = "versions",
     srcs = ["versions.bzl"],
     deps = [
         ":versions_hcl",
+        "//tf2/providers/core:info",
         "//tf2/tools:terraform",
         "//tf2/tools/runners:shell_utils",
-        "//tf2/providers/core:info",
     ],
 )
 

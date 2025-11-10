@@ -1,7 +1,7 @@
 """Unit tests for tool path resolution functionality"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path", "get_tflint_path", "get_terraform_docs_path", "get_tflint_plugin_path", "TOOLS_ATTR")
+load("//tf2/tools/runners:tool_paths.bzl", "TOOLS_ATTR", "get_terraform_docs_path", "get_terraform_path", "get_tflint_path", "get_tflint_plugin_path")
 
 def _test_tool_paths_api(ctx):
     """Test tool path functions exist."""

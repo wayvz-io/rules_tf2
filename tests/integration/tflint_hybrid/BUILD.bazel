@@ -4,11 +4,11 @@ load("//tf2/module/quality:tflint_rules.bzl", "tf_tflint_negative_test")
 # Define a test module that will use the new hybrid tflint validation
 tf_module(
     name = "tflint_hybrid_test",
+    tags = ["test_module"],  # Apply relaxed rules for test modules
     providers = [
         "@tf_provider_registry//:aws_6",
         "@tf_provider_registry//:random_3",
     ],
-    tags = ["test_module"],  # Apply relaxed rules for test modules
     visibility = ["//visibility:public"],
 )
 

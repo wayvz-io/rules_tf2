@@ -1,7 +1,7 @@
 """Unit tests for tflint.bzl functions"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//tf2/tools/runners:tflint.bzl", "create_tflint_test", "create_tflint_autofix")
+load("//tf2/tools/runners:tflint.bzl", "create_tflint_autofix", "create_tflint_test")
 
 def _test_tflint_public_api(ctx):
     """Test tflint.bzl public API functions exist."""

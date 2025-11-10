@@ -1,17 +1,17 @@
 """TFLint test rule implementation"""
 
-load("//tf2/tools/runners:tflint.bzl", "create_tflint_test", "create_tflint_autofix")
+load("//tf2/tools/runners:tflint.bzl", "create_tflint_autofix", "create_tflint_test")
 
 def _tf_lint_test_impl(ctx):
     """Implementation of tf_lint_test rule"""
-    
+
     script, runfiles = create_tflint_test(
         ctx,
         name = ctx.label.name + "_lint.sh",
         srcs = ctx.files.srcs,
         config = ctx.file.config,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),
@@ -43,7 +43,7 @@ tf_lint_test = rule(
 
 def _tf_lint_negative_test_impl(ctx):
     """Implementation of tf_lint_negative_test rule"""
-    
+
     script, runfiles = create_tflint_test(
         ctx,
         name = ctx.label.name + "_lint.sh",
@@ -51,7 +51,7 @@ def _tf_lint_negative_test_impl(ctx):
         config = ctx.file.config,
         expect_issues = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([script]),

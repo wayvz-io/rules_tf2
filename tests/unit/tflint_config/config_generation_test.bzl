@@ -1,6 +1,6 @@
 """Unit tests for TFLint configuration generation"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 load("//tf2/module/quality:tflint_config.bzl", "tf_generate_tflint_config")
 
 def _provider_name_from_label_test_impl(ctx):
@@ -52,12 +52,12 @@ def _detect_provider_plugins_test_impl(ctx):
     providers = [
         "@tf_provider_registry//:aws_5",
         "@tf_provider_registry//:random_3",
-        "@tf_provider_registry//:null_3"
+        "@tf_provider_registry//:null_3",
     ]
     plugins = _detect_provider_plugins(providers)
     asserts.true(env, "aws" in plugins)
     asserts.false(env, "random" in plugins)  # Not a supported plugin
-    asserts.false(env, "null" in plugins)    # Not a supported plugin
+    asserts.false(env, "null" in plugins)  # Not a supported plugin
 
     # Test with only AWS provider
     providers = ["@tf_provider_registry//:aws_5"]
@@ -76,16 +76,13 @@ def _generate_plugin_block_test_impl(ctx):
     env = unittest.begin(ctx)
 
     # Test plugin block structure expectations
-    plugin_name = "aws"
-    plugin_version = "0.42.0"
-    plugin_path = "/path/to/plugin"
 
     # Test expected plugin block format
     expected_parts = [
         'plugin "aws"',
-        'enabled = true',
+        "enabled = true",
         'version = "0.42.0"',
-        'source = "file:///path/to/plugin"'
+        'source = "file:///path/to/plugin"',
     ]
 
     # This tests the expected structure that should be generated
@@ -98,27 +95,19 @@ def _generate_rule_block_test_impl(ctx):
     env = unittest.begin(ctx)
 
     # Test rule block structure expectations
-    rule_name = "test_rule"
-    simple_config = {"enabled": True}
 
     # Test expected simple rule block format
     simple_expected = [
         'rule "test_rule"',
-        'enabled = true'
+        "enabled = true",
     ]
 
     # Test expected complex rule block format
-    complex_config = {
-        "enabled": False,
-        "severity": "warning",
-        "tags": ["env", "owner"]
-    }
-
     complex_expected = [
         'rule "complex_rule"',
-        'enabled = false',
+        "enabled = false",
         'severity = "warning"',
-        'tags = ["env", "owner"]'
+        'tags = ["env", "owner"]',
     ]
 
     # This tests the expected structure that should be generated
@@ -154,11 +143,11 @@ def _tf_generate_tflint_config_includes_providers_test_impl(ctx):
 
 # Create analysis test rules
 tf_generate_tflint_config_creates_file_test = analysistest.make(
-    _tf_generate_tflint_config_creates_file_test_impl
+    _tf_generate_tflint_config_creates_file_test_impl,
 )
 
 tf_generate_tflint_config_includes_providers_test = analysistest.make(
-    _tf_generate_tflint_config_includes_providers_test_impl
+    _tf_generate_tflint_config_includes_providers_test_impl,
 )
 
 # Test targets for analysis tests
@@ -176,11 +165,11 @@ def _create_test_targets():
         name = "test_multi_provider_config",
         providers = [
             "@tf_provider_registry//:aws_5",
-            "@tf_provider_registry//:random_3"
+            "@tf_provider_registry//:random_3",
         ],
         module_tags = ["consumer_module"],
         rule_overrides = {
-            "terraform_documented_outputs": "{\"enabled\": false}"
+            "terraform_documented_outputs": "{\"enabled\": false}",
         },
         testonly = True,
         tags = ["manual"],
@@ -193,7 +182,11 @@ generate_plugin_block_test = unittest.make(_generate_plugin_block_test_impl)
 generate_rule_block_test = unittest.make(_generate_rule_block_test_impl)
 
 def config_generation_test_suite(name):
-    """Test suite for TFLint configuration generation"""
+    """Test suite for TFLint configuration generation
+
+    Args:
+        name: Name of the test suite
+    """
 
     # Create test targets first
     _create_test_targets()

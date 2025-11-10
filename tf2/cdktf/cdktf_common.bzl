@@ -11,7 +11,7 @@ def create_cdktf_json(provider_name, provider_source, provider_version, major_ve
                 "name": provider_name,
                 "source": provider_source,
                 "version": provider_version,
-            }
+            },
         ],
         "terraformModules": [],
         "context": {},
@@ -55,24 +55,30 @@ gazelle(
     )
 
 def get_environment_for_cdktf(repository_ctx):
-    """Get environment variables needed for CDKTF generation"""
+    """Get environment variables needed for CDKTF generation
+
+    Args:
+        repository_ctx: The repository context
+
+    Returns:
+        Dict of environment variables for CDKTF generation
+    """
     env = {}
-    
+
     # Copy PATH if it exists
     if "PATH" in repository_ctx.os.environ:
         env["PATH"] = repository_ctx.os.environ["PATH"]
-    
+
     # Don't set LD_LIBRARY_PATH globally - it breaks Bazel's process-wrapper
     # We'll handle library paths in the script itself for specific commands
-    
+
     # Add standard environment variables
     env["HOME"] = repository_ctx.os.environ.get("HOME", "/tmp")
     env["CHECKPOINT_DISABLE"] = "1"
     env["JSII_SILENCE_WARNING_UNTESTED_NODE_VERSION"] = "1"
-    
+
     # Go proxy settings
     env["GOPROXY"] = repository_ctx.os.environ.get("GOPROXY", "https://proxy.golang.org,direct")
     env["GOSUMDB"] = repository_ctx.os.environ.get("GOSUMDB", "sum.golang.org")
-    
-    return env
 
+    return env

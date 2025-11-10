@@ -39,4 +39,3 @@ bzl_library(
     name = "registry",
     srcs = ["registry.bzl"],
 )
-

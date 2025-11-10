@@ -52,7 +52,7 @@ def _create_tfdoc_test_action(ctx, name, srcs, config = None):
     if config:
         config_path = config.short_path if config.short_path.startswith("bazel-out/") else "_main/{}".format(config.short_path)
         config_setup = '''cp "$RUNFILES/{config_path}" "$WORK_DIR/.terraform-docs.yml"'''.format(
-            config_path = config_path
+            config_path = config_path,
         )
         config_arg = "--config $WORK_DIR/.terraform-docs.yml"
 
@@ -134,7 +134,7 @@ echo "✓ README.md is up-to-date"
     runfiles_files = list(srcs)
     if config:
         runfiles_files.append(config)
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         runfiles_files.extend(ctx.files._tools)
 
     return script, ctx.runfiles(files = runfiles_files)
@@ -215,7 +215,7 @@ echo "Generated $TARGET_FILE"
     runfiles_files = []
     if config:
         runfiles_files.append(config)
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         runfiles_files.extend(ctx.files._tools)
 
     return script, ctx.runfiles(files = runfiles_files)

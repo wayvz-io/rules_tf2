@@ -1,4 +1,4 @@
-load("@bazel_skylib//rules:native_binary.bzl", "native_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("//tf2/providers/repository:regenerate_all.bzl", "tf_regenerate_all")
 
 package(default_visibility = ["//visibility:public"])
@@ -25,8 +25,8 @@ sh_binary(
     name = "tf_update",
     srcs = ["update_providers.sh"],
     data = [
-        "tf_upgrade_providers.sh",
         "tf_mod.sh",
+        "tf_upgrade_providers.sh",
         "@tf_tool_registry//:all",
     ],
     visibility = ["//visibility:public"],
@@ -36,3 +36,6 @@ sh_binary(
 tf_regenerate_all(
     name = "tf_regenerate_all_starlark",
 )
+
+# Export buildifier check script
+exports_files(["check_buildifier.sh"])

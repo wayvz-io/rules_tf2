@@ -1,7 +1,7 @@
 """Unit tests for terraform.bzl functions"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//tf2/tools/runners:terraform.bzl", "create_terraform_format_test", "create_terraform_validate_test", "terraform_init_script", "create_terraform_script")
+load("//tf2/tools/runners:terraform.bzl", "create_terraform_format_test", "create_terraform_script", "create_terraform_validate_test", "terraform_init_script")
 
 def _test_terraform_public_api(ctx):
     """Test terraform.bzl public API functions exist."""

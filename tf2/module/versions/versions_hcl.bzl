@@ -2,10 +2,10 @@
 
 def _tf_update_versions_impl(ctx):
     """Update terraform version requirements in .tf files"""
-    
+
     # Create a script that runs the hcl_tool
     script = ctx.actions.declare_file(ctx.label.name + "_update.sh")
-    
+
     # Build the script content
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
@@ -29,18 +29,18 @@ echo "Updated Terraform versions in {package}"
         lock_file = ctx.file.lock_file.path if ctx.file.lock_file else "",
         tf_version = ctx.attr.tf_version,
     )
-    
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
+
     # Collect runfiles
     runfiles = ctx.runfiles(files = [ctx.executable.hcl_tool])
     if ctx.file.lock_file:
         runfiles = runfiles.merge(ctx.runfiles(files = [ctx.file.lock_file]))
-    
+
     return [
         DefaultInfo(
             executable = script,
@@ -72,10 +72,10 @@ tf_update_versions = rule(
 
 def _tf_parse_lock_impl(ctx):
     """Parse a terraform.lock.hcl file and output JSON"""
-    
+
     # Declare output file
     output = ctx.actions.declare_file(ctx.label.name + "_providers.json")
-    
+
     # Run the HCL tool
     ctx.actions.run(
         outputs = [output],
@@ -90,7 +90,7 @@ def _tf_parse_lock_impl(ctx):
         use_default_shell_env = False,
         env = {},
     )
-    
+
     return [
         DefaultInfo(files = depset([output])),
         OutputGroupInfo(
@@ -118,14 +118,14 @@ tf_parse_lock = rule(
 
 def _tf_read_versions_impl(ctx):
     """Read terraform version requirements from .tf files"""
-    
+
     # Declare output file
     output = ctx.actions.declare_file(ctx.label.name + "_versions.json")
-    
+
     # Create a temporary directory with all source files
     # For simplicity, we'll just run on the first source file's directory
     # In practice, you'd want to handle this better
-    
+
     if not ctx.files.srcs:
         # No sources, output empty JSON
         ctx.actions.write(
@@ -135,7 +135,7 @@ def _tf_read_versions_impl(ctx):
     else:
         # Get the directory of the first source file
         src_dir = ctx.files.srcs[0].dirname
-        
+
         ctx.actions.run_shell(
             outputs = [output],
             inputs = ctx.files.srcs,
@@ -149,7 +149,7 @@ def _tf_read_versions_impl(ctx):
             ),
             mnemonic = "ReadVersions",
         )
-    
+
     return [
         DefaultInfo(files = depset([output])),
     ]

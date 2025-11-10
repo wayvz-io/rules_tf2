@@ -1,8 +1,8 @@
 """Terraform validation and organization rules using tflint"""
 
+load("//tf2/module/quality:tflint_defaults.bzl", "get_base_rules", "get_tagged_overrides", "merge_rule_configs")
 load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
 load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
-load("//tf2/module/quality:tflint_defaults.bzl", "get_base_rules", "get_tagged_overrides", "merge_rule_configs")
 
 def _generate_tflint_config_content(module_tags = None):
     """Generate tflint configuration content using the defaults system
@@ -13,6 +13,7 @@ def _generate_tflint_config_content(module_tags = None):
     Returns:
         String containing the tflint configuration
     """
+
     # Start with base rules
     rules = get_base_rules()
 
@@ -85,17 +86,20 @@ def _tf_tflint_validate_test_impl(ctx):
     package_prefix = ctx.label.package + "/"
     for src_file in ctx.files.srcs:
         path = src_file.short_path
+
         # Look for terraform.tf or main.tf that's not in a modules/ subdirectory relative to package root
         if (path.endswith("/terraform.tf") or path.endswith("terraform.tf") or path.endswith("/main.tf") or path.endswith("main.tf")):
             # Get the relative path from the package root
             if path.startswith(package_prefix):
                 relative_path = path[len(package_prefix):]
+
                 # Check if it's not in a modules/ subdirectory
                 if "/modules/" not in relative_path:
                     if path.endswith("terraform.tf"):
                         terraform_tf_file = path
                     elif not main_file:  # Only set main_file if we haven't found terraform.tf
                         main_file = path
+
     # Prefer terraform.tf over main.tf
     if terraform_tf_file:
         main_file = terraform_tf_file
@@ -139,11 +143,11 @@ exit 0
         versions_file = versions_file.short_path if versions_file else "/dev/null",
         version_validation = (
             ('if ! "$HCL_TOOL" tflint-validate-versions "$SOURCE_DIR" < "$RUNFILES/_main/{versions_file}"; then\n' +
-            '    echo "" >&2\n' +
-            '    echo "ERROR: Terraform version validation failed" >&2\n' +
-            '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
-            '    exit 1\n' +
-            'fi\n').format(
+             '    echo "" >&2\n' +
+             '    echo "ERROR: Terraform version validation failed" >&2\n' +
+             '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
+             "    exit 1\n" +
+             "fi\n").format(
                 versions_file = versions_file.short_path if versions_file else "/dev/null",
                 package = ctx.label.package,
                 target_base = ctx.label.name.replace("_tflint_validate_test", ""),
@@ -151,15 +155,15 @@ exit 0
         ),
         organization_validation = (
             ('if ! "$HCL_TOOL" tflint-validate-organization "$SOURCE_DIR"; then\n' +
-            '    echo "" >&2\n' +
-            '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
-            '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
-            '    exit 1\n' +
-            'fi\n').format(
+             '    echo "" >&2\n' +
+             '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
+             '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
+             "    exit 1\n" +
+             "fi\n").format(
                 package = ctx.label.package,
                 target_base = ctx.label.name.replace("_tflint_validate_test", ""),
             )
-        )
+        ),
     )
 
     ctx.actions.write(
@@ -262,14 +266,14 @@ echo "✅ Completed all fixes for $TARGET_DIR"
         package = ctx.label.package,
         version_fix = (
             ('echo "Running hcl_tool update-versions..."\n' +
-            'if "$HCL_TOOL" update-versions "$TARGET_DIR" < "{versions_file}"; then\n' +
-            '    echo "✓ Updated Terraform versions"\n' +
-            'else\n' +
-            '    echo "⚠ No version updates needed or no expected versions specified"\n' +
-            'fi\n').format(
-                versions_file = versions_file.short_path if versions_file else "/dev/null"
+             'if "$HCL_TOOL" update-versions "$TARGET_DIR" < "{versions_file}"; then\n' +
+             '    echo "✓ Updated Terraform versions"\n' +
+             "else\n" +
+             '    echo "⚠ No version updates needed or no expected versions specified"\n' +
+             "fi\n").format(
+                versions_file = versions_file.short_path if versions_file else "/dev/null",
             ) if versions_file else "# No version fixing (no provider_configurations specified)"
-        )
+        ),
     )
 
     ctx.actions.write(
@@ -380,17 +384,20 @@ def _tf_tflint_negative_test_impl(ctx):
     package_prefix = ctx.label.package + "/"
     for src_file in ctx.files.srcs:
         path = src_file.short_path
+
         # Look for terraform.tf or main.tf that's not in a modules/ subdirectory relative to package root
         if (path.endswith("/terraform.tf") or path.endswith("terraform.tf") or path.endswith("/main.tf") or path.endswith("main.tf")):
             # Get the relative path from the package root
             if path.startswith(package_prefix):
                 relative_path = path[len(package_prefix):]
+
                 # Check if it's not in a modules/ subdirectory
                 if "/modules/" not in relative_path:
                     if path.endswith("terraform.tf"):
                         terraform_tf_file = path
                     elif not main_file:  # Only set main_file if we haven't found terraform.tf
                         main_file = path
+
     # Prefer terraform.tf over main.tf
     if terraform_tf_file:
         main_file = terraform_tf_file
@@ -434,11 +441,11 @@ fi
         versions_file = versions_file.short_path if versions_file else "/dev/null",
         version_validation = (
             ('if ! "$HCL_TOOL" tflint-validate-versions "$SOURCE_DIR" < "$RUNFILES/_main/{versions_file}"; then\n' +
-            '    echo "" >&2\n' +
-            '    echo "ERROR: Terraform version validation failed" >&2\n' +
-            '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
-            '    exit 1\n' +
-            'fi\n').format(
+             '    echo "" >&2\n' +
+             '    echo "ERROR: Terraform version validation failed" >&2\n' +
+             '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
+             "    exit 1\n" +
+             "fi\n").format(
                 versions_file = versions_file.short_path if versions_file else "/dev/null",
                 package = ctx.label.package,
                 target_base = ctx.label.name.replace("_tflint_negative_test", ""),
@@ -446,15 +453,15 @@ fi
         ),
         organization_validation = (
             ('if ! "$HCL_TOOL" tflint-validate-organization "$SOURCE_DIR"; then\n' +
-            '    echo "" >&2\n' +
-            '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
-            '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
-            '    exit 1\n' +
-            'fi\n').format(
+             '    echo "" >&2\n' +
+             '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
+             '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
+             "    exit 1\n" +
+             "fi\n").format(
                 package = ctx.label.package,
                 target_base = ctx.label.name.replace("_tflint_negative_test", ""),
             )
-        )
+        ),
     )
 
     ctx.actions.write(

@@ -20,8 +20,10 @@ def _get_latest_terraform_docs_version(repository_ctx):
         String version number
     """
     result = repository_ctx.execute([
-        "curl", "-s", "-L",
-        "https://api.github.com/repos/terraform-docs/terraform-docs/releases/latest"
+        "curl",
+        "-s",
+        "-L",
+        "https://api.github.com/repos/terraform-docs/terraform-docs/releases/latest",
     ])
     if result.return_code != 0:
         return TERRAFORM_DOCS_CONFIG["fallback_version"]
@@ -69,8 +71,6 @@ def _download_terraform_docs_impl(repository_ctx):
     # Build download URL
     download_url = _build_terraform_docs_download_url(version, platform)
     binary_name = TERRAFORM_DOCS_CONFIG["binary_name"]
-
-    print("Downloading terraform-docs version {} from {}".format(version, download_url))
 
     # Download and extract
     repository_ctx.download_and_extract(

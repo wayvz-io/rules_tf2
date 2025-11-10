@@ -1,7 +1,7 @@
 """Unit tests for tfdoc.bzl functions"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
-load("//tf2/tools/runners:tfdoc.bzl", "create_tfdoc_test", "create_tfdoc_generator")
+load("//tf2/tools/runners:tfdoc.bzl", "create_tfdoc_generator", "create_tfdoc_test")
 
 def _test_tfdoc_public_api(ctx):
     """Test tfdoc.bzl public API functions exist."""

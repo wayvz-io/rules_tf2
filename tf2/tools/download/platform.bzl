@@ -66,5 +66,6 @@ def get_terraform_docs_platform(standard_platform):
     Returns:
         String platform identifier with dashes (e.g., "linux-amd64")
     """
+
     # terraform-docs uses dashes instead of underscores
     return standard_platform.replace("_", "-")

@@ -1,0 +1,10 @@
+load("//tf2:def.bzl", "tf_module")
+
+# AWS module test for TFLint auto-generation
+tf_module(
+    name = "aws_module",
+    testonly = True,
+    module_tags = ["test_module"],
+    providers = ["@tf_provider_registry//:aws_5"],
+    visibility = ["//tests/integration/tflint_autogen:__pkg__"],
+)

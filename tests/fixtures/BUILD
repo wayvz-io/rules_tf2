@@ -1,10 +1,13 @@
 # Shared test fixtures and configurations
 
-exports_files([
-    "configs/tfdoc-config.yaml",
-    "configs/tflint-config-modules.hcl",
-    "configs/tflint-config-stacks.hcl",
-], visibility = ["//visibility:public"])
+exports_files(
+    [
+        "configs/tfdoc-config.yaml",
+        "configs/tflint-config-modules.hcl",
+        "configs/tflint-config-stacks.hcl",
+    ],
+    visibility = ["//visibility:public"],
+)
 
 filegroup(
     name = "tfdoc-config",
@@ -19,7 +22,7 @@ filegroup(
 )
 
 filegroup(
-    name = "tflint-config-stacks", 
+    name = "tflint-config-stacks",
     srcs = ["configs/tflint-config-stacks.hcl"],
     visibility = ["//visibility:public"],
 )

@@ -2,17 +2,17 @@
 
 def _filesystem_mirror_impl(ctx):
     """Implementation of filesystem_mirror rule.
-    
+
     This rule aggregates individual provider downloads and creates a filesystem
     mirror structure that Terraform can use with the filesystem_mirror configuration.
     """
-    
+
     # Create the output directory for the mirror
     mirror_dir = ctx.actions.declare_directory(ctx.label.name)
-    
+
     # Create a script to build the mirror structure
     script = ctx.actions.declare_file(ctx.label.name + "_build_mirror.sh")
-    
+
     # Collect all provider files and build the script
     provider_files = []
     script_lines = [
@@ -23,13 +23,13 @@ def _filesystem_mirror_impl(ctx):
         "mkdir -p \"$MIRROR_DIR\"",
         "",
     ]
-    
+
     # Process each provider dependency
     for provider_dep in ctx.attr.providers:
         # Get the files from the provider download
         for file in provider_dep.files.to_list():
             provider_files.append(file)
-            
+
             # Parse provider metadata from the target name if available
             # Expected format: download_NAME_VERSION_PLATFORM
             target_name = provider_dep.label.name
@@ -40,7 +40,7 @@ def _filesystem_mirror_impl(ctx):
                     os_name = parts[1]
                     arch = parts[2]
                     platform = "{}_{}".format(os_name, arch)
-                    
+
                     # Try to extract provider name and version
                     # This is a heuristic - ideally we'd have metadata
                     if "_" in name_version:
@@ -56,7 +56,7 @@ def _filesystem_mirror_impl(ctx):
                     else:
                         name = name_version
                         version = "unknown"
-                    
+
                     # Guess namespace - this should be provided as metadata
                     if name in ["aws", "azurerm", "null", "random", "local", "archive", "time", "tls", "helm", "kubernetes", "tfe"]:
                         namespace = "hashicorp"
@@ -70,12 +70,15 @@ def _filesystem_mirror_impl(ctx):
                         namespace = "cloudflare"
                     else:
                         namespace = "unknown"
-                    
+
                     # Create the target directory structure
                     target_path = "registry.terraform.io/{}/{}/{}/{}".format(
-                        namespace, name, version, platform
+                        namespace,
+                        name,
+                        version,
+                        platform,
                     )
-                    
+
                     script_lines.extend([
                         "# Provider: {}/{}@{} for {}".format(namespace, name, version, platform),
                         "mkdir -p \"$MIRROR_DIR/{}\"".format(target_path),
@@ -84,17 +87,17 @@ def _filesystem_mirror_impl(ctx):
                         "fi",
                         "",
                     ])
-    
+
     # Script completion - no verbose output needed
-    
+
     script_content = "\n".join(script_lines)
-    
+
     ctx.actions.write(
         output = script,
         content = script_content,
         is_executable = True,
     )
-    
+
     # Run the script to create the mirror
     ctx.actions.run_shell(
         outputs = [mirror_dir],
@@ -108,7 +111,7 @@ def _filesystem_mirror_impl(ctx):
         progress_message = "Creating filesystem mirror with {} providers".format(len(ctx.attr.providers)),
         use_default_shell_env = True,  # This gives us access to system tools
     )
-    
+
     return [
         DefaultInfo(
             files = depset([mirror_dir]),

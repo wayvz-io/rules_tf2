@@ -21,7 +21,15 @@
       "Read(//home/rorychatterton/.cache/bazel/**)",
       "Bash(grep:*)",
       "Bash(gt add:*)",
-      "Bash(gt continue:*)"
+      "Bash(gt continue:*)",
+      "Bash(buildifier:*)",
+      "Bash(git checkout:*)",
+      "WebSearch",
+      "Bash(chmod:*)",
+      "Bash(echo $?)",
+      "Bash(./scripts/check_buildifier.sh:*)",
+      "Bash(timeout:*)",
+      "Read(//tmp/**)"
     ],
     "deny": [],
     "ask": []

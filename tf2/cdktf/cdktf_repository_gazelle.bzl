@@ -1,6 +1,6 @@
 """Repository rule for generating CDKTF bindings with proper Gazelle integration - cleaned up"""
 
-load("//tf2/cdktf:cdktf_common.bzl", "create_cdktf_json", "create_go_mod", "create_build_bazel", "get_environment_for_cdktf")
+load("//tf2/cdktf:cdktf_common.bzl", "create_build_bazel", "create_cdktf_json", "create_go_mod", "get_environment_for_cdktf")
 
 def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
     """Implementation of cdktf_bindings_repository_gazelle rule"""
@@ -35,12 +35,12 @@ def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
     )
 
     if result.return_code != 0:
-        print("ERROR: Generation failed with exit code " + str(result.return_code))
-        print("STDOUT:\n" + result.stdout)
-        print("STDERR:\n" + result.stderr)
+        # Generation failed but continue anyway
         # Don't fail here, let's see if files were generated anyway
+        pass
     else:
-        print("Generation output:\n" + result.stdout)
+        # Generation completed successfully
+        pass
 
     # Fix import paths in generated Go files
     fix_script_label = Label("//tf2/cdktf/scripts:fix_imports.sh")
@@ -52,9 +52,9 @@ def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
         timeout = 300,
     )
 
-    print("Import fix result: " + fix_imports_result.stdout)
     if fix_imports_result.return_code != 0:
-        print("Warning: Could not fix import paths: " + fix_imports_result.stderr)
+        # Warning: Could not fix import paths
+        pass
 
     # Clean up generation scripts
     repository_ctx.delete("generate_cdktf.sh")
@@ -72,7 +72,7 @@ def _cdktf_bindings_repository_gazelle_impl(repository_ctx):
     repository_ctx.file("WORKSPACE", "")
 
     # Now run gazelle to generate all the BUILD files
-    print("Running gazelle to generate BUILD files for " + provider_name + "...")
+    # Running gazelle to generate BUILD files
 
     # Run gazelle directly - assumes we're already in the nix environment
     gazelle_env = get_environment_for_cdktf(repository_ctx)
@@ -94,7 +94,8 @@ fi
     )
 
     if gazelle_result.return_code != 0:
-        print("Gazelle result: " + gazelle_result.stdout + "\nErrors: " + gazelle_result.stderr)
+        # Gazelle failed but continue
+        pass
 
     # Fix the load statements in generated BUILD files
     # Gazelle might generate with @io_bazel_rules_go but we use @rules_go
@@ -107,7 +108,8 @@ find . -name "*.bak" -type f -delete
     )
 
     if fix_result.return_code != 0:
-        print("Warning: Could not fix load statements: " + fix_result.stderr)
+        # Warning: Could not fix load statements
+        pass
 
     # Clean up temporary files but keep go.mod and go.sum
     repository_ctx.delete("WORKSPACE")

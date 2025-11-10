@@ -1,6 +1,5 @@
 """Terraform command execution utilities"""
 
-load(":shell_utils.bzl", "get_runfiles_dir_script", "create_temp_dir_script")
 load(":tool_paths.bzl", "get_terraform_path")
 
 def create_terraform_format_test(ctx, name, srcs):
@@ -14,6 +13,7 @@ def create_terraform_format_test(ctx, name, srcs):
     Returns:
         Terraform format result file
     """
+
     # Get terraform binary from tools
     terraform_binary = None
     for tool_file in ctx.files._tools:
@@ -33,7 +33,7 @@ def create_terraform_format_test(ctx, name, srcs):
         terraform_binary,
         ["fmt", "-check", "-diff", "-no-color"],
         copied_srcs,
-        name_suffix = "_format"
+        name_suffix = "_format",
     )
 
     return result
@@ -50,6 +50,7 @@ def create_terraform_validate_test(ctx, name, srcs, plugin_dir = None):
     Returns:
         Terraform validate result file
     """
+
     # Get terraform binary from tools
     terraform_binary = None
     for tool_file in ctx.files._tools:
@@ -76,7 +77,7 @@ def create_terraform_validate_test(ctx, name, srcs, plugin_dir = None):
         init_args,
         copied_srcs,
         config_file,
-        "_init"
+        "_init",
     )
 
     # Then run terraform validate (depends on init)
@@ -87,7 +88,7 @@ def create_terraform_validate_test(ctx, name, srcs, plugin_dir = None):
         ["validate", "-no-color"],
         validate_inputs,
         config_file,
-        "_validate"
+        "_validate",
     )
 
     return validate_result
@@ -142,101 +143,6 @@ export CHECKPOINT_DISABLE=true
 """.format(plugin_path = plugin_path, cmd = " ".join(cmd_parts))
 
     return " ".join(cmd_parts)
-
-def _copy_module_files_script(ctx, module_dir):
-    """Generates script to copy module files to work directory.
-
-    Args:
-        ctx: Rule context
-        module_dir: Module directory path
-
-    Returns:
-        Shell script string
-    """
-    repo_name = ctx.label.workspace_name
-    if repo_name:
-        return """
-# Copy all files from the module directory (external repository)
-MODULE_DIR="$RUNFILES/{repo_name}/{module_dir}"
-if [ ! -d "$MODULE_DIR" ]; then
-    # Try with ~~ separator (newer bazel versions)
-    MODULE_DIR="$RUNFILES/{repo_name}~/{module_dir}"
-fi
-if [ -d "$MODULE_DIR" ]; then
-    cp -r "$MODULE_DIR"/* "$WORK_DIR/" 2>/dev/null || true
-    # Also copy hidden files (like .terraform.lock.hcl)
-    cp -r "$MODULE_DIR"/.[^.]* "$WORK_DIR/" 2>/dev/null || true
-else
-    echo "ERROR: Module directory not found at $MODULE_DIR"
-    ls -la "$RUNFILES/{repo_name}/" | head -20 || true
-    ls -la "$RUNFILES/{repo_name}~/" | head -20 || true
-fi
-""".format(repo_name = repo_name, module_dir = module_dir)
-    else:
-        return """
-# Copy all files from the module directory
-MODULE_DIR="$RUNFILES/_main/{module_dir}"
-if [ -d "$MODULE_DIR" ]; then
-    cp -r "$MODULE_DIR"/* "$WORK_DIR/" 2>/dev/null || true
-    # Also copy hidden files (like .terraform.lock.hcl)
-    cp -r "$MODULE_DIR"/.[^.]* "$WORK_DIR/" 2>/dev/null || true
-fi
-""".format(module_dir = module_dir)
-
-def _copy_source_files_script(ctx, srcs):
-    """Generates script to copy individual source files to work directory.
-
-    Args:
-        ctx: Rule context
-        srcs: List of source files to copy
-
-    Returns:
-        Shell script string
-    """
-    if not srcs:
-        return "# No source files to copy"
-
-    copy_commands = []
-    seen_basenames = {}
-    module_package = ctx.label.package
-
-    for src in srcs:
-        # Skip files that are in the module package directory
-        if src.short_path.startswith(module_package + "/"):
-            continue
-
-        # Also skip files from the same package in external repositories
-        if "/" + module_package + "/" in src.short_path:
-            continue
-
-        src_path = src.short_path if src.short_path.startswith("bazel-out/") else "_main/{}".format(src.short_path)
-        basename = src.basename
-
-        if basename in seen_basenames:
-            fail("File name conflict: '{}' appears in both '{}' and '{}'".format(
-                basename,
-                seen_basenames[basename],
-                src.short_path
-            ))
-        seen_basenames[basename] = src.short_path
-
-        copy_commands.append("""
-# Copy {short_path} to working directory
-SRC_FILE="$RUNFILES/{src_path}"
-if [ -f "$SRC_FILE" ]; then
-    cp "$SRC_FILE" "$WORK_DIR/{basename}"
-else
-    echo "WARNING: Source file not found: $SRC_FILE"
-fi""".format(
-            short_path = src.short_path,
-            src_path = src_path,
-            basename = basename
-        ))
-
-    if not copy_commands:
-        return "# All source files are from the module directory"
-
-    return "\n".join(copy_commands)
 
 def create_terraform_script(ctx, name, commands, srcs, extra_runfiles = None):
     """Creates a simplified terraform script.
@@ -298,13 +204,12 @@ export CHECKPOINT_DISABLE=true
         runfiles_files.extend(extra_runfiles)
 
     # Include tool binaries in runfiles
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         runfiles_files.extend(ctx.files._tools)
 
     return script, ctx.runfiles(files = runfiles_files)
 
 # Private functions merged from terraform_actions.bzl
-
 
 # Action-based implementations (Starlark approach)
 
@@ -336,29 +241,6 @@ disable_checkpoint = true
 
     return config_file
 
-def _read_provider_marker_action(ctx, plugin_dir, name_suffix = ""):
-    """Reads provider marker file content at build time.
-
-    Args:
-        ctx: Rule context
-        plugin_dir: Plugin marker file
-        name_suffix: Optional suffix for output file name
-
-    Returns:
-        File containing the provider directory name
-    """
-    marker_content = ctx.actions.declare_file(ctx.label.name + name_suffix + "_provider_marker")
-
-    ctx.actions.run_shell(
-        outputs = [marker_content],
-        inputs = [plugin_dir],
-        command = "cat %s > %s" % (plugin_dir.path, marker_content.path),
-        mnemonic = "ReadProviderMarker",
-        progress_message = "Reading provider marker",
-    )
-
-    return marker_content
-
 def _copy_sources_action(ctx, srcs, name_suffix = ""):
     """Copies source files using Starlark actions.
 
@@ -382,33 +264,6 @@ def _copy_sources_action(ctx, srcs, name_suffix = ""):
         copied_files.append(copied_file)
 
     return copied_files
-
-def _create_module_directory_action(ctx, srcs, module_files, name_suffix = ""):
-    """Creates a working directory with all module files using Starlark actions."""
-    work_dir = ctx.label.name + name_suffix + "_workspace"
-    workspace_files = []
-
-    # Copy source files
-    for src in srcs:
-        dest_file = ctx.actions.declare_file(work_dir + "/" + src.basename)
-        ctx.actions.symlink(output = dest_file, target_file = src)
-        workspace_files.append(dest_file)
-
-    # Copy module files if different from source files
-    for module_file in module_files:
-        # Check if already copied as source file
-        already_copied = False
-        for src in srcs:
-            if src.basename == module_file.basename:
-                already_copied = True
-                break
-
-        if not already_copied:
-            dest_file = ctx.actions.declare_file(work_dir + "/" + module_file.basename)
-            ctx.actions.symlink(output = dest_file, target_file = module_file)
-            workspace_files.append(dest_file)
-
-    return workspace_files
 
 def _run_terraform_action(ctx, terraform_binary, args, srcs, config_file = None, name_suffix = ""):
     """Runs terraform command using simple Starlark action.
@@ -452,7 +307,7 @@ def _run_terraform_action(ctx, terraform_binary, args, srcs, config_file = None,
             work_dir,
             terraform_binary.path,
             " ".join(args),
-            output_file.path
+            output_file.path,
         ),
         env = env,
         mnemonic = "TerraformRun",
@@ -460,40 +315,3 @@ def _run_terraform_action(ctx, terraform_binary, args, srcs, config_file = None,
     )
 
     return output_file
-
-
-def _generate_provider_search_candidates(provider_dir_name):
-    """Generate provider search path candidates in Starlark.
-
-    Args:
-        provider_dir_name: Placeholder for provider directory name
-
-    Returns:
-        List of candidate path patterns with placeholder
-    """
-    prefixes = ["_main/external", "external", "../external"]
-    repos = ["rules_tf2~~tf_providers~tf_provider_registry", "tf2~~tf_providers~tf_provider_registry", "tf_provider_registry"]
-
-    candidates = []
-    for prefix in prefixes:
-        for repo in repos:
-            candidates.append("$RUNFILES/{}/{}/{}".format(prefix, repo, provider_dir_name))
-
-    return candidates
-
-def _create_cli_config_content(path_placeholder):
-    """Create terraform CLI configuration content.
-
-    Args:
-        path_placeholder: Placeholder for the path
-
-    Returns:
-        CLI configuration template string
-    """
-    return """provider_installation {{
-  filesystem_mirror {{
-    path = "{}"
-  }}
-}}
-disable_checkpoint = true
-""".format(path_placeholder)

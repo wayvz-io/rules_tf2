@@ -1,18 +1,18 @@
 """Module extensions for tf2"""
 
-load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
-load("//tf2/tools/download:registry.bzl", "tool_registry", "tflint_plugin_registry")
+load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
+# Version parsing functions - TODO: implement when needed
+# load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
+load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
-load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
-# Version parsing functions - TODO: implement if from_versions_json feature is needed
-# load("//tf2/providers/repository:versions.bzl", "parse_versions_json", "get_tool_version", "get_tflint_plugin_version")
+load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
 # CDKTF support is disabled - not yet functional
 # load("//tf2/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
 
 def _parse_lock_file_to_json(content):
     """Parse terraform.lock.hcl content into JSON structure.
-    
+
     Returns a dict mapping provider names to their lock data.
     """
     providers = {}
@@ -20,16 +20,16 @@ def _parse_lock_file_to_json(content):
     current_data = {}
     in_hashes = False
     hashes = []
-    
+
     for line in content.split("\n"):
         line = line.strip()
-        
+
         # Start of provider block
         if line.startswith('provider "'):
             # Save previous provider if exists
             if current_provider and current_data:
                 providers[current_provider] = current_data
-            
+
             # Extract provider name
             parts = line.split('"')
             if len(parts) >= 2:
@@ -39,21 +39,21 @@ def _parse_lock_file_to_json(content):
                 current_data = {}
                 in_hashes = False
                 hashes = []
-        
+
         elif current_provider:
             # Parse version
             if line.startswith("version"):
                 parts = line.split('"')
                 if len(parts) >= 2:
                     current_data["version"] = parts[1]
-            
-            # Parse constraints
+
+                # Parse constraints
             elif line.startswith("constraints"):
                 parts = line.split('"')
                 if len(parts) >= 2:
                     current_data["constraints"] = parts[1]
-            
-            # Parse hashes
+
+                # Parse hashes
             elif line.startswith("hashes = ["):
                 in_hashes = True
                 hashes = []
@@ -65,24 +65,24 @@ def _parse_lock_file_to_json(content):
                     parts = line.split('"')
                     if len(parts) >= 2:
                         hashes.append(parts[1])
-    
+
     # Save last provider
     if current_provider and current_data:
         providers[current_provider] = current_data
-    
+
     return providers
 
 def _tf_providers_impl(module_ctx):
     """Implementation of tf_providers module extension"""
-    
+
     main_providers = {}
     main_aliases = {}
     main_hashes = {}
-    
+
     test_providers = {}
     test_aliases = {}
     test_hashes = {}
-    
+
     # Process provider downloads from modules
     for mod in module_ctx.modules:
         if mod.is_root:  # Root module only
@@ -90,10 +90,10 @@ def _tf_providers_impl(module_ctx):
                 # Require explicit versions_file path
                 if not download.versions_file:
                     fail("versions_file must be specified in tf_providers.download()")
-                
+
                 versions_path = download.versions_file
                 lock_path = download.lock_file
-                
+
                 # Read versions from the specified file
                 versions_file = Label("@@//:" + versions_path)
                 versions_content = module_ctx.read(versions_file)
@@ -109,7 +109,8 @@ def _tf_providers_impl(module_ctx):
                     # Lock file exists but is empty - allow tf-update to populate it
                     # Warn that provider downloads will fail without hashes
                     if "providers" in versions_data and versions_data["providers"]:
-                        print("Warning: Lock file '{}' is empty but providers exist. Provider downloads will fail without hashes.".format(lock_path))
+                        # Warning: Lock file is empty but providers exist
+                        pass
                     lock_content = "{}"  # Treat as empty JSON
                 else:
                     # Parse the lock file content
@@ -141,6 +142,7 @@ def _tf_providers_impl(module_ctx):
                                 # New JSON format: {"provider:version": {"h1": [...], "zh": [...]}}
                                 if provider_key in lock_file_parsed:
                                     hash_data = lock_file_parsed[provider_key]
+
                                     # Combine all hash formats into a single list with proper prefixes
                                     all_hashes = []
                                     for hash_type in ["h1", "zh"]:
@@ -155,7 +157,7 @@ def _tf_providers_impl(module_ctx):
                                     lock_data = lock_file_parsed[provider]
                                     if lock_data.get("version") == version and lock_data.get("hashes"):
                                         main_hashes[provider_key] = lock_data["hashes"]
-        
+
         elif mod.name == "tf2":  # tf2 module
             for download in mod.tags.download:
                 # Require explicit paths - no defaults
@@ -163,10 +165,10 @@ def _tf_providers_impl(module_ctx):
                     fail("versions_file must be specified in tf_providers.download() for tf2 module")
                 if not download.lock_file:
                     fail("lock_file must be specified in tf_providers.download() for tf2 module")
-                
+
                 versions_path = download.versions_file
                 lock_path = download.lock_file
-                
+
                 # Read from tf2 module
                 versions_file = Label("@rules_tf2//:" + versions_path)
                 versions_content = module_ctx.read(versions_file)
@@ -182,7 +184,8 @@ def _tf_providers_impl(module_ctx):
                     # Lock file exists but is empty - allow tf-update to populate it
                     # Warn that provider downloads will fail without hashes
                     if "providers" in versions_data and versions_data["providers"]:
-                        print("Warning: Lock file '{}' is empty but providers exist. Provider downloads will fail without hashes.".format(lock_path))
+                        # Warning: Lock file is empty but providers exist
+                        pass
                     lock_content = "{}"  # Treat as empty JSON
                 else:
                     # Parse the lock file content
@@ -214,6 +217,7 @@ def _tf_providers_impl(module_ctx):
                                 # New JSON format: {"provider:version": {"h1": [...], "zh": [...]}}
                                 if provider_key in lock_file_parsed:
                                     hash_data = lock_file_parsed[provider_key]
+
                                     # Combine all hash formats into a single list with proper prefixes
                                     all_hashes = []
                                     for hash_type in ["h1", "zh"]:
@@ -228,18 +232,18 @@ def _tf_providers_impl(module_ctx):
                                     lock_data = lock_file_parsed[provider]
                                     if lock_data.get("version") == version and lock_data.get("hashes"):
                                         test_hashes[provider_key] = lock_data["hashes"]
-    
+
     # Consolidate both provider sets into a single registry
     combined_providers = {}
     combined_aliases = {}
     combined_hashes = {}
-    
+
     # Start with main providers
     if main_providers:
         combined_providers.update(main_providers)
         combined_aliases.update(main_aliases)
         combined_hashes.update(main_hashes)
-    
+
     # Add test providers (they won't conflict since they're different namespaces)
     if test_providers:
         for provider, versions in test_providers.items():
@@ -250,10 +254,10 @@ def _tf_providers_impl(module_ctx):
                         combined_providers[provider].append(version)
             else:
                 combined_providers[provider] = versions
-        
+
         combined_aliases.update(test_aliases)
         combined_hashes.update(test_hashes)
-    
+
     # Create registry based on what we have
     if combined_providers:
         # We have actual providers - create real registry
@@ -304,23 +308,23 @@ tf_providers = module_extension(
 
 def _cdktf_providers_impl(module_ctx):
     """Implementation of cdktf_providers module extension"""
-    
+
     # Collect all CDKTF generation requests from modules
     all_cdktf_providers = {}
-    
+
     for mod in module_ctx.modules:
         for generate in mod.tags.generate:
             provider = generate.provider
             version = generate.version
             language = generate.language or "go"
-            
+
             # Extract provider name and major version for repository naming
             provider_name = provider.split("/")[-1]  # e.g., "aws" from "hashicorp/aws"
-            major_version = version.split(".")[0]    # e.g., "6" from "6.2.0"
-            
+            major_version = version.split(".")[0]  # e.g., "6" from "6.2.0"
+
             # Create repository name like "cdktf_aws_6"
             repo_name = "cdktf_{}_{}_go".format(provider_name, major_version)
-            
+
             # CDKTF support is disabled - not yet functional
             # cdktf_bindings_repository_gazelle(
             #     name = repo_name,
@@ -329,7 +333,7 @@ def _cdktf_providers_impl(module_ctx):
             #     provider_version = version,
             # )
             pass  # Placeholder until CDKTF is fully implemented
-            
+
             # Store for potential future use
             all_cdktf_providers[repo_name] = {
                 "provider": provider,
@@ -365,10 +369,10 @@ cdktf_providers = module_extension(
 
 def _tfc_config_impl(module_ctx):
     """Implementation of tfc_config module extension"""
-    
+
     # Collect TFC configuration from modules
     tfc_config = {}
-    
+
     for mod in module_ctx.modules:
         for config in mod.tags.configure:
             if config.organization:
@@ -377,7 +381,7 @@ def _tfc_config_impl(module_ctx):
                 tfc_config["tfe_host"] = config.tfe_host
             if hasattr(config, "default_auto_apply"):
                 tfc_config["default_auto_apply"] = config.default_auto_apply
-    
+
     # Note: In a real implementation, we would store this config somewhere
     # that the rules can access it. For now, rules will need to pass
     # organization explicitly or use environment variables.
@@ -455,7 +459,7 @@ def _tf_tools_impl(module_ctx):
             plugin_name = plugin.name
             plugin_version = plugin.version
             tflint_plugins[plugin_name] = plugin_version
-    
+
     # Create individual tool repositories
     download_terraform(
         name = "terraform_tool",
@@ -471,7 +475,7 @@ def _tf_tools_impl(module_ctx):
         name = "terraform_docs_tool",
         version = terraform_docs_version,
     )
-    
+
     # Create individual tflint plugin repositories
     for plugin_name, plugin_version in tflint_plugins.items():
         download_tflint_plugin(
@@ -479,12 +483,12 @@ def _tf_tools_impl(module_ctx):
             plugin_name = plugin_name,
             version = plugin_version,
         )
-    
+
     # Create tool registry repository (just for aliases)
     tool_registry(
         name = "tf_tool_registry",
     )
-    
+
     # Create tflint plugin registry if we have plugins
     if tflint_plugins:
         tflint_plugin_registry(

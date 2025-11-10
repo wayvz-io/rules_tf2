@@ -1,30 +1,29 @@
 """General-purpose Terraform runner rule for executing terraform commands."""
 
-load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/module/core:variables.bzl", "TfVariablesInfo")
-load("//tf2/tools/runners:terraform.bzl", "create_terraform_script", "terraform_init_script")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None):
     """Prepare a staging directory with all Terraform files.
-    
+
     This creates a proper staging directory that preserves the directory structure
     to avoid file name conflicts.
-    
+
     Returns:
         staging_dir: The staging directory
         all_inputs: All input files
     """
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
     srcs = stack_info.srcs.to_list()
-    
+
     # Build commands to create the staging directory and copy files
     copy_commands = []
     mkdir_commands = {}
-    
+
     # Process stack files - copy them to root of staging directory
     for src_file in srcs:
         src_path = src_file.short_path
-        
+
         # Check if this file is in a subdirectory (modules, templates, etc)
         if "/" in src_file.basename:
             # This shouldn't happen - basename should just be the file name
@@ -35,7 +34,7 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
                 # For modules and templates, preserve the directory structure
                 parts = src_path.split("/")
                 dest_path = src_file.basename  # Default
-                
+
                 # Find the modules or templates directory
                 for i, part in enumerate(parts):
                     if part in ["modules", "templates"] and i < len(parts) - 1:
@@ -48,29 +47,29 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
             else:
                 # For regular files, just copy to root
                 dest_path = src_file.basename
-        
+
         copy_commands.append("cp -L '{}' '{}/{}'".format(
             src_file.path,
             staging_dir.path,
-            dest_path
+            dest_path,
         ))
-    
+
     # Process variable files - these go to root
     for var_file in var_files:
         dest_name = var_file.basename
-        
+
         # Auto-rename tfvars files for TFC compatibility
         if dest_name.endswith(".tfvars") and not dest_name.endswith(".auto.tfvars"):
             dest_name = dest_name[:-7] + ".auto.tfvars"
         elif dest_name.endswith(".tfvars.json") and not dest_name.endswith(".auto.tfvars.json"):
             dest_name = dest_name[:-12] + ".auto.tfvars.json"
-        
+
         copy_commands.append("cp -L '{}' '{}/{}'".format(
             var_file.path,
             staging_dir.path,
-            dest_name
+            dest_name,
         ))
-    
+
     # Create backend file if config provided
     backend_file = None
     if backend_config:
@@ -83,12 +82,12 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
             backend_file.path,
             staging_dir.path,
         ))
-    
+
     # Prepare all inputs
     all_inputs = srcs + var_files
     if backend_file:
         all_inputs = all_inputs + [backend_file]
-    
+
     # Create the staging directory
     ctx.actions.run_shell(
         inputs = all_inputs,
@@ -106,20 +105,21 @@ mkdir -p '{staging_dir}'
         mnemonic = "PrepareTerraformStaging",
         progress_message = "Preparing Terraform staging for %s" % ctx.label,
     )
-    
+
     return staging_dir, all_inputs
 
 def _tf_runner_impl(ctx):
     """Implementation of tf_runner rule."""
+
     # Get the stack's files
     stack_info = ctx.attr.stack[TfModuleInfo]
-    
+
     # Get variable files if provided
     var_files = []
     if ctx.attr.variables:
         variables_info = ctx.attr.variables[TfVariablesInfo]
         var_files = variables_info.all_files
-    
+
     # Generate backend configuration if needed
     backend_config = None
     if ctx.attr.backend_type == "cloud":
@@ -148,10 +148,10 @@ def _tf_runner_impl(ctx):
             organization = ctx.attr.backend_organization,
             workspace = ctx.attr.backend_workspace,
         )
-    
+
     # Prepare staging directory with proper structure
-    staging_dir, all_inputs = _prepare_staging_directory(ctx, stack_info, var_files, backend_config)
-    
+    staging_dir, _ = _prepare_staging_directory(ctx, stack_info, var_files, backend_config)
+
     # Get the runner script file and copy it alongside our wrapper
     runner_template = ctx.file._terraform_runner_script
     runner_copy = ctx.actions.declare_file("{}_terraform_runner.sh".format(ctx.attr.name))
@@ -160,10 +160,10 @@ def _tf_runner_impl(ctx):
         outputs = [runner_copy],
         command = "cp '{}' '{}'".format(runner_template.path, runner_copy.path),
     )
-    
+
     # Create the wrapper script
     runner_script = ctx.actions.declare_file("{}_runner.sh".format(ctx.attr.name))
-    
+
     # Build a wrapper script that calls the copied runner script
     wrapper_content = """#!/usr/bin/env bash
 set -euo pipefail
@@ -198,13 +198,13 @@ exec "$RUNNER_SCRIPT" \\
         default_apply_args = ctx.attr.default_apply_args or "",
         default_command = '"%s"' % ctx.attr.default_command if ctx.attr.default_command else "",
     )
-    
+
     ctx.actions.write(
         output = runner_script,
         content = wrapper_content,
         is_executable = True,
     )
-    
+
     return [
         DefaultInfo(
             files = depset([runner_script, staging_dir, runner_copy]),

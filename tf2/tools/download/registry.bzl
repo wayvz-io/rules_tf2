@@ -9,6 +9,7 @@ def _tool_registry_impl(repository_ctx):
     Args:
         repository_ctx: Repository rule context
     """
+
     # Create registry BUILD file with aliases
     build_content = '''package(default_visibility = ["//visibility:public"])
 

@@ -1,29 +1,29 @@
 """Unit tests for Terraform organization rules"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
 load("//tf2/module/deps:organization.bzl", "tf_organization_check_test", "tf_organization_negative_test", "tf_reorganize")
 
 # Test organization check test creation
 def _tf_organization_check_test_creation_test_impl(ctx):
     env = analysistest.begin(ctx)
-    
+
     target_under_test = analysistest.target_under_test(env)
-    
+
     # Check that it's a test rule
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "tf_organization_check_test should provide DefaultInfo"
+        "tf_organization_check_test should provide DefaultInfo",
     )
-    
+
     # Check that executable is set
     default_info = target_under_test[DefaultInfo]
     asserts.true(
         env,
         default_info.files_to_run.executable != None,
-        "tf_organization_check_test should be executable"
+        "tf_organization_check_test should be executable",
     )
-    
+
     return analysistest.end(env)
 
 tf_organization_check_test_creation_test = analysistest.make(_tf_organization_check_test_creation_test_impl)
@@ -31,23 +31,23 @@ tf_organization_check_test_creation_test = analysistest.make(_tf_organization_ch
 # Test reorganize rule
 def _tf_reorganize_test_impl(ctx):
     env = analysistest.begin(ctx)
-    
+
     target_under_test = analysistest.target_under_test(env)
-    
+
     # Check that reorganize is executable
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "tf_reorganize should provide DefaultInfo"
+        "tf_reorganize should provide DefaultInfo",
     )
-    
+
     default_info = target_under_test[DefaultInfo]
     asserts.true(
         env,
         default_info.files_to_run.executable != None,
-        "tf_reorganize should be executable"
+        "tf_reorganize should be executable",
     )
-    
+
     return analysistest.end(env)
 
 tf_reorganize_test = analysistest.make(_tf_reorganize_test_impl)
@@ -55,14 +55,14 @@ tf_reorganize_test = analysistest.make(_tf_reorganize_test_impl)
 # Test organization check with properly organized files
 def _tf_organization_properly_organized_test_impl(ctx):
     env = analysistest.begin(ctx)
-    
+
     target_under_test = analysistest.target_under_test(env)
     runfiles = target_under_test[DefaultInfo].default_runfiles
-    
+
     # Check that proper files are included
     files = runfiles.files.to_list()
     file_names = [f.basename for f in files]
-    
+
     # Should have standard terraform file names
     expected_files = ["terraform.tf", "providers.tf", "variables.tf", "outputs.tf", "main.tf"]
     for expected in expected_files:
@@ -70,9 +70,9 @@ def _tf_organization_properly_organized_test_impl(ctx):
             asserts.true(
                 env,
                 True,
-                "Found expected file: " + expected
+                "Found expected file: " + expected,
             )
-    
+
     return analysistest.end(env)
 
 tf_organization_properly_organized_test = analysistest.make(_tf_organization_properly_organized_test_impl)
@@ -80,16 +80,16 @@ tf_organization_properly_organized_test = analysistest.make(_tf_organization_pro
 # Test organization check with mixed content
 def _tf_organization_mixed_content_test_impl(ctx):
     env = analysistest.begin(ctx)
-    
+
     target_under_test = analysistest.target_under_test(env)
-    
+
     # Mixed content files should still be testable
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "Organization check should handle mixed content files"
+        "Organization check should handle mixed content files",
     )
-    
+
     return analysistest.end(env)
 
 tf_organization_mixed_content_test = analysistest.make(_tf_organization_mixed_content_test_impl)
@@ -97,7 +97,7 @@ tf_organization_mixed_content_test = analysistest.make(_tf_organization_mixed_co
 # Helper to create properly organized terraform files
 def _create_organized_tf_files_impl(ctx):
     """Create properly organized terraform files"""
-    
+
     # terraform.tf - only terraform blocks (correct filename)
     terraform_tf = ctx.actions.declare_file("terraform.tf")
     ctx.actions.write(
@@ -114,7 +114,7 @@ def _create_organized_tf_files_impl(ctx):
 }
 """,
     )
-    
+
     # providers.tf - only provider blocks
     providers_tf = ctx.actions.declare_file("providers.tf")
     ctx.actions.write(
@@ -129,7 +129,7 @@ provider "aws" {
 }
 """,
     )
-    
+
     # variables.tf - only variable blocks (correct filename)
     variables_tf = ctx.actions.declare_file("variables.tf")
     ctx.actions.write(
@@ -146,7 +146,7 @@ variable "environment" {
 }
 """,
     )
-    
+
     # outputs.tf - only output blocks
     outputs_tf = ctx.actions.declare_file("outputs.tf")
     ctx.actions.write(
@@ -162,7 +162,7 @@ output "bucket_arn" {
 }
 """,
     )
-    
+
     # main.tf - resources, data sources, locals (correct filename)
     main_tf = ctx.actions.declare_file("main.tf")
     ctx.actions.write(
@@ -193,7 +193,7 @@ resource "aws_s3_bucket" "main" {
 }
 """,
     )
-    
+
     return [DefaultInfo(files = depset([
         terraform_tf,
         providers_tf,
@@ -209,7 +209,7 @@ create_organized_tf_files = rule(
 # Helper to create disorganized terraform files
 def _create_disorganized_tf_files_impl(ctx):
     """Create disorganized terraform files (mixed content)"""
-    
+
     # Mixed file with various block types
     mixed_tf = ctx.actions.declare_file("mixed.tf")
     ctx.actions.write(
@@ -248,7 +248,7 @@ provider "aws" {
 }
 """,
     )
-    
+
     # Another mixed file
     config_tf = ctx.actions.declare_file("config.tf")
     ctx.actions.write(
@@ -282,7 +282,7 @@ variable "bucket_name" {
 }
 """,
     )
-    
+
     return [DefaultInfo(files = depset([mixed_tf, config_tf]))]
 
 create_disorganized_tf_files = rule(
@@ -292,7 +292,7 @@ create_disorganized_tf_files = rule(
 # Helper to create files with imports
 def _create_files_with_imports_impl(ctx):
     """Create files including import blocks"""
-    
+
     imports_tf = ctx.actions.declare_file("imports.tf")
     ctx.actions.write(
         output = imports_tf,
@@ -308,7 +308,7 @@ import {
 }
 """,
     )
-    
+
     main_tf = ctx.actions.declare_file("main_imports.tf")
     ctx.actions.write(
         output = main_tf,
@@ -322,7 +322,7 @@ resource "aws_s3_bucket" "legacy" {
 }
 """,
     )
-    
+
     return [DefaultInfo(files = depset([imports_tf, main_tf]))]
 
 create_files_with_imports = rule(
@@ -331,71 +331,75 @@ create_files_with_imports = rule(
 
 # Test suite setup
 def organization_test_suite(name):
-    """Create all organization test targets"""
-    
+    """Create all organization test targets
+
+    Args:
+        name: Name of the test suite
+    """
+
     # Create test files
     create_organized_tf_files(
         name = "organized_files",
     )
-    
+
     create_disorganized_tf_files(
         name = "disorganized_files",
     )
-    
+
     create_files_with_imports(
         name = "files_with_imports",
     )
-    
+
     # Test basic organization check test
     tf_organization_check_test(
         name = "basic_organization_check",
         srcs = [":organized_files"],
         size = "small",
     )
-    
+
     tf_organization_check_test_creation_test(
         name = "tf_organization_check_test_creation_test",
         target_under_test = ":basic_organization_check",
         size = "small",
     )
-    
+
     # Test reorganize rule
     tf_reorganize(
         name = "basic_reorganize",
     )
-    
+
     tf_reorganize_test(
         name = "tf_reorganize_test",
         target_under_test = ":basic_reorganize",
         size = "small",
     )
-    
+
     # Test with properly organized files
     tf_organization_check_test(
         name = "check_organized",
         srcs = [":organized_files"],
         size = "small",
     )
-    
+
     tf_organization_properly_organized_test(
         name = "tf_organization_properly_organized_test",
         target_under_test = ":check_organized",
         size = "small",
     )
-    
+
     # Test with mixed content (expecting it to be detected as disorganized)
     tf_organization_negative_test(
         name = "check_mixed",
         srcs = [":disorganized_files"],
         size = "small",
     )
-    
+
     tf_organization_mixed_content_test(
         name = "tf_organization_mixed_content_test",
         target_under_test = ":check_mixed",
         size = "small",
     )
-    
+
     # Aggregate all tests
     native.test_suite(
         name = name,

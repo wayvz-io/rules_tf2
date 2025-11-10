@@ -1,7 +1,7 @@
 """Unit tests for Terraform format rules"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf2/module/quality:format.bzl", "tf_format_test", "tf_format")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
+load("//tf2/module/quality:format.bzl", "tf_format", "tf_format_test")
 
 # Test that format test rule is created correctly
 def _tf_format_test_creation_test_impl(ctx):
@@ -13,7 +13,7 @@ def _tf_format_test_creation_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "tf_format_test should provide DefaultInfo"
+        "tf_format_test should provide DefaultInfo",
     )
 
     # Check that executable is set
@@ -21,7 +21,7 @@ def _tf_format_test_creation_test_impl(ctx):
     asserts.true(
         env,
         default_info.files_to_run.executable != None,
-        "tf_format_test should be executable"
+        "tf_format_test should be executable",
     )
 
     return analysistest.end(env)
@@ -38,14 +38,14 @@ def _tf_format_rule_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "tf_format should provide DefaultInfo"
+        "tf_format should provide DefaultInfo",
     )
 
     default_info = target_under_test[DefaultInfo]
     asserts.true(
         env,
         default_info.files_to_run.executable != None,
-        "tf_format should be executable"
+        "tf_format should be executable",
     )
 
     return analysistest.end(env)
@@ -66,7 +66,7 @@ def _tf_format_multiple_files_test_impl(ctx):
     asserts.true(
         env,
         len(tf_files) >= 2,
-        "Format test should handle multiple .tf files"
+        "Format test should handle multiple .tf files",
     )
 
     return analysistest.end(env)
@@ -85,7 +85,7 @@ def _tf_format_only_tf_files_test_impl(ctx):
     tf_json_files = [f for f in files if f.path.endswith(".tf.json")]
 
     # The test files include .tf.json but format should exclude them
-    # (Note: in actual implementation, this depends on how srcs are filtered)
+    asserts.equals(env, 0, len(tf_json_files), "Format should exclude .tf.json files")
 
     return analysistest.end(env)
 
@@ -101,7 +101,7 @@ def _tf_format_empty_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "Empty format test should still be valid"
+        "Empty format test should still be valid",
     )
 
     return analysistest.end(env)
@@ -235,7 +235,11 @@ create_mixed_file_types = rule(
 
 # Test suite setup
 def format_test_suite(name):
-    """Create all format test targets"""
+    """Create all format test targets
+
+    Args:
+        name: Name of the test suite
+    """
 
     # Create test files
     create_unformatted_tf_files(

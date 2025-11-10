@@ -1,6 +1,5 @@
 # Edge case unit tests
 
-load("@bazel_skylib//lib:unittest.bzl", "unittest")
 load(":error_conditions_test.bzl", "error_conditions_test_suite")
 
 # Test suites

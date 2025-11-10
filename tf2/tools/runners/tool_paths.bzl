@@ -57,7 +57,7 @@ def _is_external_repository(ctx):
     Returns:
         Boolean: True if external repository, False if main repository
     """
-    if hasattr(ctx.attr, '_tools') and ctx.files._tools:
+    if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         for tool_file in ctx.files._tools:
             if "rules_tf2~~tf_tools~" in tool_file.short_path:
                 return True
@@ -75,7 +75,8 @@ def get_tool_path(ctx, tool_name):
     """
     if tool_name not in _TOOL_CONFIGS:
         fail("Unknown tool: {}. Supported tools: {}".format(
-            tool_name, ", ".join(_TOOL_CONFIGS.keys())
+            tool_name,
+            ", ".join(_TOOL_CONFIGS.keys()),
         ))
 
     config = _TOOL_CONFIGS[tool_name]
@@ -147,4 +148,3 @@ TOOLS_ATTR = {
         doc = "Tool binaries and TFLint plugins",
     ),
 }
-

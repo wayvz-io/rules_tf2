@@ -29,7 +29,7 @@ tf_module(
     # doesn't use them directly - but they WILL appear in terraform.lock.hcl
     # because basic_module needs them.
     providers = [
-        "@tf_provider_registry//:aws_5",     # AWS provider v5.x (same as child)
+        "@tf_provider_registry//:aws_5",  # AWS provider v5.x (same as child)
         # random_3 - NOT HERE but will be in lockfile (inherited from child)
         # null_3 - NOT HERE but will be in lockfile (inherited from child)
     ],

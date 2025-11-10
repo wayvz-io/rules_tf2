@@ -16,6 +16,7 @@ nixpkgs_commit = "cbaa7e62e9c4da23df247809a8f97db0e124ec8c"
 bazel_dep(name = "bazel_skylib", version = "1.7.1")
 bazel_dep(name = "platforms", version = "1.0.0")
 bazel_dep(name = "rules_license", version = "1.0.0")
+bazel_dep(name = "rules_shell", version = "0.5.0")
 
 # Documentation generation
 bazel_dep(name = "stardoc", version = "0.8.0")

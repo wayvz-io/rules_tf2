@@ -1,6 +1,6 @@
 """Simple unit tests for tf2 Bazel rules using Skylib unittest framework"""
 
-load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
+load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 
 # Simple test to verify testing framework works
 def _simple_test_impl(ctx):
@@ -67,7 +67,7 @@ def _provider_test_impl(ctx):
     asserts.true(
         env,
         DefaultInfo in target_under_test,
-        "All targets should have DefaultInfo"
+        "All targets should have DefaultInfo",
     )
 
     return analysistest.end(env)
@@ -89,7 +89,11 @@ dummy_rule = rule(
 )
 
 def simple_test_suite(name):
-    """Create simple test suite"""
+    """Create test suite
+
+    Args:
+        name: Name of the test suite
+    """
 
     # Create basic unit tests
     simple_test(name = name + "_simple", size = "small")
