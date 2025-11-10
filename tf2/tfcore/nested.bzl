@@ -96,6 +96,10 @@ def process_nested_modules(ctx, parent_srcs, modules):
     all_files = []
     module_mappings = {}
 
+    # Track which destination paths have been processed to avoid duplicates
+    # This handles the case where a module is included both directly and transitively
+    processed_dest_paths = {}
+
     # First, collect all modules and create mappings
     # We'll build a mapping that handles ANY path to a module and rewrites it to ./modules/<module_name>
     module_names = []
@@ -177,6 +181,13 @@ def process_nested_modules(ctx, parent_srcs, modules):
         module_files = _process_module_files(ctx, module, module_name)
 
         for src_file, dest_path in module_files:
+            # Skip if we've already processed this destination path
+            # This prevents duplicate symlinks when a module is included both directly and transitively
+            if dest_path in processed_dest_paths:
+                continue
+
+            processed_dest_paths[dest_path] = True
+
             # For .tf files, rewrite them; for others, just copy
             if src_file.basename.endswith(".tf"):
                 # Module files might also have relative references that need rewriting
@@ -196,7 +207,10 @@ def process_nested_modules(ctx, parent_srcs, modules):
     for src_file in parent_srcs:
         if src_file.basename.endswith(".tf") and module_mappings:
             # Rewrite parent module TF files to update module sources
-            rewritten = _rewrite_terraform_file(ctx, src_file, src_file.basename, module_mappings)
+            # Use a unique output path to avoid conflicts with genrules
+            # Prefix with the module name to make it unique
+            unique_dest_path = ctx.label.name + "_" + src_file.basename
+            rewritten = _rewrite_terraform_file(ctx, src_file, unique_dest_path, module_mappings)
             parent_files.append(rewritten)
         else:
             # Keep non-TF files as-is

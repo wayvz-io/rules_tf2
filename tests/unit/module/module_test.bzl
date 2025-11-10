@@ -66,23 +66,40 @@ def _tf_module_deps_test_impl(ctx):
 tf_module_deps_test = analysistest.make(_tf_module_deps_test_impl)
 
 # Test that nested modules are processed correctly
-# Commented out due to file generation conflicts with nested modules
-# def _tf_module_nested_test_impl(ctx):
-#     env = analysistest.begin(ctx)
-#
-#     target_under_test = analysistest.target_under_test(env)
-#     module_info = target_under_test[TfModuleInfo]
-#
-#     # Check that modules list is populated
-#     asserts.true(
-#         env,
-#         len(module_info.modules) > 0,
-#         "Nested modules should be included in module info"
-#     )
-#
-#     return analysistest.end(env)
-#
-# tf_module_nested_test = analysistest.make(_tf_module_nested_test_impl)
+def _tf_module_nested_test_impl(ctx):
+    env = analysistest.begin(ctx)
+
+    target_under_test = analysistest.target_under_test(env)
+    module_info = target_under_test[TfModuleInfo]
+
+    # Check that modules list is populated
+    asserts.true(
+        env,
+        len(module_info.modules) > 0,
+        "Nested modules should be included in module info"
+    )
+
+    return analysistest.end(env)
+
+tf_module_nested_test = analysistest.make(_tf_module_nested_test_impl)
+
+# Test transitive module dependencies (the conflicting symlink issue)
+def _tf_module_transitive_deps_test_impl(ctx):
+    env = analysistest.begin(ctx)
+
+    target_under_test = analysistest.target_under_test(env)
+
+    # Just check that the target builds successfully
+    # The real test is that it doesn't fail with conflicting symlinks
+    asserts.true(
+        env,
+        TfModuleInfo in target_under_test,
+        "Module with transitive deps should build without conflicts"
+    )
+
+    return analysistest.end(env)
+
+tf_module_transitive_deps_test = analysistest.make(_tf_module_transitive_deps_test_impl)
 
 # Test empty module (no srcs)
 def _tf_module_empty_test_impl(ctx):
@@ -273,14 +290,61 @@ def module_test_suite(name):
         size = "small",
     )
 
+    # Test nested modules
+    # Create base module first
+    tf_module_rule(
+        name = "base_module",
+        srcs = [":" + name + "_main.tf"],
+        provider_configurations = ":test_provider_config",
+    )
+
+    # Create module with nested dependency
+    tf_module_rule(
+        name = "test_nested_module",
+        srcs = [":" + name + "_variables.tf"],
+        modules = [":base_module"],
+        provider_configurations = ":test_provider_config",
+    )
+
+    tf_module_nested_test(
+        name = "tf_module_nested_test",
+        target_under_test = ":test_nested_module",
+        size = "small",
+    )
+
+    # Test transitive dependencies (conflicting symlink issue)
+    # Create child module that includes base_module
+    tf_module_rule(
+        name = "child_with_base",
+        srcs = [":" + name + "_variables.tf"],
+        modules = [":base_module"],
+        provider_configurations = ":test_provider_config",
+    )
+
+    # Create parent that includes both child and base (transitive)
+    # This should NOT cause conflicting symlinks
+    tf_module_rule(
+        name = "parent_with_transitive",
+        srcs = [],
+        modules = [":base_module", ":child_with_base"],
+        provider_configurations = ":test_provider_config",
+    )
+
+    tf_module_transitive_deps_test(
+        name = "tf_module_transitive_deps_test",
+        target_under_test = ":parent_with_transitive",
+        size = "small",
+    )
+
     # Aggregate all tests
     native.test_suite(
         name = name,
         tests = [
             ":tf_module_basic_test",
             ":tf_module_deps_test",
-            # ":tf_module_nested_test",  # Removed due to file generation conflicts
+            ":tf_module_nested_test",
             ":tf_module_empty_test",
             ":tf_module_with_providers_test",
+            ":tf_module_transitive_deps_test",
         ],
     )
