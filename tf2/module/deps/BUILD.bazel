@@ -1,0 +1,34 @@
+"""Module dependency management"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "module_deps",
+    srcs = ["module_deps.bzl"],
+    deps = [
+        "//tf2/internal/providers:info",
+    ],
+)
+
+bzl_library(
+    name = "organization",
+    srcs = ["organization.bzl"],
+    deps = [
+        "//tf2/tools:terraform",
+        "//tf2/internal/utils:runfiles",
+        "//tf2/internal/utils:files",
+    ],
+)
+
+bzl_library(
+    name = "test",
+    srcs = ["test.bzl"],
+    deps = [
+        "//tf2/tools:terraform",
+        "//tf2/internal/utils:runfiles",
+    ],
+)

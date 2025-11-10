@@ -1,0 +1,17 @@
+"""Terraform Cloud publishing"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "tf_cloud_runner",
+    srcs = ["tf_cloud_runner.bzl"],
+    deps = [
+        "//tf2/runner:tf_runner",
+        "//tf2/tools/runners:terraform",
+        "//tf2/internal/utils:runfiles",
+    ],
+)

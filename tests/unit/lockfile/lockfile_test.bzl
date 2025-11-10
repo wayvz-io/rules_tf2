@@ -1,7 +1,7 @@
 """Unit tests for Terraform lockfile rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf2/testing:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
+load("//tf2/module/versions:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
 
 # Test lockfile generation for validation
 def _tf_generate_lockfile_test_impl(ctx):

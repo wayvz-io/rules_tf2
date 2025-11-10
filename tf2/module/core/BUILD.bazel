@@ -1,0 +1,33 @@
+"""Core module rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "variables",
+    srcs = ["variables.bzl"],
+    deps = [
+        "//tf2/internal/providers:info",
+    ],
+)
+
+bzl_library(
+    name = "tf_module",
+    srcs = ["tf_module.bzl"],
+    deps = [
+        ":variables",
+        "//tf2/internal/providers:info",
+        "//tf2/internal/utils:files",
+    ],
+)
+
+bzl_library(
+    name = "nested_modules",
+    srcs = ["nested_modules.bzl"],
+    deps = [
+        ":tf_module",
+    ],
+)

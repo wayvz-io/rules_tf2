@@ -16,6 +16,6 @@ bzl_library(
     srcs = ["oci_push.bzl"],
     deps = [
         ":config",
-        "//tf2/core/rules:info",
+        "//tf2/internal/providers:info",
     ],
 )

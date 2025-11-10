@@ -1,7 +1,7 @@
 """Rules for pushing Terraform stacks to OCI registries."""
 
 load(":config.bzl", "OCI_CONFIG")
-load("//tf2/core/rules:info.bzl", "TfModuleInfo")
+load("//tf2/internal/providers:info.bzl", "TfModuleInfo")
 
 def _oci_push_impl(ctx):
     """Implementation of oci_push rule."""

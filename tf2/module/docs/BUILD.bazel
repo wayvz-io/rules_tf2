@@ -1,0 +1,17 @@
+"""Module documentation generation"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "docs",
+    srcs = ["docs.bzl"],
+    deps = [
+        "//tf2/tools:tfdoc",
+        "//tf2/internal/utils:runfiles",
+        "//tf2/internal/utils:files",
+    ],
+)

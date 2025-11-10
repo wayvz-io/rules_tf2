@@ -1,5 +1,5 @@
 load("//tf2:def.bzl", "tf_module")
-load("//tf2/testing:tflint_rules.bzl", "tf_tflint_negative_test")
+load("//tf2/module/quality:tflint_rules.bzl", "tf_tflint_negative_test")
 
 # Define a test module that will use the new hybrid tflint validation
 tf_module(

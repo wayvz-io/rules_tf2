@@ -1,25 +1,11 @@
 """Module extensions for tf2"""
 
-load("//tf2/core/repositories:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
-load("//tf2/core/repositories:tools.bzl", "tool_registry", "download_tool", "download_tflint_plugin", "tflint_plugin_registry")
-# load("//tf2/core/repositories:versions.bzl", "parse_versions_json", "get_tool_version", "get_tflint_plugin_version")
+load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
+load("//tf2/tools/download:tools_repository.bzl", "tool_registry", "download_tool", "download_tflint_plugin", "tflint_plugin_registry")
+# Version parsing functions - TODO: implement if from_versions_json feature is needed
+# load("//tf2/providers/repository:versions.bzl", "parse_versions_json", "get_tool_version", "get_tflint_plugin_version")
 # CDKTF support is disabled - not yet functional
-# load("//tf2/core/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
-
-def parse_versions_json(module_ctx, versions_file):
-    """Parse versions.json file and return the data."""
-    content = module_ctx.read(versions_file)
-    return json.decode(content)
-
-def get_tool_version(versions_data, tool_name):
-    """Get tool version from versions data."""
-    tools = versions_data.get("tools", {})
-    return tools.get(tool_name)
-
-def get_tflint_plugin_version(versions_data, plugin_name):
-    """Get tflint plugin version from versions data."""
-    plugins = versions_data.get("tflint_plugins", {})
-    return plugins.get(plugin_name)
+# load("//tf2/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
 
 def _parse_lock_file_to_json(content):
     """Parse terraform.lock.hcl content into JSON structure.
@@ -433,23 +419,24 @@ def _tf_tools_impl(module_ctx):
 
     # Collect tool configuration from modules
     for mod in module_ctx.modules:
-        # Check for versions.json configuration first
-        for versions_config in mod.tags.from_versions_json:
-            versions_data = parse_versions_json(module_ctx, versions_config.versions_file)
+        # TODO: Implement from_versions_json feature when needed
+        # # Check for versions.json configuration first
+        # for versions_config in mod.tags.from_versions_json:
+        #     versions_data = parse_versions_json(module_ctx, versions_config.versions_file)
 
-            # Get tool versions from versions.json
-            if not terraform_version:
-                terraform_version = get_tool_version(versions_data, "terraform")
-            if not tflint_version:
-                tflint_version = get_tool_version(versions_data, "tflint")
-            if not terraform_docs_version:
-                terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
+        #     # Get tool versions from versions.json
+        #     if not terraform_version:
+        #         terraform_version = get_tool_version(versions_data, "terraform")
+        #     if not tflint_version:
+        #         tflint_version = get_tool_version(versions_data, "tflint")
+        #     if not terraform_docs_version:
+        #         terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
 
-            # Get plugin versions from versions.json
-            for plugin_name in ["aws", "azurerm", "google", "opa"]:
-                plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
-                if plugin_version:
-                    tflint_plugins[plugin_name] = plugin_version
+        #     # Get plugin versions from versions.json
+        #     for plugin_name in ["aws", "azurerm", "google", "opa"]:
+        #         plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
+        #         if plugin_version:
+        #             tflint_plugins[plugin_name] = plugin_version
 
         # Override with explicit configuration
         for config in mod.tags.configure:

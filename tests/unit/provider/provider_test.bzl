@@ -1,9 +1,9 @@
 """Unit tests for Terraform provider rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "analysistest", "unittest")
-load("//tf2/core/providers:provider_mirror.bzl", "provider_mirror")
-load("//tf2/core/providers:filesystem_mirror.bzl", "filesystem_mirror")
-load("//tf2/core/rules:info.bzl", "TfProviderConfigurationsInfo")
+load("//tf2/providers/registry:provider_mirror.bzl", "provider_mirror")
+load("//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")
+load("//tf2/internal/providers:info.bzl", "TfProviderConfigurationsInfo")
 
 # Test provider mirror rule
 def _provider_mirror_test_impl(ctx):

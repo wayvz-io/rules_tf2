@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(bazel test:*)",
+      "Bash(bazel build:*)",
+      "Bash(rg:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -1,0 +1,26 @@
+"""Provider repository rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(glob(["*.bzl"]))
+
+bzl_library(
+    name = "terraform_providers",
+    srcs = ["terraform_providers.bzl"],
+    deps = [
+        "//tf2/providers/registry:provider_metadata",
+        "//tf2/internal/providers:info",
+    ],
+)
+
+bzl_library(
+    name = "lock_file_generator",
+    srcs = ["lock_file_generator.bzl"],
+)
+
+bzl_library(
+    name = "regenerate_all",
+    srcs = ["regenerate_all.bzl"],
+)
