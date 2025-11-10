@@ -1,0 +1,20 @@
+load("//tf2:def.bzl", "tf_module")
+load("//tf2/testing:tflint_rules.bzl", "tf_tflint_negative_test")
+
+# Define a test module that will use the new hybrid tflint validation
+tf_module(
+    name = "tflint_hybrid_test",
+    providers = [
+        "@tf_provider_registry//:aws_6",
+        "@tf_provider_registry//:random_3",
+    ],
+    tags = ["test_module"],  # Apply relaxed rules for test modules
+    visibility = ["//visibility:public"],
+)
+
+# This test is expected to fail due to intentional naming violations and unused declarations
+tf_tflint_negative_test(
+    name = "tflint_hybrid_negative_test",
+    srcs = [":tflint_hybrid_test"],
+    provider_configurations = ":tflint_hybrid_test_provider_config",
+)

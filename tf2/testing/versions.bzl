@@ -179,19 +179,22 @@ tf_generate_versions = rule(
 def _tf_generate_versions_from_mirrors_impl(ctx):
     """Generate provider configurations from provider mirrors"""
 
-    # Collect provider information from mirrors or aliases
-    providers = {}
+    # Collect DIRECT provider information from mirrors or aliases
+    direct_providers = {}
     for provider in ctx.attr.providers:
         if TfProviderMirrorInfo in provider:
             mirror_info = provider[TfProviderMirrorInfo]
-            providers[mirror_info.provider_name] = mirror_info.provider + ":" + mirror_info.version
+            direct_providers[mirror_info.provider_name] = mirror_info.provider + ":" + mirror_info.version
         elif TfProviderAliasInfo in provider:
             alias_info = provider[TfProviderAliasInfo]
-            providers[alias_info.provider_name] = alias_info.provider + ":" + alias_info.version
+            direct_providers[alias_info.provider_name] = alias_info.provider + ":" + alias_info.version
         else:
             fail("Provider {} must be either a provider_mirror or provider_alias rule".format(provider.label))
-    
-    # Collect providers from modules (transitive dependencies)
+
+    # Start with direct providers for aggregated providers
+    aggregated_providers = dict(direct_providers)
+
+    # Collect providers from modules (transitive dependencies) for aggregated list
     for module in ctx.attr.modules:
         if TfModuleInfo in module:
             module_info = module[TfModuleInfo]
@@ -199,10 +202,10 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
                 # The provider_configurations is a label to another tf_generate_versions_from_mirrors target
                 if TfProviderConfigurationsInfo in module_info.provider_configurations:
                     config_info = module_info.provider_configurations[TfProviderConfigurationsInfo]
-                    # Merge module providers into our providers dict
+                    # Merge module providers into our aggregated providers dict
                     for name, spec in config_info.providers.items():
-                        if name not in providers:
-                            providers[name] = spec
+                        if name not in aggregated_providers:
+                            aggregated_providers[name] = spec
 
     # Use the configured terraform version instead of detecting it
     # The version is passed from the tf_tools configuration in MODULE.bazel
@@ -217,12 +220,12 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
         content = tf_version,
     )
 
-    # Generate versions configuration JSON for HCL tool
+    # Generate versions configuration JSON for HCL tool (using AGGREGATED providers with transitive deps)
     versions_file = ctx.actions.declare_file(ctx.label.name + "_versions.json")
 
-    # Build the providers structure
+    # Build the providers structure using AGGREGATED providers for terraform.tf validation
     required_providers = {}
-    for name, spec in providers.items():
+    for name, spec in aggregated_providers.items():
         parts = spec.split(":")
         source = parts[0]
         version = parts[1]
@@ -255,7 +258,7 @@ EOF
     return [
         DefaultInfo(files = depset([versions_file])),
         TfProviderConfigurationsInfo(
-            providers = providers,
+            providers = aggregated_providers,
             tf_version_constraint = ">= detected",
             versions_file = versions_file,
         ),

@@ -48,3 +48,13 @@ bzl_library(
     name = "test",
     srcs = ["test.bzl"],
 )
+
+bzl_library(
+    name = "tflint_defaults",
+    srcs = ["tflint_defaults.bzl"],
+)
+
+bzl_library(
+    name = "tflint_rules",
+    srcs = ["tflint_rules.bzl"],
+)

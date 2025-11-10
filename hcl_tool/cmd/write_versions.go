@@ -17,6 +17,7 @@ var (
 	writeProviders  string
 	writeTfVersion  string
 	writeOutputFile string
+	writeForce      bool
 )
 
 var writeVersionsCmd = &cobra.Command{
@@ -70,7 +71,7 @@ This will create a versions.tf file or update an existing one.`,
 			return terraform.WriteVersionsToFile(writeOutputFile, block)
 		} else {
 			// Update in directory
-			return terraform.UpdateVersionsInDir(writeDir, providers, tfVersion)
+			return terraform.UpdateVersionsInDir(writeDir, providers, tfVersion, writeForce)
 		}
 	},
 }
@@ -94,4 +95,5 @@ func init() {
 	writeVersionsCmd.Flags().StringVar(&writeProviders, "providers", "", "JSON object of provider requirements")
 	writeVersionsCmd.Flags().StringVar(&writeTfVersion, "tf-version", "", "Terraform version constraint")
 	writeVersionsCmd.Flags().StringVar(&writeOutputFile, "output", "", "Specific output file (overrides dir)")
+	writeVersionsCmd.Flags().BoolVar(&writeForce, "force", false, "Automatically remove providers not in BUILD file")
 }

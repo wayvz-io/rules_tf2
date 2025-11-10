@@ -254,12 +254,15 @@ func writeVersionsToJSON(filename string, block *tfhcl.TerraformBlock) error {
 }
 
 // UpdateVersionsInDir updates or creates terraform.tf in a directory
-func UpdateVersionsInDir(dir string, providers map[string]tfhcl.Provider, tfVersion string) error {
+func UpdateVersionsInDir(dir string, providers map[string]tfhcl.Provider, tfVersion string, force bool) error {
 	// Read existing versions
 	existing, _ := ReadVersionsFromDir(dir)
 
 	// Merge with updates, preserving configuration_aliases
-	block := MergeWithUpdates(existing, providers, tfVersion)
+	block, err := MergeWithUpdates(existing, providers, tfVersion, force)
+	if err != nil {
+		return err
+	}
 
 	// Determine output file
 	// Check if there's an existing file with terraform blocks
