@@ -97,7 +97,7 @@ tf_providers = use_extension("//tf2:extensions.bzl", "tf_providers")
 
 # Download test providers for tf2 module testing (only when this is the root module)
 tf_providers.download(
-    lock_file = "tests/providers/terraform.lock.hcl",
+    lock_file = "tests/providers/provider_locks.json",
     versions_file = "tests/providers/versions.json",
 )
 

@@ -2,8 +2,24 @@
 
 load("//tf2/core/repositories:terraform_providers.bzl", "terraform_providers", "terraform_providers_from_mirror_declarations")
 load("//tf2/core/repositories:tools.bzl", "tool_registry", "download_tool", "download_tflint_plugin", "tflint_plugin_registry")
+# load("//tf2/core/repositories:versions.bzl", "parse_versions_json", "get_tool_version", "get_tflint_plugin_version")
 # CDKTF support is disabled - not yet functional
 # load("//tf2/core/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
+
+def parse_versions_json(module_ctx, versions_file):
+    """Parse versions.json file and return the data."""
+    content = module_ctx.read(versions_file)
+    return json.decode(content)
+
+def get_tool_version(versions_data, tool_name):
+    """Get tool version from versions data."""
+    tools = versions_data.get("tools", {})
+    return tools.get(tool_name)
+
+def get_tflint_plugin_version(versions_data, plugin_name):
+    """Get tflint plugin version from versions data."""
+    plugins = versions_data.get("tflint_plugins", {})
+    return plugins.get(plugin_name)
 
 def _parse_lock_file_to_json(content):
     """Parse terraform.lock.hcl content into JSON structure.
@@ -82,11 +98,9 @@ def _tf_providers_impl(module_ctx):
     for mod in module_ctx.modules:
         if mod.is_root:  # Root module only
             for download in mod.tags.download:
-                # Require explicit paths - no defaults
+                # Require explicit versions_file path
                 if not download.versions_file:
                     fail("versions_file must be specified in tf_providers.download()")
-                if not download.lock_file:
-                    fail("lock_file must be specified in tf_providers.download()")
                 
                 versions_path = download.versions_file
                 lock_path = download.lock_file
@@ -95,33 +109,35 @@ def _tf_providers_impl(module_ctx):
                 versions_file = Label("@@//:" + versions_path)
                 versions_content = module_ctx.read(versions_file)
                 versions_data = json.decode(versions_content)
-                
-                # Read and parse the lock file
+
+                # Read and parse lock file content for hashes (now mandatory)
                 lock_file = Label("@@//:" + lock_path)
-                lock_file_content = module_ctx.read(lock_file)
-                
-                # Parse lock file to get hashes
-                lock_file_parsed = _parse_lock_file_to_json(lock_file_content)
-                
-                # Process for main providers
-                if lock_file_parsed:
-                    for provider_name, lock_data in lock_file_parsed.items():
-                        version = lock_data.get("version", "")
-                        if version:
-                            key = "{}:{}".format(provider_name, version)
-                            main_hashes[key] = lock_data.get("hashes", [])
-                            
-                            if provider_name not in main_providers:
-                                main_providers[provider_name] = []
-                            if version not in main_providers[provider_name]:
-                                main_providers[provider_name].append(version)
-                            
-                            short_name = provider_name.split("/")[-1]
-                            major_version = version.split(".")[0]
-                            alias_name = "{}_{}".format(short_name, major_version)
-                            main_aliases[alias_name] = [provider_name, version]
-                
-                elif "providers" in versions_data:
+                lock_file_parsed = {}
+
+                # Read lock file content, with fallback for missing files
+                lock_content = module_ctx.read(lock_file)
+                if not lock_content or len(lock_content.strip()) == 0:
+                    # Lock file exists but is empty - allow tf-update to populate it
+                    # Warn that provider downloads will fail without hashes
+                    if "providers" in versions_data and versions_data["providers"]:
+                        print("Warning: Lock file '{}' is empty but providers exist. Provider downloads will fail without hashes.".format(lock_path))
+                    lock_content = "{}"  # Treat as empty JSON
+                else:
+                    # Parse the lock file content
+                    if lock_path.endswith(".json"):
+                        # Parse as JSON directly - format is {"provider:version": {"h1": [...], "zh": [...]}}
+                        lock_file_parsed = json.decode(lock_content)
+                    else:
+                        # Parse as HCL terraform.lock.hcl format
+                        lock_file_parsed = _parse_lock_file_to_json(lock_content)
+
+                # Validate that we have lock data if we have providers
+                if "providers" in versions_data and versions_data["providers"]:
+                    if not lock_file_parsed:
+                        fail("Provider versions found in versions.json but no valid lock data found in '{}'.\nRun 'bazel run //:tf-update' to generate provider locks.".format(lock_path))
+
+                # Process providers from versions.json and lock file if available
+                if "providers" in versions_data:
                     main_providers = versions_data["providers"]
                     for provider, versions in main_providers.items():
                         provider_name = provider.split("/")[-1]
@@ -129,6 +145,27 @@ def _tf_providers_impl(module_ctx):
                             major_version = version.split(".")[0]
                             alias_name = "{}_{}".format(provider_name, major_version)
                             main_aliases[alias_name] = [provider, version]
+
+                            # Extract hashes from lock file if available
+                            provider_key = "{}:{}".format(provider, version)
+                            if lock_path and lock_path.endswith(".json"):
+                                # New JSON format: {"provider:version": {"h1": [...], "zh": [...]}}
+                                if provider_key in lock_file_parsed:
+                                    hash_data = lock_file_parsed[provider_key]
+                                    # Combine all hash formats into a single list with proper prefixes
+                                    all_hashes = []
+                                    for hash_type in ["h1", "zh"]:
+                                        if hash_type in hash_data:
+                                            for hash_val in hash_data[hash_type]:
+                                                all_hashes.append("{}:{}".format(hash_type, hash_val))
+                                    if all_hashes:
+                                        main_hashes[provider_key] = all_hashes
+                            else:
+                                # Old HCL format: {"provider": {"version": "...", "hashes": [...]}}
+                                if provider in lock_file_parsed:
+                                    lock_data = lock_file_parsed[provider]
+                                    if lock_data.get("version") == version and lock_data.get("hashes"):
+                                        main_hashes[provider_key] = lock_data["hashes"]
         
         elif mod.name == "tf2":  # tf2 module
             for download in mod.tags.download:
@@ -145,31 +182,35 @@ def _tf_providers_impl(module_ctx):
                 versions_file = Label("@rules_tf2//:" + versions_path)
                 versions_content = module_ctx.read(versions_file)
                 versions_data = json.decode(versions_content)
-                
+
+                # Read and parse lock file content for hashes (now mandatory)
                 lock_file = Label("@rules_tf2//:" + lock_path)
-                lock_file_content = module_ctx.read(lock_file)
-                
-                lock_file_parsed = _parse_lock_file_to_json(lock_file_content)
-                
-                # Process for test providers
-                if lock_file_parsed:
-                    for provider_name, lock_data in lock_file_parsed.items():
-                        version = lock_data.get("version", "")
-                        if version:
-                            key = "{}:{}".format(provider_name, version)
-                            test_hashes[key] = lock_data.get("hashes", [])
-                            
-                            if provider_name not in test_providers:
-                                test_providers[provider_name] = []
-                            if version not in test_providers[provider_name]:
-                                test_providers[provider_name].append(version)
-                            
-                            short_name = provider_name.split("/")[-1]
-                            major_version = version.split(".")[0]
-                            alias_name = "{}_{}".format(short_name, major_version)
-                            test_aliases[alias_name] = [provider_name, version]
-                
-                elif "providers" in versions_data:
+                lock_file_parsed = {}
+
+                # Read lock file content, with fallback for missing files
+                lock_content = module_ctx.read(lock_file)
+                if not lock_content or len(lock_content.strip()) == 0:
+                    # Lock file exists but is empty - allow tf-update to populate it
+                    # Warn that provider downloads will fail without hashes
+                    if "providers" in versions_data and versions_data["providers"]:
+                        print("Warning: Lock file '{}' is empty but providers exist. Provider downloads will fail without hashes.".format(lock_path))
+                    lock_content = "{}"  # Treat as empty JSON
+                else:
+                    # Parse the lock file content
+                    if lock_path.endswith(".json"):
+                        # Parse as JSON directly - format is {"provider:version": {"h1": [...], "zh": [...]}}
+                        lock_file_parsed = json.decode(lock_content)
+                    else:
+                        # Parse as HCL terraform.lock.hcl format
+                        lock_file_parsed = _parse_lock_file_to_json(lock_content)
+
+                # Validate that we have lock data if we have providers
+                if "providers" in versions_data and versions_data["providers"]:
+                    if not lock_file_parsed:
+                        fail("Provider versions found in versions.json but no valid lock data found in '{}'.\nRun 'bazel run //:tf-update' to generate provider locks.".format(lock_path))
+
+                # Process providers from versions.json and lock file if available
+                if "providers" in versions_data:
                     test_providers = versions_data["providers"]
                     for provider, versions in test_providers.items():
                         provider_name = provider.split("/")[-1]
@@ -177,6 +218,27 @@ def _tf_providers_impl(module_ctx):
                             major_version = version.split(".")[0]
                             alias_name = "{}_{}".format(provider_name, major_version)
                             test_aliases[alias_name] = [provider, version]
+
+                            # Extract hashes from lock file if available
+                            provider_key = "{}:{}".format(provider, version)
+                            if lock_path and lock_path.endswith(".json"):
+                                # New JSON format: {"provider:version": {"h1": [...], "zh": [...]}}
+                                if provider_key in lock_file_parsed:
+                                    hash_data = lock_file_parsed[provider_key]
+                                    # Combine all hash formats into a single list with proper prefixes
+                                    all_hashes = []
+                                    for hash_type in ["h1", "zh"]:
+                                        if hash_type in hash_data:
+                                            for hash_val in hash_data[hash_type]:
+                                                all_hashes.append("{}:{}".format(hash_type, hash_val))
+                                    if all_hashes:
+                                        test_hashes[provider_key] = all_hashes
+                            else:
+                                # Old HCL format: {"provider": {"version": "...", "hashes": [...]}}
+                                if provider in lock_file_parsed:
+                                    lock_data = lock_file_parsed[provider]
+                                    if lock_data.get("version") == version and lock_data.get("hashes"):
+                                        test_hashes[provider_key] = lock_data["hashes"]
     
     # Consolidate both provider sets into a single registry
     combined_providers = {}
@@ -238,7 +300,7 @@ _download = tag_class(
             mandatory = True,
         ),
         "lock_file": attr.string(
-            doc = "Path to terraform.lock.hcl file",
+            doc = "Path to provider_locks.json file (required for deterministic builds)",
             mandatory = True,
         ),
     },
@@ -360,17 +422,36 @@ tfc_config = module_extension(
 
 def _tf_tools_impl(module_ctx):
     """Implementation of tf_tools module extension"""
-    
+
     # Default versions
     terraform_version = None
     tflint_version = None
     terraform_docs_version = None
-    
+
     # Collect plugin configurations
     tflint_plugins = {}
-    
+
     # Collect tool configuration from modules
     for mod in module_ctx.modules:
+        # Check for versions.json configuration first
+        for versions_config in mod.tags.from_versions_json:
+            versions_data = parse_versions_json(module_ctx, versions_config.versions_file)
+
+            # Get tool versions from versions.json
+            if not terraform_version:
+                terraform_version = get_tool_version(versions_data, "terraform")
+            if not tflint_version:
+                tflint_version = get_tool_version(versions_data, "tflint")
+            if not terraform_docs_version:
+                terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
+
+            # Get plugin versions from versions.json
+            for plugin_name in ["aws", "azurerm", "google", "opa"]:
+                plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
+                if plugin_version:
+                    tflint_plugins[plugin_name] = plugin_version
+
+        # Override with explicit configuration
         for config in mod.tags.configure:
             if config.terraform_version:
                 terraform_version = config.terraform_version
@@ -378,8 +459,8 @@ def _tf_tools_impl(module_ctx):
                 tflint_version = config.tflint_version
             if config.terraform_docs_version:
                 terraform_docs_version = config.terraform_docs_version
-        
-        # Collect tflint plugin configurations
+
+        # Override with explicit tflint plugin configurations
         for plugin in mod.tags.tflint_plugin:
             plugin_name = plugin.name
             plugin_version = plugin.version
@@ -456,10 +537,22 @@ _tflint_plugin = tag_class(
     },
 )
 
+# Tag class for configuring from versions.json
+_versions_json_configure = tag_class(
+    attrs = {
+        "versions_file": attr.label(
+            doc = "Path to versions.json file",
+            mandatory = True,
+            allow_single_file = [".json"],
+        ),
+    },
+)
+
 tf_tools = module_extension(
     implementation = _tf_tools_impl,
     tag_classes = {
         "configure": _tools_configure,
         "tflint_plugin": _tflint_plugin,
+        "from_versions_json": _versions_json_configure,
     },
 )

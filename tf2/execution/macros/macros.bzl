@@ -117,6 +117,7 @@ def tf_module(
             srcs = tf_srcs,
             visibility = ["//visibility:private"],
             testonly = True,
+            size = "small",
             tags = tags,
         )
         
@@ -134,6 +135,7 @@ def tf_module(
             config = tfdoc_config,
             visibility = ["//visibility:private"],
             testonly = True,
+            size = "small",
             tags = tags,
         )
         
@@ -150,6 +152,7 @@ def tf_module(
         config = tflint_config,
         visibility = ["//visibility:private"],
         testonly = True,
+        size = "small",
         tags = tags,
     )
     
@@ -160,6 +163,7 @@ def tf_module(
         srcs = srcs,
         visibility = ["//visibility:private"],
         testonly = True,
+        size = "small",
         tags = tags,
     )
     
@@ -171,6 +175,7 @@ def tf_module(
             provider_configurations = actual_provider_configurations,
             visibility = ["//visibility:private"],
             testonly = True,
+            size = "small",
             tags = tags,
         )
         
@@ -186,6 +191,7 @@ def tf_module(
         srcs = srcs,
         visibility = ["//visibility:private"],
         testonly = True,
+        size = "small",
         tags = tags,
     )
     
@@ -223,6 +229,7 @@ def tf_module(
             provider_registry = provider_registry,
             visibility = ["//visibility:private"],
             testonly = True,
+            size = "small",
             tags = tags,
         )
     
@@ -252,6 +259,7 @@ def tf_module(
             provider_registry = provider_registry,
             visibility = ["//visibility:private"],
             testonly = True,
+            size = "small",
             tags = tags,
         )
     
@@ -261,6 +269,7 @@ def tf_module(
         srcs = srcs,
         visibility = ["//visibility:private"],
         testonly = True,
+        size = "small",
         tags = tags,
     )
 
