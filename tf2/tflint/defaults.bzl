@@ -202,6 +202,7 @@ def merge_rule_configs(base, *overlays):
             if rule_name in result:
                 # Merge rule configurations
                 merged_rule = dict(result[rule_name])
+
                 # Handle case where rule_config is a dict vs a string
                 if type(rule_config) == "dict":
                     merged_rule.update(rule_config)

@@ -1,6 +1,7 @@
 """Module extensions for tf2"""
 
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
+
 # Version parsing functions - TODO: implement when needed
 # load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")

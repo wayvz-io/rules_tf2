@@ -1,0 +1,160 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Trigger on version tags like v0.1.0, v1.0.0, etc.
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Need full history for changelog generation
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Setup Nix Cache
+        uses: DeterminateSystems/flakehub-cache-action@v2
+
+      - uses: bazel-contrib/setup-bazel@v3
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Run tests before release
+        run: |
+          echo "Running tests to ensure release quality..."
+          nix develop . --command bazel test //...
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # Get the previous tag
+          PREV_TAG=$(git describe --tags --abbrev=0 ${{ steps.version.outputs.version }}^ 2>/dev/null || echo "")
+
+          # Generate changelog
+          if [ -n "$PREV_TAG" ]; then
+            echo "## What's Changed" > release_notes.md
+            echo "" >> release_notes.md
+            git log --pretty=format:"* %s (%h)" $PREV_TAG..${{ steps.version.outputs.version }} >> release_notes.md
+          else
+            echo "## Initial Release" > release_notes.md
+            echo "" >> release_notes.md
+            echo "First release of rules_tf2 - Advanced Terraform rules for Bazel" >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "## Installation" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Add to your \`MODULE.bazel\`:" >> release_notes.md
+          echo '```starlark' >> release_notes.md
+          echo 'bazel_dep(name = "rules_tf2", version = "${{ steps.version.outputs.version }}")' >> release_notes.md
+          echo 'archive_override(' >> release_notes.md
+          echo '    module_name = "rules_tf2",' >> release_notes.md
+          echo '    urls = ["https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/rules_tf2-${{ steps.version.outputs.version }}.tar.gz"],' >> release_notes.md
+          echo '    strip_prefix = "rules_tf2-${{ steps.version.outputs.version }}",' >> release_notes.md
+          echo ')' >> release_notes.md
+          echo '```' >> release_notes.md
+
+          # Save for later use
+          cat release_notes.md
+
+      - name: Create source archive
+        run: |
+          # Create a clean archive without .git and other unnecessary files
+          VERSION="${{ steps.version.outputs.version }}"
+          ARCHIVE_NAME="rules_tf2-${VERSION}"
+
+          # Create a temporary directory
+          mkdir -p /tmp/release
+
+          # Export the repository without .git
+          git archive --format=tar --prefix="${ARCHIVE_NAME}/" HEAD | tar -x -C /tmp/release/
+
+          # Create the final tarball
+          cd /tmp/release
+          tar -czf "${ARCHIVE_NAME}.tar.gz" "${ARCHIVE_NAME}/"
+
+          # Move it back to workspace
+          mv "${ARCHIVE_NAME}.tar.gz" $GITHUB_WORKSPACE/
+
+          # Calculate checksums
+          cd $GITHUB_WORKSPACE
+          sha256sum "${ARCHIVE_NAME}.tar.gz" > "${ARCHIVE_NAME}.tar.gz.sha256"
+
+          echo "Archive created: ${ARCHIVE_NAME}.tar.gz"
+          ls -lh "${ARCHIVE_NAME}.tar.gz"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: release_notes.md
+          files: |
+            rules_tf2-${{ steps.version.outputs.version }}.tar.gz
+            rules_tf2-${{ steps.version.outputs.version }}.tar.gz.sha256
+          draft: false
+          prerelease: ${{ contains(steps.version.outputs.version, '-rc') || contains(steps.version.outputs.version, '-alpha') || contains(steps.version.outputs.version, '-beta') }}
+          name: Release ${{ steps.version.outputs.version }}
+
+  # Optional: Publish to Bazel Central Registry
+  # This job would submit a PR to BCR when ready
+  bcr-submission:
+    name: Prepare BCR Submission
+    runs-on: ubuntu-latest
+    needs: create-release
+    if: ${{ !contains(github.ref, '-rc') && !contains(github.ref, '-alpha') && !contains(github.ref, '-beta') }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Create BCR metadata
+        run: |
+          mkdir -p bcr-metadata
+
+          # Create metadata.json for BCR
+          cat > bcr-metadata/metadata.json <<EOF
+          {
+            "homepage": "https://github.com/${{ github.repository }}",
+            "maintainers": [
+              {
+                "email": "maintainer@example.com",
+                "github": "${{ github.repository_owner }}",
+                "name": "${{ github.repository_owner }}"
+              }
+            ],
+            "repository": ["github:${{ github.repository }}"],
+            "versions": ["${{ steps.version.outputs.version }}"],
+            "yanked_versions": {}
+          }
+          EOF
+
+          # Create source.json
+          cat > bcr-metadata/source.json <<EOF
+          {
+            "url": "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.version }}/rules_tf2-${{ steps.version.outputs.version }}.tar.gz",
+            "strip_prefix": "rules_tf2-${{ steps.version.outputs.version }}"
+          }
+          EOF
+
+          echo "BCR metadata created. Manual submission to BCR repository required."
+          echo "See: https://github.com/bazelbuild/bazel-central-registry/blob/main/docs/README.md"
+
+      - name: Upload BCR metadata
+        uses: actions/upload-artifact@v3
+        with:
+          name: bcr-metadata-${{ steps.version.outputs.version }}
+          path: bcr-metadata/

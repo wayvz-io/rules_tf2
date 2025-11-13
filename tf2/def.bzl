@@ -13,6 +13,10 @@ load(
     _tf_module_push_oci = "tf_module_push_oci",
 )
 load(
+    "//tf2/publish/registry:registry_publish.bzl",
+    _tf_module_publish = "tf_module_publish",
+)
+load(
     "//tf2/tfcloud:runner.bzl",
     _tf_cloud_configuration = "tf_cloud_configuration",
     _tf_cloud_workspace = "tf_cloud_workspace",
@@ -39,6 +43,7 @@ provider_mirror = _provider_mirror
 # Core rules
 tf_module = _tf_module
 tf_module_push_oci = _tf_module_push_oci
+tf_module_publish = _tf_module_publish
 tf_cloud_configuration = _tf_cloud_configuration
 tf_cloud_workspace = _tf_cloud_workspace
 tf_runner = _tf_runner

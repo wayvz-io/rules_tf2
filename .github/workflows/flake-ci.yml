@@ -1,0 +1,82 @@
+name: Flake Validation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, ready_for_review]
+    paths:
+      - "flake.nix"
+      - "flake.lock"
+    branches-ignore:
+      - "**/graphite-base/**"
+
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  optimize_ci:
+    runs-on: ubuntu-latest
+    outputs:
+      skip: ${{ steps.check_skip.outputs.skip }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Optimize CI
+        id: check_skip
+        uses: rorychatterton/graphite-ci-action@aac0587caeb405bec76079f9eea7207a6a492fb5
+        with:
+          graphite_token: ${{ secrets.GRAPHITE_OPTIMISE_CI_SECRET }}
+        continue-on-error: true  # Don't fail if the token is not configured
+
+  nix-ci:
+    needs: optimize_ci
+    if: |
+      (needs.optimize_ci.outputs.skip != 'true' ||
+       needs.optimize_ci.result == 'failure') &&
+      github.event.pull_request.draft == false
+
+    strategy:
+      matrix:
+        runner:
+          - ubuntu-latest
+          # ARM64 runners may not be available for public repos
+          # Uncomment if you have access to ARM64 runners
+          # - ubuntu-latest-arm64
+
+    runs-on: ${{ matrix.runner }}
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: DeterminateSystems/determinate-nix-action@v3
+
+      - name: Setup Nix Cache
+        uses: DeterminateSystems/flakehub-cache-action@v2
+
+      - uses: DeterminateSystems/flake-checker-action@v12
+        with:
+          flake-lock-path: "flake.lock"
+
+      - name: Test Flake Development Shell
+        run: nix develop . --command true
+
+      - name: Check Flake Outputs
+        run: |
+          echo "Testing flake outputs..."
+          nix flake show
+          nix flake check
+
+      # Optional: Push to FlakeHub on main branch
+      # Uncomment and configure if you want to publish to FlakeHub
+      # - uses: "DeterminateSystems/flakehub-push@v6"
+      #   if: github.ref == 'refs/heads/main'
+      #   with:
+      #     name: "your-org/rules_tf2"
+      #     rolling: true
+      #     visibility: "public"
+      #     include-output-paths: true

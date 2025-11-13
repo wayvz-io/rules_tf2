@@ -1,8 +1,8 @@
 """Unit tests for Terraform module rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
 
 # Test that tf_module_rule creates proper providers
 def _tf_module_basic_test_impl(ctx):
@@ -76,7 +76,7 @@ def _tf_module_nested_test_impl(ctx):
     asserts.true(
         env,
         len(module_info.modules) > 0,
-        "Nested modules should be included in module info"
+        "Nested modules should be included in module info",
     )
 
     return analysistest.end(env)
@@ -94,7 +94,7 @@ def _tf_module_transitive_deps_test_impl(ctx):
     asserts.true(
         env,
         TfModuleInfo in target_under_test,
-        "Module with transitive deps should build without conflicts"
+        "Module with transitive deps should build without conflicts",
     )
 
     return analysistest.end(env)
@@ -171,6 +171,7 @@ test_module_rule = rule(
 
 def _test_provider_config_impl(ctx):
     """Simple provider configuration for testing"""
+
     # Create a dummy versions file
     versions_file = ctx.actions.declare_file("test_versions.tf")
     ctx.actions.write(
