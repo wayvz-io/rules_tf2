@@ -2,6 +2,7 @@
 
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tfcore:variables.bzl", "TfVariablesInfo")
+load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None):
     """Prepare a staging directory with all Terraform files.
@@ -83,10 +84,19 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
             staging_dir.path,
         ))
 
+    # Add lockfile if present in stack_info
+    if stack_info.lock_file:
+        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
+            stack_info.lock_file.path,
+            staging_dir.path,
+        ))
+
     # Prepare all inputs
     all_inputs = srcs + var_files
     if backend_file:
         all_inputs = all_inputs + [backend_file]
+    if stack_info.lock_file:
+        all_inputs = all_inputs + [stack_info.lock_file]
 
     # Create the staging directory
     ctx.actions.run_shell(
@@ -152,6 +162,9 @@ def _tf_runner_impl(ctx):
     # Prepare staging directory with proper structure
     staging_dir, _ = _prepare_staging_directory(ctx, stack_info, var_files, backend_config)
 
+    # Get terraform binary path
+    terraform_bin = get_terraform_path(ctx)
+
     # Generate the terraform runner script inline
     runner_copy = ctx.actions.declare_file("{}_terraform_runner.sh".format(ctx.attr.name))
 
@@ -168,6 +181,9 @@ DEFAULT_APPLY_ARGS="$6"
 DEFAULT_COMMAND="$7"
 shift 7
 
+# Use terraform binary from runfiles (RUNFILES env var is set by wrapper)
+TERRAFORM_BIN="{terraform_bin}"
+
 # Set Terraform environment
 export TF_DISABLE_CHECKPOINT=true
 export CHECKPOINT_DISABLE=true
@@ -179,7 +195,18 @@ if [ "$BACKEND_TYPE" = "cloud" ] || [ "$BACKEND_TYPE" = "remote" ]; then
     export TFE_HOST="$TFE_HOST"
 fi
 
-cd "$STAGING_DIR"
+# Create a temporary work directory (staging dir is read-only)
+WORK_DIR=$(mktemp -d)
+trap "rm -rf $WORK_DIR" EXIT
+
+# Copy all files from staging directory to work directory (with write permissions)
+# Use /. pattern to include hidden files like .terraform.lock.hcl
+cp -r "$STAGING_DIR"/. "$WORK_DIR/"
+# Make all copied files writable
+chmod -R u+w "$WORK_DIR"
+
+# CD to work directory
+cd "$WORK_DIR"
 
 # Determine command to run
 if [ $# -eq 0 ] && [ -n "$DEFAULT_COMMAND" ]; then
@@ -195,22 +222,34 @@ fi
 COMMAND="$1"
 shift
 
-# Run terraform command
+# Run terraform command (always init first for commands that need it)
 case "$COMMAND" in
     init)
-        terraform init $INIT_ARGS "$@"
+        $TERRAFORM_BIN init $INIT_ARGS "$@"
         ;;
-    plan)
-        terraform plan $DEFAULT_PLAN_ARGS "$@"
-        ;;
-    apply)
-        terraform apply $DEFAULT_APPLY_ARGS "$@"
+    plan|apply|validate)
+        # Always init first for these commands
+        $TERRAFORM_BIN init $INIT_ARGS
+        case "$COMMAND" in
+            plan)
+                $TERRAFORM_BIN plan $DEFAULT_PLAN_ARGS "$@"
+                ;;
+            apply)
+                $TERRAFORM_BIN apply $DEFAULT_APPLY_ARGS "$@"
+                ;;
+            validate)
+                $TERRAFORM_BIN validate "$@"
+                ;;
+        esac
         ;;
     *)
-        terraform "$COMMAND" "$@"
+        # Other commands don't need init
+        $TERRAFORM_BIN "$COMMAND" "$@"
         ;;
 esac
-"""
+""".format(
+        terraform_bin = terraform_bin,
+    )
 
     ctx.actions.write(
         output = runner_copy,
@@ -225,10 +264,14 @@ esac
     wrapper_content = """#!/usr/bin/env bash
 set -euo pipefail
 
-# Get the script directory
+# Get the script directory and name
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SCRIPT_NAME="$(basename "$0")"
 STAGING_DIR="$SCRIPT_DIR/{staging_basename}"
 RUNNER_SCRIPT="$SCRIPT_DIR/{runner_basename}"
+
+# Set up runfiles (based on script name, not directory)
+export RUNFILES="${{RUNFILES:-$SCRIPT_DIR/$SCRIPT_NAME.runfiles}}"
 
 # Check if runner script exists
 if [ ! -f "$RUNNER_SCRIPT" ]; then
@@ -236,7 +279,7 @@ if [ ! -f "$RUNNER_SCRIPT" ]; then
     exit 1
 fi
 
-# Call the runner script with parameters
+# Call the runner script with parameters (RUNFILES is exported above)
 exec "$RUNNER_SCRIPT" \\
     "$STAGING_DIR" \\
     "{backend_type}" \\
@@ -253,7 +296,7 @@ exec "$RUNNER_SCRIPT" \\
         init_args = ctx.attr.init_args or "",
         default_plan_args = ctx.attr.default_plan_args or "",
         default_apply_args = ctx.attr.default_apply_args or "",
-        default_command = '"%s"' % ctx.attr.default_command if ctx.attr.default_command else "",
+        default_command = '"%s"' % ctx.attr.default_command if ctx.attr.default_command else '""',
     )
 
     ctx.actions.write(
@@ -266,7 +309,9 @@ exec "$RUNNER_SCRIPT" \\
         DefaultInfo(
             files = depset([runner_script, staging_dir, runner_copy]),
             executable = runner_script,
-            runfiles = ctx.runfiles(files = [staging_dir, runner_copy]),
+            runfiles = ctx.runfiles(
+                files = [staging_dir, runner_copy] + ctx.files._tools,
+            ),
         ),
     ]
 
@@ -308,6 +353,10 @@ tf_runner = rule(
         ),
         "default_command": attr.string(
             doc = "Default command to run (e.g., 'plan' or 'apply') when no command is specified",
+        ),
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
+            allow_files = True,
         ),
     },
     executable = True,

@@ -13,6 +13,9 @@ def _tf_module_impl(ctx):
     else:
         output_files = depset(ctx.files.srcs)
 
+    # Get the lock file if provided
+    lock_file = ctx.files.lock_file[0] if ctx.attr.lock_file and ctx.files.lock_file else None
+
     return [
         DefaultInfo(files = output_files),
         TfModuleInfo(
@@ -21,6 +24,7 @@ def _tf_module_impl(ctx):
             deps = ctx.attr.deps if hasattr(ctx.attr, "deps") else [],
             modules = ctx.attr.modules if hasattr(ctx.attr, "modules") else [],
             provider_configurations = ctx.attr.provider_configurations,
+            lock_file = lock_file,
         ),
     ]
 
@@ -65,6 +69,10 @@ tf_module_rule = rule(
         "tflint_config": attr.label(
             allow_single_file = [".hcl"],
             doc = "TFLint configuration file",
+        ),
+        "lock_file": attr.label(
+            allow_single_file = [".terraform.lock.hcl"],
+            doc = "Terraform lock file",
         ),
     },
     doc = "Defines a Terraform module (can contain nested modules for complex deployments)",
