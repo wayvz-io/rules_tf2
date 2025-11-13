@@ -92,6 +92,17 @@ def tf_module(
     )
     actual_provider_configurations = ":" + name + "_provider_config"
 
+    # Generate lockfile for module - used by all terraform operations
+    generated_lock_name = name + "_generated_lock"
+    if not native.existing_rule(generated_lock_name):
+        tf_generate_lockfile_for_validation(
+            name = generated_lock_name,
+            provider_locks = "@tf_provider_registry//:provider_locks.bzl",
+            versions_json = actual_provider_configurations,
+            visibility = ["//visibility:private"],
+            testonly = testonly,
+        )
+
     # Create the main module rule
     tf_module_rule(
         name = name,
@@ -100,6 +111,7 @@ def tf_module(
         modules = modules or [],
         provider_configurations = actual_provider_configurations,
         tflint_config = tflint_config,
+        lock_file = ":" + generated_lock_name,
         visibility = visibility,
         testonly = testonly,
         **kwargs
@@ -260,15 +272,6 @@ def tf_module(
             validate_srcs = [":" + name + "_processed"]
         else:
             validate_srcs = srcs
-
-        # Generate lockfile for validation
-        tf_generate_lockfile_for_validation(
-            name = name + "_generated_lock",
-            provider_locks = "@tf_provider_registry//:provider_locks.bzl",
-            versions_json = actual_provider_configurations,
-            visibility = ["//visibility:private"],
-            testonly = testonly,
-        )
 
         tf_validate_test(
             name = name + "_validate_test",

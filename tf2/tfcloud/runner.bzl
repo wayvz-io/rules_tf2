@@ -63,6 +63,7 @@ def tf_cloud_configuration(
         stack = module,
         variables = variables,
         backend_type = "",  # No backend for local validation
+        default_command = "validate",
         default_plan_args = "",  # No args needed for validation
         init_args = "-backend=false",  # Disable backend for init
         **filtered_kwargs
@@ -78,6 +79,7 @@ def tf_cloud_configuration(
             backend_organization = organization,
             backend_workspace = workspace_name,
             tfe_host = tfe_host or "app.terraform.io",
+            default_command = "plan",
             default_plan_args = "",
             **filtered_kwargs
         )
@@ -87,6 +89,7 @@ def tf_cloud_configuration(
             stack = module,
             variables = variables,
             backend_type = "",
+            default_command = "plan",
             default_plan_args = "",
             **filtered_kwargs
         )

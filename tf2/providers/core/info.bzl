@@ -8,6 +8,7 @@ TfModuleInfo = provider(
         "deps": "Module dependencies",
         "modules": "Nested modules in this module (for complex deployments)",
         "provider_configurations": "Provider configurations required by this module",
+        "lock_file": "Terraform lock file (.terraform.lock.hcl)",
     },
 )
 

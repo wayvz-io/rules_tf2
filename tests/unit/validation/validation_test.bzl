@@ -88,14 +88,25 @@ def _tf_validate_multiple_files_test_impl(ctx):
     target_under_test = analysistest.target_under_test(env)
     runfiles = target_under_test[DefaultInfo].default_runfiles
 
-    # Check that multiple source files are included
+    # Check that staging directory is included in runfiles
+    # With the new implementation, .tf files are in a staging directory
     files = runfiles.files.to_list()
-    tf_files = [f for f in files if f.path.endswith(".tf")]
+
+    # Look for the staging directory
+    staging_dirs = [f for f in files if "_staging" in f.path]
 
     asserts.true(
         env,
-        len(tf_files) >= 2,
-        "Validation should handle multiple .tf files",
+        len(staging_dirs) >= 1,
+        "Validation should create a staging directory with terraform files",
+    )
+
+    # Also check that the test script exists
+    test_scripts = [f for f in files if f.path.endswith("_test.sh")]
+    asserts.true(
+        env,
+        len(test_scripts) >= 1,
+        "Validation should create a test script",
     )
 
     return analysistest.end(env)
