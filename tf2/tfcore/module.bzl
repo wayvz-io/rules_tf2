@@ -1,7 +1,7 @@
 """Core Terraform module rule implementation"""
 
-load(":nested.bzl", "process_nested_modules")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load(":nested.bzl", "process_nested_modules")
 
 def _tf_module_impl(ctx):
     """Implementation of tf_module rule"""

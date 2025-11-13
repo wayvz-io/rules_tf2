@@ -1,0 +1,25 @@
+"""BUILD file for Terraform Registry publishing rules."""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+bzl_library(
+    name = "registry_publish",
+    srcs = ["registry_publish.bzl"],
+    deps = [
+        ":config",
+        "//tf2/providers/core:info",
+    ],
+)
+
+bzl_library(
+    name = "config",
+    srcs = ["config.bzl"],
+)
+
+# Export all rules
+filegroup(
+    name = "all_files",
+    srcs = glob(["**"]),
+)

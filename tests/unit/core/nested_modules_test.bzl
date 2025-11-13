@@ -1,8 +1,8 @@
 """Unit tests for nested module processing"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
-load("//tf2/tfcore:module.bzl", "tf_module_rule")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tfcore:module.bzl", "tf_module_rule")
 
 # Test path rewriting patterns
 def _test_path_rewriting_patterns(ctx):

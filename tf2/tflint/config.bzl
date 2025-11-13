@@ -1,7 +1,6 @@
 """TFLint configuration generation for tf2 rules"""
 
 load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
-load("//tf2/tools/runners:tool_paths.bzl", "TOOLS_ATTR", "get_tflint_plugin_path")
 load(":defaults.bzl", "get_base_rules", "get_provider_rules", "get_tagged_overrides", "merge_rule_configs")
 
 def _provider_name_from_label(provider_label):
@@ -83,6 +82,7 @@ def _generate_tflint_config_with_defaults(providers = None, module_tags = None, 
                 rule_name, field = key.split(".", 1)
                 if rule_name not in expanded_overrides:
                     expanded_overrides[rule_name] = {}
+
                 # Convert string values to appropriate types
                 if value == "true":
                     expanded_overrides[rule_name][field] = True

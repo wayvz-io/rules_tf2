@@ -8,9 +8,8 @@ load("//tf2/tfcore:validate.bzl", "tf_validate_test")
 load("//tf2/tfcore/versions:lockfile.bzl", "tf_generate_lockfile_for_validation", "tf_no_lockfile_check_test")
 load("//tf2/tfcore/versions:versions.bzl", "tf_generate_versions", "tf_generate_versions_from_mirrors", "tf_versions_check_test")
 load("//tf2/tfdocs:generator.bzl", "tf_doc_test", "tf_generate_docs")
-load("//tf2/tflint:config.bzl", "tf_generate_tflint_config")
 load("//tf2/tflint:format.bzl", "tf_format", "tf_format_test")
-load("//tf2/tflint:test.bzl", "tf_lint", "tf_lint_test")
+load("//tf2/tflint:test.bzl", "tf_lint_test")
 load("//tf2/tflint:validate.bzl", "tf_tflint_fix", "tf_tflint_validate_test")
 
 def tf_module(
@@ -56,7 +55,7 @@ def tf_module(
         tags: Tags to apply to test targets
         **kwargs: Additional arguments passed to the underlying rule
     """
-    
+
     # Default to all files in the module directory if srcs not specified
     # This follows the Terraform convention that modules include all files in their directory
     if srcs == None:
@@ -92,8 +91,8 @@ def tf_module(
         testonly = testonly,
     )
     actual_provider_configurations = ":" + name + "_provider_config"
-    
-    # Create the main module rule  
+
+    # Create the main module rule
     tf_module_rule(
         name = name,
         srcs = srcs + module_deps,
@@ -141,7 +140,7 @@ def tf_module(
             config = tfdoc_config,
             visibility = visibility,
         )
-    
+
     # Create lint test (always runs)
     tf_lint_test(
         name = name + "_lint_test",
@@ -152,7 +151,7 @@ def tf_module(
         size = "small",
         tags = tags,
     )
-    
+
     # Create module dependency test (always runs)
     tf_module_deps_test(
         name = name + "_deps_test",
