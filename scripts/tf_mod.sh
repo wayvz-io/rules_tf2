@@ -8,6 +8,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Detect if we're running in rules_tf2 workspace or external workspace
+detect_target_prefix() {
+    local workspace_root="${BUILD_WORKSPACE_DIRECTORY:-$(pwd)}"
+
+    # Find the workspace root if not set
+    if [ ! -f "$workspace_root/MODULE.bazel" ]; then
+        while [ "$workspace_root" != "/" ]; do
+            if [ -f "$workspace_root/MODULE.bazel" ]; then
+                break
+            fi
+            workspace_root="$(dirname "$workspace_root")"
+        done
+    fi
+
+    # Check if we're in the rules_tf2 workspace by looking for marker
+    if [ -f "$workspace_root/MODULE.bazel" ] && grep -q 'module(name = "rules_tf2"' "$workspace_root/MODULE.bazel" 2>/dev/null; then
+        echo "//"
+    else
+        echo "@rules_tf2//"
+    fi
+}
+
+TARGET_PREFIX=$(detect_target_prefix)
+
 # Default values
 VERBOSE=false
 
@@ -403,7 +427,7 @@ if generate_provider_lock_file; then
     echo ""
     echo "Regenerating terraform.tf files and documentation..."
 
-    REGEN_OUTPUT=$(bazel run //:tf-regenerate-all-starlark 2>&1)
+    REGEN_OUTPUT=$(bazel run ${TARGET_PREFIX}:tf-regenerate-all-starlark 2>&1)
     REGEN_EXIT_CODE=$?
     if [ $REGEN_EXIT_CODE -eq 0 ]; then
         echo -e "${GREEN}✓ Version and documentation regeneration complete${NC}"
