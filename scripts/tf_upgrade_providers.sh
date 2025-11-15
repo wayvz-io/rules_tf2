@@ -8,6 +8,30 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
+# Detect if we're running in rules_tf2 workspace or external workspace
+detect_target_prefix() {
+    local workspace_root="${BUILD_WORKSPACE_DIRECTORY:-$(pwd)}"
+
+    # Find the workspace root if not set
+    if [ ! -f "$workspace_root/MODULE.bazel" ]; then
+        while [ "$workspace_root" != "/" ]; do
+            if [ -f "$workspace_root/MODULE.bazel" ]; then
+                break
+            fi
+            workspace_root="$(dirname "$workspace_root")"
+        done
+    fi
+
+    # Check if we're in the rules_tf2 workspace by looking for marker
+    if [ -f "$workspace_root/MODULE.bazel" ] && grep -q 'module(name = "rules_tf2"' "$workspace_root/MODULE.bazel" 2>/dev/null; then
+        echo "//"
+    else
+        echo "@rules_tf2//"
+    fi
+}
+
+TARGET_PREFIX=$(detect_target_prefix)
+
 # Default values
 DRY_RUN=false
 VERBOSE=false
@@ -272,7 +296,7 @@ if [ "$DRY_RUN" = false ]; then
         echo -e "${GREEN}✓ versions.json updated successfully${NC}"
         echo "Updated: $VERSIONS_FILE"
         echo ""
-        echo -e "${YELLOW}Note: Run 'bazel run //:tf-mod' to regenerate locks and terraform.tf files${NC}"
+        echo -e "${YELLOW}Note: Run 'bazel run ${TARGET_PREFIX}:tf-mod' to regenerate locks and terraform.tf files${NC}"
     else
         rm "$TMP_FILE"
         echo -e "${BLUE}No provider updates needed - all providers are at their latest versions${NC}"
