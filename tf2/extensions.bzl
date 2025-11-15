@@ -2,8 +2,7 @@
 
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 
-# Version parsing functions - TODO: implement when needed
-# load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
+load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
@@ -427,24 +426,23 @@ def _tf_tools_impl(module_ctx):
 
     # Collect tool configuration from modules
     for mod in module_ctx.modules:
-        # TODO: Implement from_versions_json feature when needed
-        # # Check for versions.json configuration first
-        # for versions_config in mod.tags.from_versions_json:
-        #     versions_data = parse_versions_json(module_ctx, versions_config.versions_file)
+        # Check for versions.json configuration first
+        for versions_config in mod.tags.from_versions_json:
+            versions_data = parse_versions_json(module_ctx, versions_config.versions_file)
 
-        #     # Get tool versions from versions.json
-        #     if not terraform_version:
-        #         terraform_version = get_tool_version(versions_data, "terraform")
-        #     if not tflint_version:
-        #         tflint_version = get_tool_version(versions_data, "tflint")
-        #     if not terraform_docs_version:
-        #         terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
+            # Get tool versions from versions.json
+            if not terraform_version:
+                terraform_version = get_tool_version(versions_data, "terraform")
+            if not tflint_version:
+                tflint_version = get_tool_version(versions_data, "tflint")
+            if not terraform_docs_version:
+                terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
 
-        #     # Get plugin versions from versions.json
-        #     for plugin_name in ["aws", "azurerm", "google", "opa"]:
-        #         plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
-        #         if plugin_version:
-        #             tflint_plugins[plugin_name] = plugin_version
+            # Get plugin versions from versions.json
+            for plugin_name in ["aws", "azurerm", "google", "opa"]:
+                plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
+                if plugin_version:
+                    tflint_plugins[plugin_name] = plugin_version
 
         # Override with explicit configuration
         for config in mod.tags.configure:
