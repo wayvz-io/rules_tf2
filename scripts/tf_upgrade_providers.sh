@@ -35,6 +35,8 @@ TARGET_PREFIX=$(detect_target_prefix)
 # Default values
 DRY_RUN=false
 VERBOSE=false
+UPDATE_PROVIDERS=true
+UPDATE_TOOLS=true
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -47,12 +49,24 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --tools-only)
+            UPDATE_PROVIDERS=false
+            UPDATE_TOOLS=true
+            shift
+            ;;
+        --skip-tools)
+            UPDATE_PROVIDERS=true
+            UPDATE_TOOLS=false
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo "Options:"
-            echo "  --dry-run    Show what would be updated without making changes"
-            echo "  --verbose    Show detailed output"
-            echo "  --help       Show this help message"
+            echo "  --dry-run      Show what would be updated without making changes"
+            echo "  --verbose      Show detailed output"
+            echo "  --tools-only   Update only tools and TFLint plugins (skip providers)"
+            echo "  --skip-tools   Update only providers (skip tools and TFLint plugins)"
+            echo "  --help         Show this help message"
             exit 0
             ;;
         *)
@@ -147,6 +161,160 @@ get_latest_version() {
     echo "${latest_version}|${highest_major}"
 }
 
+# Function to get the latest release from GitHub
+get_latest_github_release() {
+    local owner=$1
+    local repo=$2
+
+    log "${BLUE}Checking GitHub ${owner}/${repo}...${NC}"
+
+    local api_url="https://api.github.com/repos/${owner}/${repo}/releases/latest"
+    local response=$(curl -s -L "$api_url")
+
+    if [ $? -ne 0 ] || [ -z "$response" ]; then
+        log "${RED}Failed to fetch GitHub release for ${owner}/${repo}${NC}"
+        echo ""
+        return 1
+    fi
+
+    # Extract tag_name and remove 'v' prefix
+    local version=$(echo "$response" | grep -o '"tag_name": *"[^"]*"' | head -1 | sed 's/"tag_name": *"\(.*\)"/\1/' | sed 's/^v//')
+
+    if [ -z "$version" ]; then
+        log "${YELLOW}Could not parse version from GitHub response${NC}"
+        echo ""
+        return 1
+    fi
+
+    echo "$version"
+}
+
+# Function to get the latest Terraform version from HashiCorp releases
+get_latest_hashicorp_release() {
+    log "${BLUE}Checking HashiCorp releases for terraform...${NC}"
+
+    local api_url="https://releases.hashicorp.com/terraform/index.json"
+    local response=$(curl -s "$api_url")
+
+    if [ $? -ne 0 ] || [ -z "$response" ]; then
+        log "${RED}Failed to fetch HashiCorp releases${NC}"
+        echo ""
+        return 1
+    fi
+
+    # Extract versions, filter out pre-releases, and get the latest
+    local latest_version=$(echo "$response" | grep -o '"version":"[^"]*"' | sed 's/"version":"\(.*\)"/\1/' | grep -v '-' | sort -V | tail -1)
+
+    if [ -z "$latest_version" ]; then
+        log "${YELLOW}Could not parse version from HashiCorp response${NC}"
+        echo ""
+        return 1
+    fi
+
+    echo "$latest_version"
+}
+
+# Function to update tools section in versions.json
+update_tools() {
+    local versions_file=$1
+    local tmp_file=$2
+    local updates_made=false
+
+    echo -e "\n${BLUE}Checking for tool updates...${NC}" >&2
+
+    # Read current tool versions from versions.json
+    local current_terraform=$(grep -o '"terraform": *"[^"]*"' "$versions_file" | sed 's/"terraform": *"\(.*\)"/\1/' || echo "")
+    local current_tflint=$(grep -o '"tflint": *"[^"]*"' "$versions_file" | sed 's/"tflint": *"\(.*\)"/\1/' || echo "")
+    local current_tfdocs=$(grep -o '"terraform-docs": *"[^"]*"' "$versions_file" | sed 's/"terraform-docs": *"\(.*\)"/\1/' || echo "")
+
+    # Get latest versions
+    local latest_terraform=$(get_latest_hashicorp_release)
+    local latest_tflint=$(get_latest_github_release "terraform-linters" "tflint")
+    local latest_tfdocs=$(get_latest_github_release "terraform-docs" "terraform-docs")
+
+    # Build tools section
+    echo '  "tools": {' >> "$tmp_file"
+
+    # Terraform
+    if [ -n "$latest_terraform" ] && [ "$latest_terraform" != "$current_terraform" ]; then
+        echo -e "${GREEN}✓${NC} terraform: ${YELLOW}$current_terraform${NC} → ${GREEN}$latest_terraform${NC}" >&2
+        echo "    \"terraform\": \"$latest_terraform\"," >> "$tmp_file"
+        updates_made=true
+    else
+        echo -e "${BLUE}✓${NC} terraform: ${current_terraform:-$latest_terraform} (already latest)" >&2
+        echo "    \"terraform\": \"${current_terraform:-$latest_terraform}\"," >> "$tmp_file"
+    fi
+
+    # TFLint
+    if [ -n "$latest_tflint" ] && [ "$latest_tflint" != "$current_tflint" ]; then
+        echo -e "${GREEN}✓${NC} tflint: ${YELLOW}$current_tflint${NC} → ${GREEN}$latest_tflint${NC}" >&2
+        echo "    \"tflint\": \"$latest_tflint\"," >> "$tmp_file"
+        updates_made=true
+    else
+        echo -e "${BLUE}✓${NC} tflint: ${current_tflint:-$latest_tflint} (already latest)" >&2
+        echo "    \"tflint\": \"${current_tflint:-$latest_tflint}\"," >> "$tmp_file"
+    fi
+
+    # terraform-docs
+    if [ -n "$latest_tfdocs" ] && [ "$latest_tfdocs" != "$current_tfdocs" ]; then
+        echo -e "${GREEN}✓${NC} terraform-docs: ${YELLOW}$current_tfdocs${NC} → ${GREEN}$latest_tfdocs${NC}" >&2
+        echo "    \"terraform-docs\": \"$latest_tfdocs\"" >> "$tmp_file"
+        updates_made=true
+    else
+        echo -e "${BLUE}✓${NC} terraform-docs: ${current_tfdocs:-$latest_tfdocs} (already latest)" >&2
+        echo "    \"terraform-docs\": \"${current_tfdocs:-$latest_tfdocs}\"" >> "$tmp_file"
+    fi
+
+    echo '  },' >> "$tmp_file"
+
+    echo "$updates_made"
+}
+
+# Function to update TFLint plugins section in versions.json
+update_tflint_plugins() {
+    local versions_file=$1
+    local tmp_file=$2
+    local updates_made=false
+
+    echo -e "\n${BLUE}Checking for TFLint plugin updates...${NC}" >&2
+
+    # Define plugins to check
+    local plugins=("aws" "azurerm" "google" "opa")
+
+    # Build plugins section
+    echo '  "tflint_plugins": {' >> "$tmp_file"
+
+    local first=true
+    for plugin in "${plugins[@]}"; do
+        # Read current version
+        local current_version=$(grep -o "\"$plugin\": *\"[^\"]*\"" "$versions_file" | sed "s/\"$plugin\": *\"\(.*\)\"/\1/" || echo "")
+
+        # Get latest version from GitHub
+        local latest_version=$(get_latest_github_release "terraform-linters" "tflint-ruleset-$plugin")
+
+        # Add comma if not first
+        if [ "$first" = false ]; then
+            # Update last line to add comma
+            sed -i '$ s/$/,/' "$tmp_file"
+        fi
+        first=false
+
+        # Check if update needed
+        if [ -n "$latest_version" ] && [ "$latest_version" != "$current_version" ]; then
+            echo -e "${GREEN}✓${NC} $plugin: ${YELLOW}$current_version${NC} → ${GREEN}$latest_version${NC}" >&2
+            echo "    \"$plugin\": \"$latest_version\"" >> "$tmp_file"
+            updates_made=true
+        else
+            echo -e "${BLUE}✓${NC} $plugin: ${current_version:-$latest_version} (already latest)" >&2
+            echo "    \"$plugin\": \"${current_version:-$latest_version}\"" >> "$tmp_file"
+        fi
+    done
+
+    echo '  }' >> "$tmp_file"
+
+    echo "$updates_made"
+}
+
 # Find workspace root
 WORKSPACE_ROOT="${BUILD_WORKSPACE_DIRECTORY:-}"
 if [ -z "$WORKSPACE_ROOT" ]; then
@@ -183,19 +351,25 @@ if [ ! -f "$VERSIONS_FILE" ]; then
     exit 1
 fi
 
-echo -e "\n${BLUE}Checking for provider updates...${NC}"
+echo -e "\n${BLUE}Checking for updates...${NC}"
 echo "Versions file: $VERSIONS_FILE"
 echo
 
 # Read current versions from versions.json
 UPDATES_MADE=false
+TOOLS_UPDATES=false
+PLUGINS_UPDATES=false
 TMP_FILE=$(mktemp)
 
 # Start building the new JSON
 echo '{' > "$TMP_FILE"
-echo '  "providers": {' >> "$TMP_FILE"
 
-# Process each provider in versions.json
+# Process providers if enabled
+if [ "$UPDATE_PROVIDERS" = true ]; then
+    echo -e "\n${BLUE}Checking for provider updates...${NC}"
+    echo '  "providers": {' >> "$TMP_FILE"
+
+    # Process each provider in versions.json
 first=true
 while IFS= read -r line; do
     # Skip lines that don't contain provider definitions
@@ -282,9 +456,59 @@ while IFS= read -r line; do
 
 done < <(grep -E '"[^"]+/[^"]+": \[.*\]' "$VERSIONS_FILE")
 
+    # Close providers section
+    echo '' >> "$TMP_FILE"
+    echo '  },' >> "$TMP_FILE"
+else
+    # If skipping providers, read them from current file
+    echo '  "providers": {' >> "$TMP_FILE"
+    first=true
+    while IFS= read -r line; do
+        if ! echo "$line" | grep -qE '"[^"]+/[^"]+": \[.*\]'; then
+            continue
+        fi
+        if [ "$first" = false ]; then
+            echo ',' >> "$TMP_FILE"
+        fi
+        first=false
+        echo "    $line" >> "$TMP_FILE"
+    done < <(grep -E '"[^"]+/[^"]+": \[.*\]' "$VERSIONS_FILE")
+    echo '' >> "$TMP_FILE"
+    echo '  },' >> "$TMP_FILE"
+fi
+
+# Process tools if enabled
+if [ "$UPDATE_TOOLS" = true ]; then
+    TOOLS_UPDATES=$(update_tools "$VERSIONS_FILE" "$TMP_FILE")
+    if [ "$TOOLS_UPDATES" = "true" ]; then
+        UPDATES_MADE=true
+    fi
+
+    # Process TFLint plugins
+    PLUGINS_UPDATES=$(update_tflint_plugins "$VERSIONS_FILE" "$TMP_FILE")
+    if [ "$PLUGINS_UPDATES" = "true" ]; then
+        UPDATES_MADE=true
+    fi
+else
+    # If skipping tools, read them from current file
+    # Extract tools section
+    echo '  "tools": {' >> "$TMP_FILE"
+    tools_lines=$(grep -A 3 '"tools":' "$VERSIONS_FILE" | tail -n +2 | head -n -1)
+    if [ -n "$tools_lines" ]; then
+        echo "$tools_lines" | sed 's/^  /    /' >> "$TMP_FILE"
+    fi
+    echo '  },' >> "$TMP_FILE"
+
+    # Extract tflint_plugins section
+    echo '  "tflint_plugins": {' >> "$TMP_FILE"
+    plugins_lines=$(grep -A 5 '"tflint_plugins":' "$VERSIONS_FILE" | tail -n +2 | head -n -1)
+    if [ -n "$plugins_lines" ]; then
+        echo "$plugins_lines" | sed 's/^  /    /' >> "$TMP_FILE"
+    fi
+    echo '  }' >> "$TMP_FILE"
+fi
+
 # Close the JSON
-echo '' >> "$TMP_FILE"
-echo '  }' >> "$TMP_FILE"
 echo '}' >> "$TMP_FILE"
 
 echo ""
@@ -296,10 +520,12 @@ if [ "$DRY_RUN" = false ]; then
         echo -e "${GREEN}✓ versions.json updated successfully${NC}"
         echo "Updated: $VERSIONS_FILE"
         echo ""
-        echo -e "${YELLOW}Note: Run 'bazel run ${TARGET_PREFIX}:tf-mod' to regenerate locks and terraform.tf files${NC}"
+        if [ "$UPDATE_PROVIDERS" = true ]; then
+            echo -e "${YELLOW}Note: Run 'bazel run ${TARGET_PREFIX}:tf-mod' to regenerate locks and terraform.tf files${NC}"
+        fi
     else
         rm "$TMP_FILE"
-        echo -e "${BLUE}No provider updates needed - all providers are at their latest versions${NC}"
+        echo -e "${BLUE}No updates needed - all versions are at their latest${NC}"
     fi
 else
     rm -f "$TMP_FILE"
@@ -309,4 +535,10 @@ else
 fi
 
 echo ""
-echo -e "${GREEN}✓ Provider version check complete${NC}"
+if [ "$UPDATE_PROVIDERS" = true ] && [ "$UPDATE_TOOLS" = true ]; then
+    echo -e "${GREEN}✓ Version check complete (providers, tools, and plugins)${NC}"
+elif [ "$UPDATE_PROVIDERS" = true ]; then
+    echo -e "${GREEN}✓ Provider version check complete${NC}"
+else
+    echo -e "${GREEN}✓ Tool and plugin version check complete${NC}"
+fi

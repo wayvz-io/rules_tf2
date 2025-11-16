@@ -7,7 +7,7 @@ TFLINT_CONFIG = {
     "base_url": "https://github.com/terraform-linters/tflint/releases/download",
     "archive_format": "zip",
     "binary_name": "tflint",
-    "fallback_version": "0.54.0",
+    "fallback_version": "0.59.1",
 }
 
 # TFLint plugin configuration
