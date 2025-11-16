@@ -103,7 +103,7 @@ tf_generate_lock_file = rule(
             mandatory = True,
         ),
         "_hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+            default = "@rules_tf2//go/hcl_tool",
             executable = True,
             cfg = "exec",
         ),

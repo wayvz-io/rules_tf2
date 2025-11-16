@@ -4,7 +4,7 @@
 | Name | Version |
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.13.2 |
-| <a name="requirement_local"></a> [local](#requirement\_local) | 2.5.3 |
+| <a name="requirement_local"></a> [local](#requirement\_local) | 2.6.1 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | 3.2.4 |
 | <a name="requirement_random"></a> [random](#requirement\_random) | 3.7.2 |
 

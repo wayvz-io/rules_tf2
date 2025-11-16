@@ -1,4 +1,8 @@
-"""Terraform validation and organization rules using tflint"""
+"""Terraform validation rules using TFLint with tf2 plugin
+
+Note: Organization and version validation is now handled natively by the tf2 TFLint plugin
+via tf2_terraform_file_organization and tf2_terraform_required_providers rules.
+"""
 
 load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
 load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
@@ -40,12 +44,14 @@ def _detect_provider_plugins(providers):
                 plugins.append(provider_name)
     return plugins
 
-def _generate_tflint_config_content(module_tags = None, providers = None):
+def _generate_tflint_config_content(module_tags = None, providers = None, provider_configurations = None):
     """Generate tflint configuration content using the defaults system
 
     Args:
         module_tags: List of tags to apply rule overrides (e.g., ["test_module"])
         providers: List of provider labels to detect plugins (e.g., ["@tf_provider_registry//:aws_6"])
+        provider_configurations: Dict of provider name to "source:version" spec for version validation
+                                 (e.g., {"aws": "hashicorp/aws:5.0.0"})
 
     Returns:
         String containing the tflint configuration
@@ -96,19 +102,10 @@ def _generate_tflint_config_content(module_tags = None, providers = None):
     config_lines.append("")
 
     # Add plugin configuration if we have providers
-    # Plugin versions and sources for automatic download
-    plugin_sources = {
-        "aws": ("0.44.0", "github.com/terraform-linters/tflint-ruleset-aws"),
-        "azurerm": ("0.27.0", "github.com/terraform-linters/tflint-ruleset-azurerm"),
-        "google": ("0.30.0", "github.com/terraform-linters/tflint-ruleset-google"),
-    }
+    # Plugins are always provided hermetically via TFLINT_PLUGIN_DIR, so we omit version/source
     for plugin in plugins:
         config_lines.append("plugin \"{}\" {{".format(plugin))
         config_lines.append("  enabled = true")
-        if plugin in plugin_sources:
-            version, source = plugin_sources[plugin]
-            config_lines.append("  version = \"{}\"".format(version))
-            config_lines.append("  source  = \"{}\"".format(source))
         config_lines.append("}")
         config_lines.append("")
 
@@ -125,25 +122,62 @@ def _generate_tflint_config_content(module_tags = None, providers = None):
         config_lines.append("}")
         config_lines.append("")
 
+    # Add tf2 plugin and tf2_terraform_required_providers rule with expected provider configurations
+    # This enables TFLint --fix to update terraform.tf with correct versions
+    if provider_configurations:
+        config_lines.append("# tf2 plugin for version validation")
+        config_lines.append("plugin \"tf2\" {")
+        config_lines.append("  enabled = true")
+        config_lines.append("}")
+        config_lines.append("")
+        config_lines.append("rule \"tf2_terraform_required_providers\" {")
+        config_lines.append("  enabled = true")
+        config_lines.append("  providers = {")
+        for name, spec in provider_configurations.items():
+            # Parse "hashicorp/aws:5.0.0" into source and version
+            parts = spec.split(":")
+            if len(parts) == 2:
+                source = parts[0]
+                version = parts[1]
+                config_lines.append("    {} = {{".format(name))
+                config_lines.append("      source  = \"{}\"".format(source))
+                config_lines.append("      version = \"{}\"".format(version))
+                config_lines.append("    }")
+        config_lines.append("  }")
+        config_lines.append("}")
+        config_lines.append("")
+
     return "\n".join(config_lines)
 
 def _tf_tflint_validate_test_impl(ctx):
-    """Implementation of tf_tflint_validate_test rule using hybrid hcl_tool + tflint approach"""
+    """Implementation of tf_tflint_validate_test rule using TFLint with tf2 plugin"""
 
     # Get provider info from provider_configurations if provided
-    versions_file = None
     provider_names = []
+    provider_configs = None
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
-        if provider_info.versions_file:
-            versions_file = provider_info.versions_file
         if provider_info.providers:
             # Get provider names from the dict keys
             provider_names = list(provider_info.providers.keys())
+            # Get full provider configurations for version validation
+            provider_configs = provider_info.providers
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
-    hcl_tool = ctx.attr._hcl_tool[DefaultInfo].files_to_run.executable
+    tf2_plugin = ctx.attr._tf2_plugin[DefaultInfo].files_to_run.executable if provider_configs else None
+
+    # Get provider plugins from registry (hermetic)
+    # Check if plugins are actually available (not empty filegroups)
+    aws_plugin = None
+    if ctx.attr._aws_plugin and ctx.files._aws_plugin:
+        aws_plugin = ctx.files._aws_plugin[0]
+    azurerm_plugin = None
+    if ctx.attr._azurerm_plugin and ctx.files._azurerm_plugin:
+        azurerm_plugin = ctx.files._azurerm_plugin[0]
+    google_plugin = None
+    if ctx.attr._google_plugin and ctx.files._google_plugin:
+        google_plugin = ctx.files._google_plugin[0]
 
     # Create .tflint.hcl configuration file
     tflint_config = ctx.actions.declare_file(ctx.label.name + "_tflint.hcl")
@@ -151,9 +185,11 @@ def _tf_tflint_validate_test_impl(ctx):
     # Generate configuration content using defaults system
     # Apply test_module tag for more relaxed rules since these are validation tests
     # Pass provider names to enable provider-specific rules
+    # Pass provider configurations to enable version validation with tf2_terraform_required_providers
     config_content = _generate_tflint_config_content(
         module_tags = ["test_module"],
         providers = provider_names,
+        provider_configurations = provider_configs,
     )
 
     ctx.actions.write(
@@ -192,7 +228,34 @@ def _tf_tflint_validate_test_impl(ctx):
         main_file = ctx.files.srcs[0].short_path
     srcs_0 = main_file if main_file else "."
 
-    # Build script content
+    # Build plugin setup script - all plugins are provided hermetically
+    plugin_setup_lines = [
+        "# Set up hermetic TFLint plugins",
+        'TFLINT_HOME="${TMPDIR:-/tmp}/tflint_$$"',
+        'mkdir -p "$TFLINT_HOME/.tflint.d/plugins"',
+    ]
+
+    # Add tf2 plugin if available
+    if tf2_plugin:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-tf2"'.format(tf2_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-tf2"')
+
+    # Add provider plugins based on what's needed
+    if aws_plugin and "aws" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-aws"'.format(aws_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-aws"')
+    if azurerm_plugin and "azurerm" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-azurerm"'.format(azurerm_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-azurerm"')
+    if google_plugin and "google" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-google"'.format(google_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-google"')
+
+    plugin_setup_lines.append('export TFLINT_PLUGIN_DIR="$TFLINT_HOME/.tflint.d/plugins"')
+    plugin_setup_lines.append('trap "rm -rf $TFLINT_HOME" EXIT')
+
+    plugin_setup = "\n".join(plugin_setup_lines)
+
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
 
@@ -202,22 +265,13 @@ set -euo pipefail
 SOURCE_DIR="$(dirname "{srcs_0}")"
 CONFIG_FILE="$RUNFILES/_main/{config_file}"
 TFLINT="$RUNFILES/_main/{tflint}"
-HCL_TOOL="$RUNFILES/_main/{hcl_tool}"
 
-# Run hcl_tool validation for versions and organization if we have expected versions
-{version_validation}
+{plugin_setup}
 
-{organization_validation}
-
-# Initialize TFLint plugins if needed (downloads provider plugins like aws, azurerm, google)
-if ! "$TFLINT" --config="$CONFIG_FILE" --init 2>/dev/null; then
-    echo "Warning: TFLint plugin initialization failed, continuing without plugins" >&2
-fi
-
-# Run tflint for standard checks
+# Run tflint for all checks (including organization and version validation via tf2 plugin)
 if ! "$TFLINT" --config="$CONFIG_FILE" --chdir="$SOURCE_DIR" --minimum-failure-severity=warning; then
     echo "" >&2
-    echo "ERROR: TFLint standard validation failed" >&2
+    echo "ERROR: TFLint validation failed" >&2
     exit 1
 fi
 
@@ -226,33 +280,9 @@ exit 0
 """.format(
         runfiles_script = get_runfiles_dir_script(),
         tflint = tflint.short_path,
-        hcl_tool = hcl_tool.short_path,
         config_file = tflint_config.short_path,
         srcs_0 = srcs_0,
-        versions_file = versions_file.short_path if versions_file else "/dev/null",
-        version_validation = (
-            ('if ! "$HCL_TOOL" tflint-validate-versions "$SOURCE_DIR" < "$RUNFILES/_main/{versions_file}"; then\n' +
-             '    echo "" >&2\n' +
-             '    echo "ERROR: Terraform version validation failed" >&2\n' +
-             '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
-             "    exit 1\n" +
-             "fi\n").format(
-                versions_file = versions_file.short_path if versions_file else "/dev/null",
-                package = ctx.label.package,
-                target_base = ctx.label.name.replace("_tflint_validate_test", ""),
-            ) if versions_file else "# No version validation (no provider_configurations specified)"
-        ),
-        organization_validation = (
-            ('if ! "$HCL_TOOL" tflint-validate-organization "$SOURCE_DIR"; then\n' +
-             '    echo "" >&2\n' +
-             '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
-             '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
-             "    exit 1\n" +
-             "fi\n").format(
-                package = ctx.label.package,
-                target_base = ctx.label.name.replace("_tflint_validate_test", ""),
-            )
-        ),
+        plugin_setup = plugin_setup,
     )
 
     ctx.actions.write(
@@ -261,12 +291,21 @@ exit 0
         is_executable = True,
     )
 
-    runfiles = [test_file, tflint_config, tflint, hcl_tool] + ctx.files.srcs
-    if versions_file:
-        runfiles.append(versions_file)
+    runfiles = [test_file, tflint_config, tflint] + ctx.files.srcs
+    if tf2_plugin:
+        runfiles.append(tf2_plugin)
+    if aws_plugin:
+        runfiles.append(aws_plugin)
+    if azurerm_plugin:
+        runfiles.append(azurerm_plugin)
+    if google_plugin:
+        runfiles.append(google_plugin)
 
     tflint_runfiles = ctx.attr._tflint[DefaultInfo].default_runfiles.files
-    hcl_tool_runfiles = ctx.attr._hcl_tool[DefaultInfo].default_runfiles.files
+    transitive = [tflint_runfiles]
+    if tf2_plugin:
+        tf2_plugin_runfiles = ctx.attr._tf2_plugin[DefaultInfo].default_runfiles.files
+        transitive.append(tf2_plugin_runfiles)
 
     return [
         DefaultInfo(
@@ -274,7 +313,7 @@ exit 0
             executable = test_file,
             runfiles = ctx.runfiles(
                 files = runfiles,
-                transitive_files = depset(transitive = [tflint_runfiles, hcl_tool_runfiles]),
+                transitive_files = depset(transitive = transitive),
             ),
         ),
     ]
@@ -285,12 +324,14 @@ def _tf_tflint_fix_impl(ctx):
     # Get provider info from provider_configurations if provided
     versions_file = None
     provider_names = []
+    provider_configs = None
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
         if provider_info.versions_file:
             versions_file = provider_info.versions_file
         if provider_info.providers:
             provider_names = list(provider_info.providers.keys())
+            provider_configs = provider_info.providers
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
@@ -301,9 +342,11 @@ def _tf_tflint_fix_impl(ctx):
 
     # Generate configuration content using defaults system
     # Apply test_module tag for more relaxed rules since these are fixing tests
+    # Include provider configurations so TFLint --fix can update versions
     config_content = _generate_tflint_config_content(
         module_tags = ["test_module"],
         providers = provider_names,
+        provider_configurations = provider_configs,
     )
 
     ctx.actions.write(
@@ -418,14 +461,26 @@ tf_tflint_validate_test = rule(
             executable = True,
             cfg = "exec",
         ),
-        "_hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+        "_tf2_plugin": attr.label(
+            default = "@rules_tf2//go/tflint_ruleset:tflint-ruleset-tf2",
             executable = True,
             cfg = "exec",
         ),
+        "_aws_plugin": attr.label(
+            default = "@tflint_plugin_registry//:aws",
+            allow_files = True,
+        ),
+        "_azurerm_plugin": attr.label(
+            default = "@tflint_plugin_registry//:azurerm",
+            allow_files = True,
+        ),
+        "_google_plugin": attr.label(
+            default = "@tflint_plugin_registry//:google",
+            allow_files = True,
+        ),
     },
     test = True,
-    doc = "Tests that Terraform files pass hybrid hcl_tool + TFLint validation",
+    doc = "Tests that Terraform files pass TFLint validation (including tf2 plugin rules)",
 )
 
 tf_tflint_fix = rule(
@@ -441,7 +496,7 @@ tf_tflint_fix = rule(
             cfg = "exec",
         ),
         "_hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+            default = "@rules_tf2//go/hcl_tool",
             executable = True,
             cfg = "exec",
         ),
@@ -454,18 +509,28 @@ def _tf_tflint_negative_test_impl(ctx):
     """Implementation of tf_tflint_negative_test rule that expects tflint validation to fail"""
 
     # Get provider info from provider_configurations if provided
-    versions_file = None
     provider_names = []
+    provider_configs = None
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
-        if provider_info.versions_file:
-            versions_file = provider_info.versions_file
         if provider_info.providers:
             provider_names = list(provider_info.providers.keys())
+            provider_configs = provider_info.providers
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
-    hcl_tool = ctx.attr._hcl_tool[DefaultInfo].files_to_run.executable
+
+    # Get provider plugins from registry (hermetic)
+    # Check if plugins are actually available (not empty filegroups)
+    aws_plugin = None
+    if ctx.attr._aws_plugin and ctx.files._aws_plugin:
+        aws_plugin = ctx.files._aws_plugin[0]
+    azurerm_plugin = None
+    if ctx.attr._azurerm_plugin and ctx.files._azurerm_plugin:
+        azurerm_plugin = ctx.files._azurerm_plugin[0]
+    google_plugin = None
+    if ctx.attr._google_plugin and ctx.files._google_plugin:
+        google_plugin = ctx.files._google_plugin[0]
 
     # Create .tflint.hcl configuration file
     tflint_config = ctx.actions.declare_file(ctx.label.name + "_tflint.hcl")
@@ -473,7 +538,11 @@ def _tf_tflint_negative_test_impl(ctx):
     # Generate configuration content using defaults system
     # Use more strict rules for negative tests to ensure they catch issues
     # No test_module tag for stricter rules, but still include provider-specific rules
-    config_content = _generate_tflint_config_content(providers = provider_names)
+    # Include provider configurations so version mismatches can be detected
+    config_content = _generate_tflint_config_content(
+        providers = provider_names,
+        provider_configurations = provider_configs,
+    )
 
     ctx.actions.write(
         output = tflint_config,
@@ -511,6 +580,29 @@ def _tf_tflint_negative_test_impl(ctx):
         main_file = ctx.files.srcs[0].short_path
     srcs_0 = main_file if main_file else "."
 
+    # Build plugin setup script - all plugins are provided hermetically
+    plugin_setup_lines = [
+        "# Set up hermetic TFLint plugins",
+        'TFLINT_HOME="${TMPDIR:-/tmp}/tflint_$$"',
+        'mkdir -p "$TFLINT_HOME/.tflint.d/plugins"',
+    ]
+
+    # Add provider plugins based on what's needed
+    if aws_plugin and "aws" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-aws"'.format(aws_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-aws"')
+    if azurerm_plugin and "azurerm" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-azurerm"'.format(azurerm_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-azurerm"')
+    if google_plugin and "google" in provider_names:
+        plugin_setup_lines.append('cp "$RUNFILES/_main/{}" "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-google"'.format(google_plugin.short_path))
+        plugin_setup_lines.append('chmod +x "$TFLINT_HOME/.tflint.d/plugins/tflint-ruleset-google"')
+
+    plugin_setup_lines.append('export TFLINT_PLUGIN_DIR="$TFLINT_HOME/.tflint.d/plugins"')
+    plugin_setup_lines.append('trap "rm -rf $TFLINT_HOME" EXIT')
+
+    plugin_setup = "\n".join(plugin_setup_lines)
+
     # Build script content - expects validation to FAIL
     script_content = """#!/usr/bin/env bash
 set -euo pipefail
@@ -521,19 +613,10 @@ set -euo pipefail
 SOURCE_DIR="$(dirname "{srcs_0}")"
 CONFIG_FILE="$RUNFILES/_main/{config_file}"
 TFLINT="$RUNFILES/_main/{tflint}"
-HCL_TOOL="$RUNFILES/_main/{hcl_tool}"
 
-# Run hcl_tool validation for versions and organization if we have expected versions
-{version_validation}
+{plugin_setup}
 
-{organization_validation}
-
-# Initialize TFLint plugins if needed
-if ! "$TFLINT" --config="$CONFIG_FILE" --init 2>/dev/null; then
-    echo "Warning: TFLint plugin initialization failed, continuing without plugins" >&2
-fi
-
-# Run tflint for standard checks - EXPECT this to fail
+# Run tflint for all checks - EXPECT this to fail
 # Note: Negative tests don't use --minimum-failure-severity to catch all issues including notices
 if "$TFLINT" --config="$CONFIG_FILE" --chdir="$SOURCE_DIR"; then
     echo "" >&2
@@ -546,33 +629,9 @@ fi
 """.format(
         runfiles_script = get_runfiles_dir_script(),
         tflint = tflint.short_path,
-        hcl_tool = hcl_tool.short_path,
         config_file = tflint_config.short_path,
         srcs_0 = srcs_0,
-        versions_file = versions_file.short_path if versions_file else "/dev/null",
-        version_validation = (
-            ('if ! "$HCL_TOOL" tflint-validate-versions "$SOURCE_DIR" < "$RUNFILES/_main/{versions_file}"; then\n' +
-             '    echo "" >&2\n' +
-             '    echo "ERROR: Terraform version validation failed" >&2\n' +
-             '    echo "Run \'bazel run //{package}:{target_base}_generate_versions\' to update them" >&2\n' +
-             "    exit 1\n" +
-             "fi\n").format(
-                versions_file = versions_file.short_path if versions_file else "/dev/null",
-                package = ctx.label.package,
-                target_base = ctx.label.name.replace("_tflint_negative_test", ""),
-            ) if versions_file else "# No version validation (no provider_configurations specified)"
-        ),
-        organization_validation = (
-            ('if ! "$HCL_TOOL" tflint-validate-organization "$SOURCE_DIR"; then\n' +
-             '    echo "" >&2\n' +
-             '    echo "ERROR: Terraform file organization validation failed" >&2\n' +
-             '    echo "Run \'bazel run //{package}:{target_base}_reorganize\' to fix organization" >&2\n' +
-             "    exit 1\n" +
-             "fi\n").format(
-                package = ctx.label.package,
-                target_base = ctx.label.name.replace("_tflint_negative_test", ""),
-            )
-        ),
+        plugin_setup = plugin_setup,
     )
 
     ctx.actions.write(
@@ -581,12 +640,15 @@ fi
         is_executable = True,
     )
 
-    runfiles = [test_file, tflint_config, tflint, hcl_tool] + ctx.files.srcs
-    if versions_file:
-        runfiles.append(versions_file)
+    runfiles = [test_file, tflint_config, tflint] + ctx.files.srcs
+    if aws_plugin:
+        runfiles.append(aws_plugin)
+    if azurerm_plugin:
+        runfiles.append(azurerm_plugin)
+    if google_plugin:
+        runfiles.append(google_plugin)
 
     tflint_runfiles = ctx.attr._tflint[DefaultInfo].default_runfiles.files
-    hcl_tool_runfiles = ctx.attr._hcl_tool[DefaultInfo].default_runfiles.files
 
     return [
         DefaultInfo(
@@ -594,7 +656,7 @@ fi
             executable = test_file,
             runfiles = ctx.runfiles(
                 files = runfiles,
-                transitive_files = depset(transitive = [tflint_runfiles, hcl_tool_runfiles]),
+                transitive_files = tflint_runfiles,
             ),
         ),
     ]
@@ -616,10 +678,17 @@ tf_tflint_negative_test = rule(
             executable = True,
             cfg = "exec",
         ),
-        "_hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
-            executable = True,
-            cfg = "exec",
+        "_aws_plugin": attr.label(
+            default = "@tflint_plugin_registry//:aws",
+            allow_files = True,
+        ),
+        "_azurerm_plugin": attr.label(
+            default = "@tflint_plugin_registry//:azurerm",
+            allow_files = True,
+        ),
+        "_google_plugin": attr.label(
+            default = "@tflint_plugin_registry//:google",
+            allow_files = True,
         ),
     },
     test = True,

@@ -106,6 +106,13 @@ def _generate_tflint_config_with_defaults(providers = None, module_tags = None, 
     config_lines.append("}")
     config_lines.append("")
 
+    # Add terraform plugin (always enabled for base Terraform rules)
+    config_lines.append("# Terraform language rules plugin")
+    config_lines.append("plugin \"terraform\" {")
+    config_lines.append("  enabled = true")
+    config_lines.append("}")
+    config_lines.append("")
+
     # Add plugin configuration if we have providers
     if providers:
         plugins = _detect_provider_plugins(providers)

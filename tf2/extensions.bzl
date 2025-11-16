@@ -496,7 +496,7 @@ def _tf_tools_impl(module_ctx):
                 terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
 
             # Get plugin versions from versions.json
-            for plugin_name in ["aws", "azurerm", "google", "opa"]:
+            for plugin_name in ["aws", "azurerm", "google", "opa", "terraform"]:
                 plugin_version = get_tflint_plugin_version(versions_data, plugin_name)
                 if plugin_version:
                     tflint_plugins[plugin_name] = plugin_version
@@ -545,12 +545,20 @@ def _tf_tools_impl(module_ctx):
         name = "tf_tool_registry",
     )
 
-    # Create tflint plugin registry if we have plugins
-    if tflint_plugins:
-        tflint_plugin_registry(
-            name = "tflint_plugin_registry",
-            plugins = tflint_plugins.keys(),
-        )
+    # Create tflint plugin registry with both downloaded and local plugins
+    # Always create the registry (even if no downloaded plugins) to include built-in tf2 plugin
+    # Determine the correct label for the tf2 plugin (handles both root and non-root module cases)
+    # Check if we're the root module by looking at the first module
+    is_root = module_ctx.modules[0].is_root if module_ctx.modules else False
+    tf2_plugin_label = "@//go/tflint_ruleset:tflint-ruleset-tf2" if is_root else "@rules_tf2//go/tflint_ruleset:tflint-ruleset-tf2"
+
+    tflint_plugin_registry(
+        name = "tflint_plugin_registry",
+        plugins = tflint_plugins.keys() if tflint_plugins else [],
+        local_plugins = {
+            "tf2": tf2_plugin_label,
+        },
+    )
 
 # Tag class for tool configuration
 _tools_configure = tag_class(

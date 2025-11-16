@@ -1,0 +1,12 @@
+# Test that tflint --fix can update provider versions
+sh_test(
+    name = "tflint_fix_versions_test",
+    size = "small",
+    srcs = ["tflint_fix_versions_test.sh"],
+    data = [
+        "wrong_version.tf",
+        ".tflint.hcl",
+        "@tf_tool_registry//:tflint",
+        "//go/tflint_ruleset:tflint-ruleset-tf2",
+    ],
+)

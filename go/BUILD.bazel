@@ -1,0 +1,6 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/wayvz-io/rules_tf2/go
+gazelle(name = "gazelle")
+
+exports_files(["go.mod", "go.sum"])

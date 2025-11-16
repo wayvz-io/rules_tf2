@@ -2,15 +2,15 @@
   "providers": {
     "hashicorp/random": ["3.7.2"],
     "hashicorp/null": ["3.2.4"],
-    "hashicorp/local": ["2.5.3"],
+    "hashicorp/local": ["2.6.1"],
     "hashicorp/archive": ["2.7.1"],
-    "hashicorp/aws": ["5.100.0","6.14.0"],
-    "hashicorp/azurerm": ["4.45.0"],
-    "hashicorp/google": ["6.49.3"]
+    "hashicorp/aws": ["5.100.0","6.25.0"],
+    "hashicorp/azurerm": ["4.55.0"],
+    "hashicorp/google": ["6.50.0"]
   },
   "tools": {
-    "terraform": "1.13.2",
-    "tflint": "0.59.1",
+    "terraform": "1.14.1",
+    "tflint": "0.60.0",
     "terraform-docs": "0.20.0"
   },
   "tflint_plugins": {
