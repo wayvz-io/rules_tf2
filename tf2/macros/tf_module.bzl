@@ -251,7 +251,7 @@ def tf_module(
             test_srcs = srcs
 
         tf_test(
-            name = name + "_test",
+            name = name + "_tftest",
             srcs = test_srcs,
             test_files = test_files,
             lock_file = ":" + name + "_generated_lock",
