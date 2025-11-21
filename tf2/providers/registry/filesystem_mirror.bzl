@@ -10,16 +10,11 @@ def _filesystem_mirror_impl(ctx):
     # Create the output directory for the mirror
     mirror_dir = ctx.actions.declare_directory(ctx.label.name)
 
-    # Create a script to build the mirror structure
-    script = ctx.actions.declare_file(ctx.label.name + "_build_mirror.sh")
-
-    # Collect all provider files and build the script
+    # Collect all provider files and build inline command
     provider_files = []
-    script_lines = [
-        "#!/usr/bin/env bash",
+    command_lines = [
         "set -euo pipefail",
-        "",
-        "MIRROR_DIR=\"$1\"",
+        "MIRROR_DIR=\"{}\"".format(mirror_dir.path),
         "mkdir -p \"$MIRROR_DIR\"",
         "",
     ]
@@ -79,7 +74,7 @@ def _filesystem_mirror_impl(ctx):
                         platform,
                     )
 
-                    script_lines.extend([
+                    command_lines.extend([
                         "# Provider: {}/{}@{} for {}".format(namespace, name, version, platform),
                         "mkdir -p \"$MIRROR_DIR/{}\"".format(target_path),
                         "if [ -d '{}' ]; then".format(file.path),
@@ -88,25 +83,11 @@ def _filesystem_mirror_impl(ctx):
                         "",
                     ])
 
-    # Script completion - no verbose output needed
-
-    script_content = "\n".join(script_lines)
-
-    ctx.actions.write(
-        output = script,
-        content = script_content,
-        is_executable = True,
-    )
-
-    # Run the script to create the mirror
+    # Execute inline command (no script file or shebang needed)
     ctx.actions.run_shell(
         outputs = [mirror_dir],
         inputs = provider_files,
-        command = "{script} {output}".format(
-            script = script.path,
-            output = mirror_dir.path,
-        ),
-        tools = [script],
+        command = "\n".join(command_lines),
         mnemonic = "FilesystemMirror",
         progress_message = "Creating filesystem mirror with {} providers".format(len(ctx.attr.providers)),
         use_default_shell_env = True,  # This gives us access to system tools
