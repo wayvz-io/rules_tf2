@@ -66,68 +66,8 @@ def _tf_generate_lock_file_impl(ctx):
     # Output lock file
     output_lock = ctx.actions.declare_file(".terraform.lock.hcl")
 
-    # Create a temporary JSON file from provider_locks.bzl
-    uber_lock_json = ctx.actions.declare_file("uber_lock.json")
-
-    # Create a script to convert provider_locks.bzl to JSON
-    convert_script = ctx.actions.declare_file(ctx.label.name + "_convert.py")
-
-    script_content = '''#!/usr/bin/env python3
-import json
-import sys
-
-def main():
-    provider_locks_path = sys.argv[1]
-    output_json_path = sys.argv[2]
-    
-    # Load provider locks data
-    provider_locks = {}
-    with open(provider_locks_path, 'r') as f:
-        exec_globals = {}
-        exec(f.read(), exec_globals)
-        provider_locks = exec_globals.get('PROVIDER_LOCKS', {})
-    
-    # Transform to the format expected by hcl_tool
-    # Keep the full "provider:version" as key to avoid overwriting multiple versions
-    # From: {"hashicorp/aws:6.13.0": ["hash1", "hash2"], ...}
-    # To: {"hashicorp/aws:6.13.0": {"version": "6.13.0", "hashes": ["hash1", "hash2"]}, ...}
-    uber_lock = {}
-    for key, hashes in provider_locks.items():
-        if ':' in key:
-            provider_name, version = key.rsplit(':', 1)
-            uber_lock[key] = {  # Use full key to preserve multiple versions
-                "provider": provider_name,
-                "version": version,
-                "hashes": hashes
-            }
-    
-    # Write the JSON
-    with open(output_json_path, 'w') as f:
-        json.dump(uber_lock, f, indent=2)
-
-if __name__ == "__main__":
-    main()
-'''
-
-    ctx.actions.write(
-        output = convert_script,
-        content = script_content,
-        is_executable = True,
-    )
-
-    # Run the conversion script
-    ctx.actions.run(
-        outputs = [uber_lock_json],
-        inputs = [ctx.file.provider_locks],
-        executable = convert_script,
-        arguments = [
-            ctx.file.provider_locks.path,
-            uber_lock_json.path,
-        ],
-        mnemonic = "ConvertProviderLocks",
-        progress_message = "Converting provider_locks.bzl to JSON",
-        use_default_shell_env = True,
-    )
+    # Use provider_locks.json directly (already in the format expected by hcl_tool)
+    uber_lock_json = ctx.file.provider_locks
 
     # Use the hcl_tool with the converted JSON file
     args = ctx.actions.args()
@@ -153,8 +93,8 @@ tf_generate_lock_file = rule(
     implementation = _tf_generate_lock_file_impl,
     attrs = {
         "provider_locks": attr.label(
-            doc = "The provider_locks.bzl file with lock data",
-            allow_single_file = [".bzl"],
+            doc = "The provider_locks.json file with lock data",
+            allow_single_file = [".json"],
             mandatory = True,
         ),
         "providers_json": attr.label(
@@ -191,7 +131,7 @@ def tf_generate_lockfile_for_validation(name, provider_locks = None, versions_js
 
     # Default provider locks location
     if not provider_locks:
-        provider_locks = "@tf_provider_registry//:provider_locks.bzl"
+        provider_locks = "@tf_provider_registry//:provider_locks.json"
 
     # Generate the lockfile for validation
     tf_generate_lock_file(
