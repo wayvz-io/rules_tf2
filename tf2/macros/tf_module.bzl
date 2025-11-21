@@ -2,6 +2,7 @@
 
 load("//tf2/internal:organization.bzl", "tf_organization_check_test", "tf_reorganize")
 load("//tf2/tfcore:deps.bzl", "tf_module_deps_test")
+load("//tf2/tfcore:export.bzl", "tf_file_export")
 load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
 load("//tf2/tfcore:test.bzl", "tf_test")
 load("//tf2/tfcore:validate.bzl", "tf_validate_test")
@@ -237,6 +238,13 @@ def tf_module(
             srcs = [":" + name],
             visibility = ["//visibility:private"],
         )
+
+    # Create file export target
+    tf_file_export(
+        name = name + "_file_export",
+        module = ":" + name,
+        visibility = visibility,
+    )
 
     # Create test targets for any .tftest.hcl files
     test_files = native.glob(["*.tftest.hcl", "*.tftest.json"])
