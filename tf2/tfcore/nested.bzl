@@ -149,6 +149,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
     # Second pass: collect all modules and create mappings
     # We'll build a mapping that handles ANY path to a module and rewrites it to ./modules/<module_name>
     module_names = []
+    module_name_to_label = {}  # Track which module uses each name
     for _, module in enumerate(modules):
         if TfModuleInfo not in module:
             continue
@@ -165,6 +166,48 @@ def process_nested_modules(ctx, parent_srcs, modules):
                 module_name = module.label.name
         else:
             module_name = module.label.name
+
+        # Validate that the staged module name doesn't conflict with other modules
+        if module_name in module_name_to_label:
+            existing_label = module_name_to_label[module_name]
+            current_label = str(module.label)
+
+            # Check if this is a parent-child relationship (local submodule)
+            current_package = ctx.label.package
+            is_local_submodule = (
+                module.label.package.startswith(current_package + "/modules/") or
+                existing_label.startswith("//" + current_package + "/modules/")
+            )
+
+            if is_local_submodule:
+                fail(
+                    "Naming conflict detected: Two modules will be staged to 'modules/%s/':\n" % module_name +
+                    "  1. %s\n" % existing_label +
+                    "  2. %s\n\n" % current_label +
+                    "This typically happens when you have both:\n" +
+                    "  - An external module (e.g., //iac/networking/aws/vpc)\n" +
+                    "  - A local submodule in your modules/ directory (e.g., modules/vpc/)\n\n" +
+                    "To fix this:\n" +
+                    "  1. Rename the local submodule directory to avoid the conflict\n" +
+                    "     (e.g., modules/vpc/ → modules/vpc_local/ or modules/vpc_custom/)\n" +
+                    "  2. Update the BUILD file module reference:\n" +
+                    "     %s → %s\n" % (
+                        current_label,
+                        current_label.replace("/modules/" + module_name, "/modules/" + module_name + "_local")
+                    ) +
+                    "  3. Update any Terraform module source paths in your .tf files\n\n" +
+                    "Local submodules cannot have the same name as external modules being staged."
+                )
+            else:
+                fail(
+                    "Naming conflict detected: Two modules will be staged to 'modules/%s/':\n" % module_name +
+                    "  1. %s\n" % existing_label +
+                    "  2. %s\n\n" % current_label +
+                    "Both modules would be copied to the same directory, causing a conflict.\n" +
+                    "This should not happen - please report this as a bug."
+                )
+
+        module_name_to_label[module_name] = str(module.label)
         module_names.append(module_name)
 
         # For each module, we want to rewrite ANY source path that references it
@@ -223,6 +266,35 @@ def process_nested_modules(ctx, parent_srcs, modules):
 
         # Also handle with trailing slash
         module_mappings["../../"] = new_source
+
+        # 3.5. Short paths leveraging common parent directories
+        # Calculate common ancestor and generate short paths
+        # For example: from iac/networking/aws/panorama/deployments/aws_panorama
+        #              to iac/networking/aws/vpc
+        #              common ancestor is iac/networking/aws
+        #              so ../../../vpc should work (3 levels up to aws/, then vpc)
+        current_parts = current_package.split("/")
+        module_parts = module.label.package.split("/")
+
+        # Find common ancestor
+        common_depth = 0
+        for i in range(min(len(current_parts), len(module_parts))):
+            if current_parts[i] == module_parts[i]:
+                common_depth = i + 1
+            else:
+                break
+
+        # Calculate short path from common ancestor
+        if common_depth > 0:
+            # Levels up from current to common ancestor
+            levels_to_common = len(current_parts) - common_depth
+            # Remaining path from common ancestor to module
+            remaining_path = "/".join(module_parts[common_depth:])
+
+            if remaining_path:  # Only if there's a path after common ancestor
+                short_path_prefix = "../" * levels_to_common
+                short_source = short_path_prefix + remaining_path
+                module_mappings[short_source] = new_source
 
         # 4. Handle alternative path patterns for modules
         # For modules in service_intents, also map simplified paths

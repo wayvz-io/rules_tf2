@@ -17,6 +17,10 @@ load(
     _tf_module_publish = "tf_module_publish",
 )
 load(
+    "//tf2/tfcore:export.bzl",
+    _tf_file_export = "tf_file_export",
+)
+load(
     "//tf2/tfcloud:runner.bzl",
     _tf_cloud_configuration = "tf_cloud_configuration",
     _tf_cloud_workspace = "tf_cloud_workspace",
@@ -44,6 +48,7 @@ provider_mirror = _provider_mirror
 tf_module = _tf_module
 tf_module_push_oci = _tf_module_push_oci
 tf_module_publish = _tf_module_publish
+tf_file_export = _tf_file_export
 tf_cloud_configuration = _tf_cloud_configuration
 tf_cloud_workspace = _tf_cloud_workspace
 tf_runner = _tf_runner
