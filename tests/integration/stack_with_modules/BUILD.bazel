@@ -3,6 +3,7 @@ load("//tf2:def.bzl", "tf_module")
 # Module that uses nested modules
 tf_module(
     name = "stack_with_modules",
+    srcs = glob(["*.tf"]) + ["README.md"],
     modules = [
         "//tests/integration/simple_module",
         "//tests/integration/another_module",
@@ -12,7 +13,7 @@ tf_module(
         "@tf_provider_registry//:local_2",
         "@tf_provider_registry//:null_3",
     ],
-    tflint_config = "//tests/fixtures:tflint-config-stacks",
     tfdoc_config = "//tests/fixtures:tfdoc-config",
+    tflint_config = "//tests/fixtures:tflint-config-stacks",
     visibility = ["//visibility:public"],
 )
