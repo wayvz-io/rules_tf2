@@ -17,4 +17,5 @@ tf_tflint_negative_test(
     name = "tflint_hybrid_negative_test",
     srcs = [":tflint_hybrid_test"],
     provider_configurations = ":tflint_hybrid_test_provider_config",
+    size = "small",
 )

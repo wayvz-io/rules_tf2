@@ -15,4 +15,5 @@ tf_module(
     ],
     tflint_config = "//tests/fixtures:tflint-config-modules",
     tfdoc_config = "//tests/fixtures:tfdoc-config",
+    visibility = ["//visibility:public"],
 )

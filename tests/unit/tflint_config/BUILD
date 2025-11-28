@@ -27,4 +27,5 @@ test_suite(
         ":rule_merging_tests",
         ":versions_parser_tests",
     ],
+    visibility = ["//tests/unit:__pkg__"],
 )

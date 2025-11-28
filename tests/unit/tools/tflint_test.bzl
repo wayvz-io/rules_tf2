@@ -1,5 +1,6 @@
 """Unit tests for tflint.bzl functions"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/runners:tflint.bzl", "create_tflint_autofix", "create_tflint_test")
 
@@ -51,7 +52,7 @@ def tflint_test_suite():
     """Create tflint test suite."""
     unittest.suite(
         "tflint_tests",
-        tflint_public_api_test,
-        tflint_function_types_test,
-        tflint_module_exports_test,
+        partial.make(tflint_public_api_test, size = "small"),
+        partial.make(tflint_function_types_test, size = "small"),
+        partial.make(tflint_module_exports_test, size = "small"),
     )

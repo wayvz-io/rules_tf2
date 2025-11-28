@@ -1,5 +1,6 @@
 """Unit tests for TFLint default rule configurations"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load(
     "//tf2/tflint:defaults.bzl",
@@ -139,8 +140,8 @@ def defaults_test_suite(name):
     """Test suite for TFLint default rule configurations"""
     unittest.suite(
         name,
-        get_base_rules_test,
-        get_provider_rules_test,
-        get_tagged_overrides_test,
-        merge_rule_configs_test,
+        partial.make(get_base_rules_test, size = "small"),
+        partial.make(get_provider_rules_test, size = "small"),
+        partial.make(get_tagged_overrides_test, size = "small"),
+        partial.make(merge_rule_configs_test, size = "small"),
     )

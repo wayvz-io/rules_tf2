@@ -1,7 +1,5 @@
 """Repository rule for downloading individual Terraform provider binaries"""
 
-load("//tf2/tools/download:platform.bzl", "get_platform_info")
-
 def get_provider_download_url(provider_source, version, os_name, arch):
     """Get download URL for a provider.
 

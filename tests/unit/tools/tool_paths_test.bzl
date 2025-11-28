@@ -1,5 +1,6 @@
 """Unit tests for tool path resolution functionality"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/runners:tool_paths.bzl", "TOOLS_ATTR", "get_terraform_docs_path", "get_terraform_path", "get_tflint_path", "get_tflint_plugin_path")
 
@@ -54,7 +55,7 @@ def tool_paths_test_suite():
     """Create tool paths test suite."""
     unittest.suite(
         "tool_paths_tests",
-        tool_paths_api_test,
-        tools_attr_test,
-        module_exports_test,
+        partial.make(tool_paths_api_test, size = "small"),
+        partial.make(tools_attr_test, size = "small"),
+        partial.make(module_exports_test, size = "small"),
     )

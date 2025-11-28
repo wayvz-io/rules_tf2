@@ -1,7 +1,7 @@
 """Module extensions for tf2"""
 
-load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/download:provider_download_repository.bzl", "provider_download_repository")
+load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")

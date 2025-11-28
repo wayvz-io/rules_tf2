@@ -1,5 +1,6 @@
 """Unit tests for staging utilities"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/internal:file_ops.bzl", "copy_source_files", "stage_terraform_files")
 
@@ -23,5 +24,5 @@ def staging_test_suite(name):
     """Test suite for staging utilities"""
     unittest.suite(
         name,
-        staging_test,
+        partial.make(staging_test, size = "small"),
     )

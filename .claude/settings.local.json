@@ -33,7 +33,13 @@
       "Bash(git worktree add:*)",
       "Bash(tflint --init:*)",
       "Bash(tflint:*)",
-      "Bash(TFL INT_PLUGIN_DIR=/home/rorychatterton/repos/wayvz/tflint-rules-tf2/bazel-bin/go/tflint_ruleset tflint:*)"
+      "Bash(TFL INT_PLUGIN_DIR=/home/rorychatterton/repos/wayvz/tflint-rules-tf2/bazel-bin/go/tflint_ruleset tflint:*)",
+      "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2_rbe_test log --oneline -20)",
+      "Bash(gt restack:*)",
+      "Bash(for file in tests/unit/tflint_config/*.bzl)",
+      "Bash(do grep -l \"unittest.suite\" \"$file\")",
+      "Bash(done)",
+      "Bash(buildozer --version:*)"
     ],
     "deny": [],
     "ask": [

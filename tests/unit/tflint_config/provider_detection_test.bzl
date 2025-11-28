@@ -1,5 +1,6 @@
 """Unit tests for provider detection and plugin inclusion"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 
 def _test_provider_name_extraction_impl(ctx):
@@ -163,9 +164,9 @@ def provider_detection_test_suite(name):
     """Test suite for provider detection and plugin inclusion"""
     unittest.suite(
         name,
-        provider_name_extraction_test,
-        plugin_detection_logic_test,
-        plugin_configuration_structure_test,
-        plugin_path_generation_test,
-        provider_version_mapping_test,
+        partial.make(provider_name_extraction_test, size = "small"),
+        partial.make(plugin_detection_logic_test, size = "small"),
+        partial.make(plugin_configuration_structure_test, size = "small"),
+        partial.make(plugin_path_generation_test, size = "small"),
+        partial.make(provider_version_mapping_test, size = "small"),
     )

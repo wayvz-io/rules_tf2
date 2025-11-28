@@ -191,15 +191,14 @@ echo "Files exported:"
                 rel_path = file_path[idx + len(package) + 1:]
             else:
                 rel_path = file.basename
-        else:
-            if "/modules/" in file_path:
-                modules_idx = file_path.rfind("/modules/")
-                if modules_idx != -1:
-                    rel_path = file_path[modules_idx + 1:]
-                else:
-                    rel_path = file.basename
+        elif "/modules/" in file_path:
+            modules_idx = file_path.rfind("/modules/")
+            if modules_idx != -1:
+                rel_path = file_path[modules_idx + 1:]
             else:
                 rel_path = file.basename
+        else:
+            rel_path = file.basename
 
         script_content += 'echo "  - {}"\n'.format(rel_path)
 

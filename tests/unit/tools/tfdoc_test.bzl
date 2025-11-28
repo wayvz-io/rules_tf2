@@ -1,5 +1,6 @@
 """Unit tests for tfdoc.bzl functions"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/runners:tfdoc.bzl", "create_tfdoc_generator", "create_tfdoc_test")
 
@@ -51,7 +52,7 @@ def tfdoc_test_suite():
     """Create tfdoc test suite."""
     unittest.suite(
         "tfdoc_tests",
-        tfdoc_public_api_test,
-        tfdoc_function_types_test,
-        tfdoc_module_exports_test,
+        partial.make(tfdoc_public_api_test, size = "small"),
+        partial.make(tfdoc_function_types_test, size = "small"),
+        partial.make(tfdoc_module_exports_test, size = "small"),
     )

@@ -1,5 +1,6 @@
 """Unit tests for tagged overrides and rule merging functionality"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tflint:defaults.bzl", "get_base_rules", "get_provider_rules", "get_tagged_overrides", "merge_rule_configs")
 
@@ -228,12 +229,12 @@ def rule_merging_test_suite(name):
     """Test suite for tagged overrides and rule merging functionality"""
     unittest.suite(
         name,
-        basic_rule_merging_test,
-        multiple_overlay_merging_test,
-        standalone_module_overrides_test,
-        consumer_module_overrides_test,
-        test_module_overrides_test,
-        complex_merging_scenario_test,
-        rule_property_preservation_test,
-        empty_merging_test,
+        partial.make(basic_rule_merging_test, size = "small"),
+        partial.make(multiple_overlay_merging_test, size = "small"),
+        partial.make(standalone_module_overrides_test, size = "small"),
+        partial.make(consumer_module_overrides_test, size = "small"),
+        partial.make(test_module_overrides_test, size = "small"),
+        partial.make(complex_merging_scenario_test, size = "small"),
+        partial.make(rule_property_preservation_test, size = "small"),
+        partial.make(empty_merging_test, size = "small"),
     )
