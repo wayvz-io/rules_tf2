@@ -58,19 +58,11 @@ def tf_module(
         **kwargs: Additional arguments passed to the underlying rule
     """
 
-    # Validate srcs attribute is provided
-    # DEPRECATION WARNING: Implicit globbing is deprecated and will be removed in a future version
-    # The srcs attribute will become mandatory to enable better ibazel performance and Gazelle integration
+    # Validate srcs attribute is provided (mandatory)
     if srcs == None:
-        print("WARNING: tf_module '{}' does not specify srcs attribute. ".format(name) +
-              "Implicit globbing is deprecated and will be removed in a future version. " +
-              "The srcs attribute will become MANDATORY. " +
-              "Please add: srcs = glob([\"*.tf\"]) + [\"README.md\"]")
-        # Fallback to implicit globbing (will be removed)
-        srcs = native.glob(["**/*"], exclude = ["*.bzl", "*.bazel", "BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel", "*.gen.tf", "test_data/**/*"])
+        fail("tf_module '{}' requires explicit srcs attribute. ".format(name) +
+             "Please add: srcs = glob([\"*.tf\"]) + [\"README.md\"]")
 
-    # The glob pattern above already includes all .tf files
-    # No need to explicitly add versions.tf - it will be included if it exists
 
     # Create the dependencies filegroup
     if deps:
@@ -243,13 +235,12 @@ def tf_module(
     )
 
     # Validate all .tf files in the module directory are explicitly tracked in srcs
-    # Tagged as manual during migration period; will become mandatory with Gazelle integration
     tf_untracked_files_test(
         name = name + "_untracked_files_test",
         srcs = srcs,
         testonly = True,
         size = "small",
-        tags = (tags or []) + ["manual"],
+        tags = tags,
     )
 
     # Use appropriate source files for validation:

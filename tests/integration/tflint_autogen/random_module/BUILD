@@ -4,6 +4,7 @@ load("//tf2:def.bzl", "tf_module")
 tf_module(
     name = "random_module",
     testonly = True,
+    srcs = glob(["*.tf"]),
     providers = ["@tf_provider_registry//:random_3"],
     visibility = ["//tests/integration/tflint_autogen:__pkg__"],
 )

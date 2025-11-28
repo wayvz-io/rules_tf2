@@ -4,6 +4,7 @@ load("//tf2:def.bzl", "tf_module")
 tf_module(
     name = "explicit_config_module",
     testonly = True,
+    srcs = glob(["*.tf"]),
     providers = ["@tf_provider_registry//:aws_5"],
     visibility = ["//tests/integration/tflint_autogen:__pkg__"],
 )

@@ -19,6 +19,7 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # they MUST be in the lockfile because the child module needs them.
 tf_module(
     name = "module_with_dependencies",
+    srcs = glob(["*.tf"]) + ["README.md"],
     # Declare module dependencies“
     modules = [
         "@rules_tf2//examples/basic_module",  # This brings in aws_5, random_3, and null_3

@@ -4,6 +4,7 @@ load("//tf2:def.bzl", "tf_module")
 tf_module(
     name = "multi_provider_module",
     testonly = True,
+    srcs = glob(["*.tf"]),
     providers = [
         "@tf_provider_registry//:aws_5",
         "@tf_provider_registry//:random_3",
