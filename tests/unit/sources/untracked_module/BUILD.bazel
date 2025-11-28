@@ -4,6 +4,7 @@ load("//tf2/internal:sources_validation.bzl", "tf_untracked_files_negative_test"
 # This test expects to find untracked files and passes if it does
 tf_untracked_files_negative_test(
     name = "untracked_negative_test",
+    size = "small",
     srcs = [
         "main.tf",  # Only track main.tf, intentionally exclude untracked.tf
         "README.md",

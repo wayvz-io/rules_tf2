@@ -15,7 +15,7 @@ load("//tf2/tflint:test.bzl", "tf_lint_test")
 load("//tf2/tflint:validate.bzl", "tf_tflint_fix", "tf_tflint_validate_test")
 
 def tf_module(
-        name,
+        name = "tf_module",
         srcs = None,
         deps = None,
         modules = None,
@@ -43,8 +43,8 @@ def tf_module(
     - name_no_lockfile_test: Test that no committed lockfile exists
 
     Args:
-        name: Name of the module
-        srcs: Source files (defaults to all .tf and .tf.json files)
+        name: Name of the module (defaults to "tf_module" - recommended to omit)
+        srcs: Source files (explicit list required)
         deps: Dependencies on other tf_module targets
         modules: Nested modules in this module (for complex deployments)
         providers: List of provider_mirror targets

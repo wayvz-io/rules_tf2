@@ -31,8 +31,13 @@ git_override(
 )
 
 # Go support
-bazel_dep(name = "rules_go", version = "0.50.1")
-bazel_dep(name = "gazelle", version = "0.39.1")
+bazel_dep(name = "rules_go", version = "0.53.0")
+bazel_dep(name = "gazelle", version = "0.47.0")
+git_override(
+    module_name = "gazelle",
+    commit = "cb5dab0b54b52f3dcc2d9c8b7ab936b47aba63ff",
+    remote = "https://github.com/bazelbuild/bazel-gazelle",
+)
 bazel_dep(name = "rules_nixpkgs_go", version = "0.13.0")
 git_override(
     module_name = "rules_nixpkgs_go",

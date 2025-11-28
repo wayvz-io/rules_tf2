@@ -1,0 +1,18 @@
+load("@rules_tf2//tf2:def.bzl", "tf_module")
+
+# Parent module - only declares direct dependency on child
+# KEY TEST: Parent should NOT need to declare grandchild
+# The child's BUILD already declares grandchild as its dependency
+tf_module(
+    name = "parent_module",
+    srcs = glob(["*.tf"]) + ["README.md"],
+    modules = [
+        "@rules_tf2//examples/child_with_nested_dep:child_with_nested_dep",
+        # NOTE: We do NOT declare grandchild here!
+        # The child's BUILD already declares it as its dependency
+    ],
+    providers = [
+        "@tf_provider_registry//:null_3",
+    ],
+    visibility = ["//visibility:public"],
+)

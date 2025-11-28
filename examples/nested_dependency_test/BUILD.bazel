@@ -1,0 +1,11 @@
+load("@rules_tf2//tf2:def.bzl", "tf_module")
+
+# Grandchild module - leaf with no dependencies
+tf_module(
+    name = "grandchild",
+    srcs = glob(["*.tf"]) + ["README.md"],
+    providers = [
+        "@tf_provider_registry//:null_3",
+    ],
+    visibility = ["//visibility:public"],
+)

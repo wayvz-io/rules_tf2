@@ -1,0 +1,16 @@
+load("@rules_tf2//tf2:def.bzl", "tf_module")
+
+# Child module with its own nested dependency
+# KEY PRINCIPLE: Child declares its own dependencies
+# Parent should NOT need to redeclare grandchild
+tf_module(
+    name = "child_with_nested_dep",
+    srcs = glob(["*.tf"]) + ["README.md"],
+    modules = [
+        "@rules_tf2//examples/nested_dependency_test:grandchild",
+    ],
+    providers = [
+        "@tf_provider_registry//:null_3",
+    ],
+    visibility = ["//visibility:public"],
+)
