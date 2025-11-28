@@ -6,6 +6,9 @@ package(default_visibility = ["//tf2:__subpackages__"])
 bzl_library(
     name = "generator",
     srcs = ["generator.bzl"],
+    deps = [
+        "//tf2/tools/runners:tfdoc",
+    ],
 )
 
 bzl_library(
