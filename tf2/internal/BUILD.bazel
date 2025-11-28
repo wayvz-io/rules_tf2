@@ -23,3 +23,19 @@ bzl_library(
         "//tf2/tools/runners:shell_utils",
     ],
 )
+
+bzl_library(
+    name = "sources_validation",
+    srcs = ["sources_validation.bzl"],
+    deps = [
+        "//tf2/tools/runners:shell_utils",
+    ],
+)
+
+bzl_library(
+    name = "docs_collection",
+    srcs = ["docs_collection.bzl"],
+    deps = [
+        "//tf2/providers/core:info",
+    ],
+)

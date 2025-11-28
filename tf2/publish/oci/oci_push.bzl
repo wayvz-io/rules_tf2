@@ -1,5 +1,6 @@
 """Rules for pushing Terraform stacks to OCI registries."""
 
+load("//tf2/internal:docs_collection.bzl", "collect_module_docs")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load(":config.bzl", "OCI_CONFIG")
 
@@ -217,6 +218,10 @@ def _tf_module_push_oci_impl(ctx):
     module_info = ctx.attr.module[TfModuleInfo]
     srcs = module_info.srcs.to_list()
 
+    # Collect documentation files from module tree
+    docs_map = collect_module_docs(module_info)
+    doc_files = list(docs_map.values())
+
     # Use the oci_push implementation logic
     tarball = ctx.actions.declare_file("{}.tar.gz".format(ctx.attr.name))
     config = ctx.actions.declare_file("{}.config.json".format(ctx.attr.name))
@@ -255,9 +260,20 @@ def _tf_module_push_oci_impl(ctx):
             dest_name,
         ))
 
+    # Add documentation files with correct destination paths
+    for dest_path, doc_file in docs_map.items():
+        if "/" in dest_path:
+            dest_dir = dest_path.rsplit("/", 1)[0]
+            mkdir_commands["mkdir -p '{}/{}'".format(staging_dir.path, dest_dir)] = True
+        copy_commands.append("cp -L '{}' '{}/{}'".format(
+            doc_file.path,
+            staging_dir.path,
+            dest_path,
+        ))
+
     # Create the staging directory structure and copy files
     ctx.actions.run_shell(
-        inputs = srcs,
+        inputs = srcs + doc_files,
         outputs = [staging_dir],
         command = """
 set -euo pipefail

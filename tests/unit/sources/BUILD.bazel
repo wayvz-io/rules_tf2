@@ -1,0 +1,9 @@
+# Source validation tests
+
+test_suite(
+    name = "sources",
+    tests = [
+        "//tests/unit/sources/tracked_module:tracked_positive_test",
+        "//tests/unit/sources/untracked_module:untracked_negative_test",
+    ],
+)

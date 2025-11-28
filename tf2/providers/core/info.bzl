@@ -4,7 +4,8 @@ TfModuleInfo = provider(
     doc = "Information about a Terraform module",
     fields = {
         "name": "Module name",
-        "srcs": "Source files",
+        "srcs": "Terraform source files (.tf and .tf.json only, excludes documentation)",
+        "docs": "Documentation files (README.md, .tfdoc.yaml, .terraform-docs.yml)",
         "deps": "Module dependencies",
         "modules": "Nested modules in this module (for complex deployments)",
         "provider_configurations": "Provider configurations required by this module",

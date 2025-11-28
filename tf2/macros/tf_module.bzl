@@ -1,6 +1,7 @@
 """Public API macro for creating Terraform modules with comprehensive testing"""
 
 load("//tf2/internal:organization.bzl", "tf_organization_check_test", "tf_reorganize")
+load("//tf2/internal:sources_validation.bzl", "tf_untracked_files_test")
 load("//tf2/tfcore:deps.bzl", "tf_module_deps_test")
 load("//tf2/tfcore:export.bzl", "tf_file_export")
 load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
@@ -57,9 +58,15 @@ def tf_module(
         **kwargs: Additional arguments passed to the underlying rule
     """
 
-    # Default to all files in the module directory if srcs not specified
-    # This follows the Terraform convention that modules include all files in their directory
+    # Validate srcs attribute is provided
+    # DEPRECATION WARNING: Implicit globbing is deprecated and will be removed in a future version
+    # The srcs attribute will become mandatory to enable better ibazel performance and Gazelle integration
     if srcs == None:
+        print("WARNING: tf_module '{}' does not specify srcs attribute. ".format(name) +
+              "Implicit globbing is deprecated and will be removed in a future version. " +
+              "The srcs attribute will become MANDATORY. " +
+              "Please add: srcs = glob([\"*.tf\"]) + [\"README.md\"]")
+        # Fallback to implicit globbing (will be removed)
         srcs = native.glob(["**/*"], exclude = ["*.bzl", "*.bazel", "BUILD", "BUILD.bazel", "WORKSPACE", "WORKSPACE.bazel", "*.gen.tf", "test_data/**/*"])
 
     # The glob pattern above already includes all .tf files
@@ -77,14 +84,29 @@ def tf_module(
     else:
         module_deps = []
 
-    # Create direct source filegroup for ibazel file watching
-    # This always references the original source files, enabling ibazel to detect changes
-    # even when modules are present and processed through the main rule
+    # Split sources for better ibazel performance:
+    # - _sources: .tf files for terraform operations (validate, test, tflint)
+    # - _docs: README.md and doc config for documentation generation
+    # This prevents doc edits from triggering full module rebuilds
+
+    # Extract documentation files
+    doc_files = [f for f in srcs if f.endswith("README.md") or f.endswith(".tfdoc.yaml") or f.endswith(".terraform-docs.yml")]
+    # Extract terraform source files (everything except docs)
+    tf_source_files = [f for f in srcs if f not in doc_files]
+
+    # Create separate filegroups for sources and docs
     native.filegroup(
         name = name + "_sources",
-        srcs = srcs,
+        srcs = tf_source_files,
         visibility = visibility,
     )
+
+    if doc_files:
+        native.filegroup(
+            name = name + "_docs",
+            srcs = doc_files,
+            visibility = visibility,
+        )
 
     # Require providers list (unless modules are specified that can provide them)
     if not providers and not modules:
@@ -146,6 +168,7 @@ def tf_module(
         )
 
     # Create doc test if README.md exists
+    # Note: terraform-docs needs both .tf files and README.md to validate
     if "README.md" in native.glob(["README.md"], allow_empty = True):
         tf_doc_test(
             name = name + "_doc_test",
@@ -219,9 +242,19 @@ def tf_module(
         visibility = visibility,
     )
 
-    # Create new hybrid tflint validation test
-    # For modules with nested modules, use processed output
-    # For simple modules, use direct sources for ibazel file watching
+    # Validate all .tf files in the module directory are explicitly tracked in srcs
+    # Tagged as manual during migration period; will become mandatory with Gazelle integration
+    tf_untracked_files_test(
+        name = name + "_untracked_files_test",
+        srcs = srcs,
+        testonly = True,
+        size = "small",
+        tags = (tags or []) + ["manual"],
+    )
+
+    # Use appropriate source files for validation:
+    # - Modules with nested modules: use processed output (stages nested modules)
+    # - Simple modules: use direct sources for ibazel file watching
     if modules:
         tflint_srcs = [":" + name + "_processed"]
     else:
@@ -236,7 +269,7 @@ def tf_module(
         tags = tags,
     )
 
-    # Create new hybrid tflint fix target
+    # Create tflint fix target
     tf_tflint_fix(
         name = name + "_tflint_fix",
         provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
@@ -244,7 +277,7 @@ def tf_module(
         testonly = testonly,
     )
 
-    # For modules with nested modules, create a processed filegroup (used by both tests and validation)
+    # Create processed filegroup for modules with nested modules
     if modules:
         native.filegroup(
             name = name + "_processed",
@@ -260,18 +293,12 @@ def tf_module(
         testonly = testonly,
     )
 
-    # Create test targets for any .tftest.hcl files
+    # Auto-discover and create test targets for .tftest.hcl files
+    # Note: This will be deprecated in favor of explicit tf_test declarations
     test_files = native.glob(["*.tftest.hcl", "*.tftest.json"])
     if test_files:
-        # Use unpacked providers for filesystem_mirror
         provider_registry = "@tf_provider_registry//:unpacked_providers"
-
-        # For modules with nested modules, use processed output
-        # For simple modules, use direct sources for ibazel file watching
-        if modules:
-            test_srcs = [":" + name + "_processed"]
-        else:
-            test_srcs = [":" + name + "_sources"]
+        test_srcs = [":" + name + "_processed"] if modules else [":" + name + "_sources"]
 
         tf_test(
             name = name + "_tftest",
@@ -287,15 +314,8 @@ def tf_module(
 
     # Create validation test (unless skip_validation is True)
     if not skip_validation:
-        # Use unpacked providers for filesystem_mirror
         provider_registry = "@tf_provider_registry//:unpacked_providers"
-
-        # For modules with nested modules, use processed output (which stages nested modules)
-        # For simple modules, use direct sources for ibazel file watching
-        if modules:
-            validate_srcs = [":" + name + "_processed"]
-        else:
-            validate_srcs = [":" + name + "_sources"]
+        validate_srcs = [":" + name + "_processed"] if modules else [":" + name + "_sources"]
 
         tf_validate_test(
             name = name + "_validate_test",

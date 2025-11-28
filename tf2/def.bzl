@@ -30,6 +30,10 @@ load(
     _tf_runner = "tf_runner",
 )
 load(
+    "//tf2/tfcore:test.bzl",
+    _tf_test = "tf_test",
+)
+load(
     "//tf2/tfcore:variables.bzl",
     _tf_variables = "tf_variables",
 )
@@ -52,6 +56,7 @@ tf_file_export = _tf_file_export
 tf_cloud_configuration = _tf_cloud_configuration
 tf_cloud_workspace = _tf_cloud_workspace
 tf_runner = _tf_runner
+tf_test = _tf_test
 tf_variables = _tf_variables
 
 # CDKTF generation - moved to repository rules

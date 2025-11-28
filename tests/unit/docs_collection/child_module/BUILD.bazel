@@ -1,0 +1,8 @@
+load("//tf2:def.bzl", "tf_module")
+
+tf_module(
+    name = "child_module",
+    srcs = glob(["*.tf"]) + ["README.md"],
+    providers = ["@tf_provider_registry//:random_3"],
+    visibility = ["//tests/unit/docs_collection:__subpackages__"],
+)

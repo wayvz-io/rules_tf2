@@ -39,7 +39,9 @@
       "Bash(for file in tests/unit/tflint_config/*.bzl)",
       "Bash(do grep -l \"unittest.suite\" \"$file\")",
       "Bash(done)",
-      "Bash(buildozer --version:*)"
+      "Bash(buildozer --version:*)",
+      "Bash(buildozer:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
     "ask": [

@@ -22,17 +22,29 @@ gt create -am "Brief description of what you're implementing"
 bazel test //...
 
 # 4. Update the commit with final changes
-gt modify
+gt modify -am "Updated commit message describing the changes"
+# Note: gt modify is equivalent to git add -A + git commit --amend
+# The -a flag stages all changes, -m provides the message
 
-# 5. Submit the work for review
+# 5. Create a new branch for next phase of work (if needed)
+gt create -am "Next phase description"
+
+# 6. Submit the work for review when complete
 gt submit
 ```
+
+**Important Graphite Commands:**
+- `gt modify -am "message"`: Stage all changes and amend current commit (like git add -A + git commit --amend)
+- `gt create -am "message"`: Create new branch with commit message
+- `gt submit`: Submit changes for review
+- `gt restack`: Rebase stack on latest main
 
 This workflow ensures:
 - Clean, descriptive commits with proper messaging
 - All tests pass before submission
 - Consistent branching and review process
 - Proper integration with Graphite stack management
+- Easy tracking of multi-phase development
 
 ## Common Development Commands
 
