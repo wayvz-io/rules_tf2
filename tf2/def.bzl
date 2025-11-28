@@ -17,13 +17,13 @@ load(
     _tf_module_publish = "tf_module_publish",
 )
 load(
-    "//tf2/tfcore:export.bzl",
-    _tf_file_export = "tf_file_export",
-)
-load(
     "//tf2/tfcloud:runner.bzl",
     _tf_cloud_configuration = "tf_cloud_configuration",
     _tf_cloud_workspace = "tf_cloud_workspace",
+)
+load(
+    "//tf2/tfcore:export.bzl",
+    _tf_file_export = "tf_file_export",
 )
 load(
     "//tf2/tfcore:runner.bzl",

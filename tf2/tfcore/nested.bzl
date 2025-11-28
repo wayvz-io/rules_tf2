@@ -139,6 +139,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
 
         # Track this as a top-level module (use string representation of label)
         label_str = str(module.label)
+
         # Normalize the label string format (remove leading @// if present)
         if label_str.startswith("@//"):
             label_str = label_str[3:]
@@ -193,10 +194,10 @@ def process_nested_modules(ctx, parent_srcs, modules):
                     "  2. Update the BUILD file module reference:\n" +
                     "     %s → %s\n" % (
                         current_label,
-                        current_label.replace("/modules/" + module_name, "/modules/" + module_name + "_local")
+                        current_label.replace("/modules/" + module_name, "/modules/" + module_name + "_local"),
                     ) +
                     "  3. Update any Terraform module source paths in your .tf files\n\n" +
-                    "Local submodules cannot have the same name as external modules being staged."
+                    "Local submodules cannot have the same name as external modules being staged.",
                 )
             else:
                 fail(
@@ -204,7 +205,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
                     "  1. %s\n" % existing_label +
                     "  2. %s\n\n" % current_label +
                     "Both modules would be copied to the same directory, causing a conflict.\n" +
-                    "This should not happen - please report this as a bug."
+                    "This should not happen - please report this as a bug.",
                 )
 
         module_name_to_label[module_name] = str(module.label)
@@ -288,6 +289,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
         if common_depth > 0:
             # Levels up from current to common ancestor
             levels_to_common = len(current_parts) - common_depth
+
             # Remaining path from common ancestor to module
             remaining_path = "/".join(module_parts[common_depth:])
 
@@ -317,6 +319,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
         if hasattr(module_info, "modules") and module_info.modules:
             for nested_module in module_info.modules:
                 nested_label_str = str(nested_module.label)
+
                 # Normalize the label string
                 if nested_label_str.startswith("@//"):
                     nested_label_str = nested_label_str[3:]
@@ -327,6 +330,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
                     # This nested module is also a top-level module
                     # Create a mapping to reference it from this module (not parent)
                     nested_name = top_level_modules[nested_label_str]
+
                     # Map from the nested reference to the sibling top-level module
                     # When agency_workspaces references ./modules/workspace, it should become ../workspace
                     module_specific_mappings["./modules/" + nested_module.label.name] = "../" + nested_name

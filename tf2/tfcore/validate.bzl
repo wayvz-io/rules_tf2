@@ -93,7 +93,7 @@ def _tf_validate_test_impl(ctx):
                 # File is directly in the package root
                 dest_path = relative_path
 
-        # Check if this is a bazel-out processed file with nested modules
+            # Check if this is a bazel-out processed file with nested modules
         elif "bazel-out" in src_path and "/modules/" in src_path:
             # This is a processed file - extract the module structure
             parts = src_path.split("/")
@@ -102,6 +102,7 @@ def _tf_validate_test_impl(ctx):
                     # Found the modules directory, preserve structure from here
                     module_path = "/".join(parts[i:])
                     dest_path = module_path
+
                     # Create parent directories
                     dest_dir = "/".join(parts[i:-1])
                     if dest_dir not in created_dirs:

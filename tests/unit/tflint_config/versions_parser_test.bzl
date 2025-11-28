@@ -1,5 +1,6 @@
 """Unit tests for versions.json parser functions"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load(
     "//tf2/providers/repository:versions.bzl",
@@ -144,8 +145,8 @@ def versions_parser_test_suite(name):
     """Test suite for versions.json parser functions"""
     unittest.suite(
         name,
-        get_tool_version_test,
-        get_tflint_plugin_version_test,
-        get_tflint_config_test,
-        get_providers_test,
+        partial.make(get_tool_version_test, size = "small"),
+        partial.make(get_tflint_plugin_version_test, size = "small"),
+        partial.make(get_tflint_config_test, size = "small"),
+        partial.make(get_providers_test, size = "small"),
     )

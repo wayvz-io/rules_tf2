@@ -1,5 +1,6 @@
 """Unit tests for TFLint integration functionality"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 
 def _basic_tflint_validate_test_impl(ctx):
@@ -57,8 +58,8 @@ def tflint_integration_test_suite(name):
 
     unittest.suite(
         name,
-        basic_tflint_validate_test,
-        basic_tflint_fix_test,
-        error_message_format_test,
-        tflint_config_format_test,
+        partial.make(basic_tflint_validate_test, size = "small"),
+        partial.make(basic_tflint_fix_test, size = "small"),
+        partial.make(error_message_format_test, size = "small"),
+        partial.make(tflint_config_format_test, size = "small"),
     )

@@ -1,5 +1,6 @@
 """Unit tests for TFLint configuration generation"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts", "unittest")
 load("//tf2/tflint:config.bzl", "tf_generate_tflint_config")
 
@@ -194,10 +195,10 @@ def config_generation_test_suite(name):
     # Unit tests
     unittest.suite(
         name + "_unit",
-        provider_name_from_label_test,
-        detect_provider_plugins_test,
-        generate_plugin_block_test,
-        generate_rule_block_test,
+        partial.make(provider_name_from_label_test, size = "small"),
+        partial.make(detect_provider_plugins_test, size = "small"),
+        partial.make(generate_plugin_block_test, size = "small"),
+        partial.make(generate_rule_block_test, size = "small"),
     )
 
     # Analysis tests

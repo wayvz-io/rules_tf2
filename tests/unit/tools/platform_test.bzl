@@ -1,5 +1,6 @@
 """Unit tests for platform detection functionality"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/download:platform.bzl", "PLATFORMS", "TERRAFORM_DOCS_PLATFORMS", "get_terraform_docs_platform")
 
@@ -52,6 +53,6 @@ def platform_test_suite():
     """Create platform test suite."""
     unittest.suite(
         "platform_tests",
-        platform_configs_test,
-        terraform_docs_platform_test,
+        partial.make(platform_configs_test, size = "small"),
+        partial.make(terraform_docs_platform_test, size = "small"),
     )

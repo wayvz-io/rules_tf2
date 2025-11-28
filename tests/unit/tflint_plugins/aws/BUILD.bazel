@@ -10,4 +10,5 @@ tf_lint_plugin_negative_test_sized(
     plugins = [
         "@tflint_plugin_registry//:aws_bin",
     ],
+    visibility = ["//tests/unit/tflint_plugins:__pkg__"],
 )

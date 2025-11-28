@@ -1,6 +1,6 @@
 """Repository rules for Terraform provider management"""
 
-load("//tf2/providers/download:provider_http_files.bzl", "get_provider_download_info", "parse_terraform_lock_file")
+load("//tf2/providers/download:provider_http_files.bzl", "parse_terraform_lock_file")
 
 def _generate_lock_hcl_from_json(lock_json):
     """Generate HCL content from parsed lock file JSON."""

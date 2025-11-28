@@ -1,5 +1,6 @@
 """Unit tests for terraform starlark action implementations"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/runners:terraform.bzl", "create_terraform_format_test", "create_terraform_validate_test")
 
@@ -40,7 +41,7 @@ def terraform_actions_test_suite():
     """Create terraform actions test suite."""
     unittest.suite(
         "terraform_actions_tests",
-        terraform_format_api_test,
-        terraform_validate_api_test,
-        functions_types_test,
+        partial.make(terraform_format_api_test, size = "small"),
+        partial.make(terraform_validate_api_test, size = "small"),
+        partial.make(functions_types_test, size = "small"),
     )

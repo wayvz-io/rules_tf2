@@ -1,5 +1,6 @@
 """Unit tests for terraform.bzl functions"""
 
+load("@bazel_skylib//lib:partial.bzl", "partial")
 load("@bazel_skylib//lib:unittest.bzl", "asserts", "unittest")
 load("//tf2/tools/runners:terraform.bzl", "create_terraform_format_test", "create_terraform_script", "create_terraform_validate_test", "terraform_init_script")
 
@@ -85,8 +86,8 @@ def terraform_test_suite():
     """Create terraform test suite."""
     unittest.suite(
         "terraform_tests",
-        terraform_public_api_test,
-        terraform_init_script_basic_test,
-        terraform_init_script_flags_test,
-        terraform_function_types_test,
+        partial.make(terraform_public_api_test, size = "small"),
+        partial.make(terraform_init_script_basic_test, size = "small"),
+        partial.make(terraform_init_script_flags_test, size = "small"),
+        partial.make(terraform_function_types_test, size = "small"),
     )

@@ -70,12 +70,21 @@ def tf_module(
         tf_module_deps(
             name = name + "_deps",
             deps = deps,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = testonly,
         )
         module_deps = [":" + name + "_deps"]
     else:
         module_deps = []
+
+    # Create direct source filegroup for ibazel file watching
+    # This always references the original source files, enabling ibazel to detect changes
+    # even when modules are present and processed through the main rule
+    native.filegroup(
+        name = name + "_sources",
+        srcs = srcs,
+        visibility = visibility,
+    )
 
     # Require providers list (unless modules are specified that can provide them)
     if not providers and not modules:
@@ -88,7 +97,7 @@ def tf_module(
         providers = providers,
         modules = modules,  # Pass modules to collect their providers
         terraform_version = terraform_version or "1.13.2",  # Use configured version from tf_tools
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = testonly,
     )
     actual_provider_configurations = ":" + name + "_provider_config"
@@ -100,7 +109,7 @@ def tf_module(
             name = generated_lock_name,
             provider_locks = "@tf_provider_registry//:provider_locks.json",
             versions_json = actual_provider_configurations,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = testonly,
         )
 
@@ -124,7 +133,7 @@ def tf_module(
         tf_format_test(
             name = name + "_format_test",
             srcs = tf_srcs,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = True,
             size = "small",
             tags = tags,
@@ -142,7 +151,7 @@ def tf_module(
             name = name + "_doc_test",
             srcs = srcs,
             config = tfdoc_config,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = True,
             size = "small",
             tags = tags,
@@ -159,7 +168,7 @@ def tf_module(
         name = name + "_lint_test",
         srcs = srcs,
         config = tflint_config,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = True,
         size = "small",
         tags = tags,
@@ -170,7 +179,7 @@ def tf_module(
         name = name + "_deps_test",
         module = ":" + name,
         srcs = srcs,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = True,
         size = "small",
         tags = tags,
@@ -182,7 +191,7 @@ def tf_module(
             name = name + "_versions_check_test",
             srcs = srcs,
             provider_configurations = actual_provider_configurations,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = True,
             size = "small",
             tags = tags,
@@ -199,7 +208,7 @@ def tf_module(
     tf_organization_check_test(
         name = name + "_organization_check_test",
         srcs = srcs,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = True,
         size = "small",
         tags = tags,
@@ -211,13 +220,17 @@ def tf_module(
     )
 
     # Create new hybrid tflint validation test
-    # Use processed sources if modules exist, otherwise raw sources (same logic as validate_test)
-    tflint_srcs = [":" + name + "_processed"] if modules else srcs
+    # For modules with nested modules, use processed output
+    # For simple modules, use direct sources for ibazel file watching
+    if modules:
+        tflint_srcs = [":" + name + "_processed"]
+    else:
+        tflint_srcs = [":" + name + "_sources"]
     tf_tflint_validate_test(
         name = name + "_tflint_validate_test",
         srcs = tflint_srcs,
         provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = True,
         size = "small",
         tags = tags,
@@ -236,7 +249,7 @@ def tf_module(
         native.filegroup(
             name = name + "_processed",
             srcs = [":" + name],
-            visibility = ["//visibility:private"],
+            visibility = visibility,
         )
 
     # Create file export target
@@ -244,6 +257,7 @@ def tf_module(
         name = name + "_file_export",
         module = ":" + name,
         visibility = visibility,
+        testonly = testonly,
     )
 
     # Create test targets for any .tftest.hcl files
@@ -252,11 +266,12 @@ def tf_module(
         # Use unpacked providers for filesystem_mirror
         provider_registry = "@tf_provider_registry//:unpacked_providers"
 
-        # For modules with nested modules, we need to use the processed output
+        # For modules with nested modules, use processed output
+        # For simple modules, use direct sources for ibazel file watching
         if modules:
             test_srcs = [":" + name + "_processed"]
         else:
-            test_srcs = srcs
+            test_srcs = [":" + name + "_sources"]
 
         tf_test(
             name = name + "_tftest",
@@ -264,7 +279,7 @@ def tf_module(
             test_files = test_files,
             lock_file = ":" + name + "_generated_lock",
             provider_registry = provider_registry,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = True,
             size = "small",
             tags = tags,
@@ -275,18 +290,19 @@ def tf_module(
         # Use unpacked providers for filesystem_mirror
         provider_registry = "@tf_provider_registry//:unpacked_providers"
 
-        # For modules with nested modules, we need to use the processed output
+        # For modules with nested modules, use processed output (which stages nested modules)
+        # For simple modules, use direct sources for ibazel file watching
         if modules:
             validate_srcs = [":" + name + "_processed"]
         else:
-            validate_srcs = srcs
+            validate_srcs = [":" + name + "_sources"]
 
         tf_validate_test(
             name = name + "_validate_test",
             srcs = validate_srcs,
             lock_file = ":" + name + "_generated_lock",
             provider_registry = provider_registry,
-            visibility = ["//visibility:private"],
+            visibility = visibility,
             testonly = True,
             size = "small",
             tags = tags,
@@ -296,7 +312,7 @@ def tf_module(
     tf_no_lockfile_check_test(
         name = name + "_no_lockfile_test",
         srcs = srcs,
-        visibility = ["//visibility:private"],
+        visibility = visibility,
         testonly = True,
         size = "small",
         tags = tags,
