@@ -41,7 +41,8 @@
       "Bash(done)",
       "Bash(buildozer --version:*)",
       "Bash(buildozer:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebFetch(domain:pkg.go.dev)"
     ],
     "deny": [],
     "ask": [
