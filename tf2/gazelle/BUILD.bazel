@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_library")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+
+# Go library for the Terraform Gazelle extension
+go_library(
+    name = "terraform",
+    srcs = ["terraform.go"],
+    importpath = "github.com/wayvz-io/network_intent_manager/build/rules/tf2/gazelle/terraform",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@gazelle//config:go_default_library",
+        "@gazelle//label:go_default_library",
+        "@gazelle//language:go_default_library",
+        "@gazelle//repo:go_default_library",
+        "@gazelle//resolve:go_default_library",
+        "@gazelle//rule:go_default_library",
+    ],
+)
+
+# Custom gazelle binary that includes the Terraform language extension
+gazelle_binary(
+    name = "gazelle-terraform",
+    languages = [
+        "@gazelle//language/go:go_default_library",
+        ":terraform",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Gazelle rule for updating BUILD files
+gazelle(
+    name = "gazelle",
+    gazelle = ":gazelle-terraform",
+)
