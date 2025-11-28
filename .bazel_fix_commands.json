@@ -1,0 +1,37 @@
+[
+    {
+        "regex": "^Check that imports in Go sources match importpath attributes in deps.$",
+        "command": "bazel",
+        "args": ["mod", "tidy"]
+    },
+    {
+        "regex": "^buildozer '(.*)'\\s+(.*)$",
+        "command": "buildozer",
+        "args": ["$1", "$2"]
+    },
+    {
+        "regex": "bazel run (//[^\\s]+_generate_docs)",
+        "command": "bazel",
+        "args": ["run", "$1"]
+    },
+    {
+        "regex": "^(//[^:]+):(\\w+)_format_test\\s+FAILED",
+        "command": "bazel",
+        "args": ["run", "$1:$2_format"]
+    },
+    {
+        "regex": "^(//[^:]+):(\\w+)_doc_test\\s+FAILED",
+        "command": "bazel",
+        "args": ["run", "$1:$2_generate_docs"]
+    },
+    {
+        "regex": "^(//[^:]+):(\\w+)_versions_check_test\\s+FAILED",
+        "command": "bazel",
+        "args": ["run", "$1:$2_generate_versions"]
+    },
+    {
+        "regex": "^(//[^:]+):(\\w+)_organization_check_test\\s+FAILED",
+        "command": "bazel",
+        "args": ["run", "$1:$2_reorganize"]
+    }
+]

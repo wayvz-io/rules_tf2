@@ -83,6 +83,7 @@ bzl_library(
     name = "export",
     srcs = ["export.bzl"],
     deps = [
+        "//tf2/internal:docs_collection",
         "//tf2/providers/core:info",
     ],
 )

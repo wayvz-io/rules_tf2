@@ -8,6 +8,7 @@ bzl_library(
     srcs = ["tf_module.bzl"],
     deps = [
         "//tf2/internal:organization",
+        "//tf2/internal:sources_validation",
         "//tf2/tfcore:deps",
         "//tf2/tfcore:export",
         "//tf2/tfcore:module",

@@ -5,6 +5,8 @@ import (
 	"flag"
 	"os"
 	"path/filepath"
+	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -16,8 +18,11 @@ import (
 )
 
 const (
-	terraformName = "terraform"
-	tfModuleKind  = "tf_module"
+	terraformName     = "terraform"
+	tfModuleKind      = "tf_module"
+	tfTestKind        = "tf_test"
+	defaultModuleName = "tf_module" // Default name for tf_module rules
+	defaultTestName   = "tf_test"   // Default name for tf_test rules
 )
 
 // NewLanguage creates a new Gazelle language extension for Terraform.
@@ -47,11 +52,18 @@ func (l *terraformLang) Name() string { return terraformName }
 func (l *terraformLang) Kinds() map[string]rule.KindInfo {
 	return map[string]rule.KindInfo{
 		tfModuleKind: {
-			MatchAny:       false,
-			NonEmptyAttrs:  map[string]bool{"srcs": true, "providers": true},
+			MatchAny:        false,
+			NonEmptyAttrs:   map[string]bool{"srcs": true, "providers": true},
 			SubstituteAttrs: map[string]bool{},
-			MergeableAttrs: map[string]bool{"srcs": true, "providers": true},
-			ResolveAttrs:   map[string]bool{},
+			MergeableAttrs:  map[string]bool{"srcs": true, "providers": true},
+			ResolveAttrs:    map[string]bool{},
+		},
+		tfTestKind: {
+			MatchAny:        false,
+			NonEmptyAttrs:   map[string]bool{"test_files": true},
+			SubstituteAttrs: map[string]bool{},
+			MergeableAttrs:  map[string]bool{"test_files": true},
+			ResolveAttrs:    map[string]bool{"module": true},
 		},
 	}
 }
@@ -61,7 +73,7 @@ func (l *terraformLang) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
 			Name:    "//tf2:def.bzl",
-			Symbols: []string{tfModuleKind},
+			Symbols: []string{tfModuleKind, tfTestKind},
 		},
 	}
 }
@@ -107,97 +119,212 @@ func (l *terraformLang) Configure(c *config.Config, rel string, f *rule.File) {
 	c.Exts[terraformName] = cfg
 }
 
-// GenerateRules generates tf_module rules for directories containing .tf files.
+// GenerateRules generates tf_module and tf_test rules for directories containing .tf files.
 func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	cfg := getConfig(args.Config)
 	if !cfg.enabled {
 		return language.GenerateResult{}
 	}
 
-	// Find .tf files
+	// Categorize files
 	var tfFiles []string
+	var testFiles []string
+	var templateFiles []string
 	var hasReadme bool
-	var hasTfdocConfig bool
 	var hasTerraformTf bool
 
 	for _, f := range args.RegularFiles {
-		if strings.HasSuffix(f, ".tf") {
+		switch {
+		case strings.HasSuffix(f, ".tftest.hcl") || strings.HasSuffix(f, ".tftest.json"):
+			testFiles = append(testFiles, f)
+		case strings.HasSuffix(f, ".tf"):
 			tfFiles = append(tfFiles, f)
 			if f == "terraform.tf" {
 				hasTerraformTf = true
 			}
-		}
-		if f == "README.md" {
+		case strings.HasSuffix(f, ".tmpl") || strings.HasSuffix(f, ".tpl") || strings.HasSuffix(f, ".tftpl"):
+			templateFiles = append(templateFiles, f)
+		case f == "README.md":
 			hasReadme = true
-		}
-		if f == ".tfdoc.yaml" || f == ".terraform-docs.yml" {
-			hasTfdocConfig = true
 		}
 	}
 
-	// No .tf files, no rule to generate
+	// No .tf files, no rules to generate
 	if len(tfFiles) == 0 {
 		return language.GenerateResult{}
 	}
 
-	// Check if there's already a tf_module rule
-	var existingRule *rule.Rule
+	// Extract module references from .tf files
+	detectedModules := extractModulesFromTfFiles(args.Dir, tfFiles, args.Rel)
+
+	var rules []*rule.Rule
+	var imports []interface{}
+
+	// Find existing rules by kind (not by name)
+	var existingModule, existingTest *rule.Rule
 	if args.File != nil {
 		for _, r := range args.File.Rules {
-			if r.Kind() == tfModuleKind {
-				existingRule = r
-				break
+			switch r.Kind() {
+			case tfModuleKind:
+				existingModule = r
+			case tfTestKind:
+				existingTest = r
 			}
 		}
 	}
 
-	// Generate the rule
-	r := rule.NewRule(tfModuleKind, inferModuleName(args.Rel))
+	// Generate tf_module rule with default name "tf_module"
+	moduleRule := generateModuleRule(defaultModuleName, tfFiles, templateFiles, hasReadme, hasTerraformTf, args.Dir, cfg, existingModule, detectedModules)
+	rules = append(rules, moduleRule)
+	imports = append(imports, nil)
 
-	// Build srcs list - use GlobValue with extra files if README exists
-	globValue := rule.GlobValue{
-		Patterns: []string{"*.tf"},
+	// Generate tf_test rule if test files exist (tf_module macro handles this internally)
+	// Only generate explicit tf_test if there's already an existing one
+	if len(testFiles) > 0 && existingTest != nil {
+		testRule := generateTestRule(defaultTestName, defaultModuleName, testFiles, existingTest)
+		rules = append(rules, testRule)
+		imports = append(imports, nil)
 	}
-	r.SetAttr("srcs", globValue)
 
-	// Note: Gazelle doesn't easily support "glob + list" expressions
-	// For now, just use the glob. Users can manually add README.md if needed.
-	// TODO: Consider using a custom expression type or post-processing
-	_ = hasReadme       // Suppress unused variable warning for now
-	_ = hasTfdocConfig  // Suppress unused variable warning for now
+	return language.GenerateResult{
+		Gen:     rules,
+		Imports: imports,
+	}
+}
 
-	// Try to extract providers from terraform.tf
+// generateModuleRule creates a tf_module rule.
+func generateModuleRule(name string, tfFiles []string, templateFiles []string, hasReadme, hasTerraformTf bool, dir string, cfg *terraformConfig, existing *rule.Rule, detectedModules []string) *rule.Rule {
+	r := rule.NewRule(tfModuleKind, name)
+
+	// Build srcs list
+	// Sort files for deterministic output
+	sort.Strings(tfFiles)
+	sort.Strings(templateFiles)
+
+	// Build explicit source list with .tf files, templates, and README
+	srcs := make([]string, 0, len(tfFiles)+len(templateFiles)+1)
+	srcs = append(srcs, tfFiles...)
+	srcs = append(srcs, templateFiles...)
+	if hasReadme {
+		srcs = append(srcs, "README.md")
+	}
+	sort.Strings(srcs)
+	r.SetAttr("srcs", srcs)
+
+	// Extract providers from terraform.tf
 	if hasTerraformTf {
-		providers := extractProvidersFromTerraformTf(filepath.Join(args.Dir, "terraform.tf"), cfg)
+		providers := extractProvidersFromTerraformTf(filepath.Join(dir, "terraform.tf"), cfg)
 		if len(providers) > 0 {
 			r.SetAttr("providers", providers)
 		}
 	}
 
-	// Preserve existing attributes from existing rule
-	if existingRule != nil {
-		// Keep providers if set manually
-		if existingRule.Attr("providers") != nil && r.Attr("providers") == nil {
-			r.SetAttr("providers", existingRule.Attr("providers"))
+	// Merge detected modules with existing modules
+	finalModules := mergeModules(detectedModules, existing)
+	if len(finalModules) > 0 {
+		r.SetAttr("modules", finalModules)
+	}
+
+	// Preserve existing attributes
+	if existing != nil {
+		// Keep providers if set manually and we didn't extract any
+		if existing.Attr("providers") != nil && r.Attr("providers") == nil {
+			r.SetAttr("providers", existing.Attr("providers"))
 		}
 		// Keep tflint_config if set
-		if existingRule.Attr("tflint_config") != nil {
-			r.SetAttr("tflint_config", existingRule.Attr("tflint_config"))
+		if existing.Attr("tflint_config") != nil {
+			r.SetAttr("tflint_config", existing.Attr("tflint_config"))
 		}
 		// Keep tfdoc_config if set
-		if existingRule.Attr("tfdoc_config") != nil {
-			r.SetAttr("tfdoc_config", existingRule.Attr("tfdoc_config"))
+		if existing.Attr("tfdoc_config") != nil {
+			r.SetAttr("tfdoc_config", existing.Attr("tfdoc_config"))
 		}
 		// Keep visibility if set
-		if existingRule.Attr("visibility") != nil {
-			r.SetAttr("visibility", existingRule.Attr("visibility"))
+		if existing.Attr("visibility") != nil {
+			r.SetAttr("visibility", existing.Attr("visibility"))
+		}
+		// Keep skip_validation if set
+		if existing.Attr("skip_validation") != nil {
+			r.SetAttr("skip_validation", existing.Attr("skip_validation"))
+		}
+		// Keep tags if set
+		if existing.Attr("tags") != nil {
+			r.SetAttr("tags", existing.Attr("tags"))
+		}
+		// Keep testonly if set
+		if existing.Attr("testonly") != nil {
+			r.SetAttr("testonly", existing.Attr("testonly"))
 		}
 	}
 
-	return language.GenerateResult{
-		Gen:     []*rule.Rule{r},
-		Imports: []interface{}{nil},
+	return r
+}
+
+// mergeModules combines detected modules with existing manual modules.
+// Detected modules take precedence, but manual entries not detected are preserved.
+func mergeModules(detected []string, existing *rule.Rule) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	// Add all detected modules
+	for _, m := range detected {
+		if !seen[m] {
+			seen[m] = true
+			result = append(result, m)
+		}
 	}
+
+	// Add existing modules that weren't detected (manual entries)
+	if existing != nil && existing.Attr("modules") != nil {
+		existingModules := existing.AttrStrings("modules")
+		for _, m := range existingModules {
+			// Normalize the label for comparison
+			normalized := m
+			if !seen[normalized] {
+				seen[normalized] = true
+				result = append(result, m)
+			}
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
+// generateTestRule creates a tf_test rule.
+func generateTestRule(testName, moduleName string, testFiles []string, existing *rule.Rule) *rule.Rule {
+	r := rule.NewRule(tfTestKind, testName)
+
+	// Sort test files for deterministic output
+	sort.Strings(testFiles)
+
+	// Set module reference
+	r.SetAttr("module", ":"+moduleName)
+
+	// Set test_files
+	r.SetAttr("test_files", testFiles)
+
+	// Preserve existing attributes
+	if existing != nil {
+		// Keep data if set
+		if existing.Attr("data") != nil {
+			r.SetAttr("data", existing.Attr("data"))
+		}
+		// Keep size if set
+		if existing.Attr("size") != nil {
+			r.SetAttr("size", existing.Attr("size"))
+		}
+		// Keep tags if set
+		if existing.Attr("tags") != nil {
+			r.SetAttr("tags", existing.Attr("tags"))
+		}
+		// Keep visibility if set
+		if existing.Attr("visibility") != nil {
+			r.SetAttr("visibility", existing.Attr("visibility"))
+		}
+	}
+
+	return r
 }
 
 // Fix repairs incorrect rules.
@@ -225,13 +352,6 @@ func getConfig(c *config.Config) *terraformConfig {
 	return newTerraformConfig()
 }
 
-// inferModuleName infers the module name from the relative path.
-func inferModuleName(rel string) string {
-	if rel == "" {
-		return "root"
-	}
-	return filepath.Base(rel)
-}
 
 // extractProvidersFromTerraformTf extracts provider requirements from terraform.tf.
 func extractProvidersFromTerraformTf(path string, cfg *terraformConfig) []string {
@@ -273,4 +393,119 @@ func extractProvidersFromTerraformTf(path string, cfg *terraformConfig) []string
 	}
 
 	return providers
+}
+
+// extractModulesFromTfFiles extracts relative module references from .tf files.
+// It looks for module blocks with source attributes pointing to relative paths.
+func extractModulesFromTfFiles(dir string, tfFiles []string, currentPackage string) []string {
+	var modules []string
+	seen := make(map[string]bool)
+
+	// Regex to match source = "..." in module blocks
+	// This is a simplified parser - matches any source attribute
+	sourceRegex := regexp.MustCompile(`source\s*=\s*"([^"]+)"`)
+
+	for _, tfFile := range tfFiles {
+		path := filepath.Join(dir, tfFile)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		matches := sourceRegex.FindAllStringSubmatch(string(content), -1)
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+			source := match[1]
+
+			// Only process relative paths (starting with ./ or ../)
+			if !strings.HasPrefix(source, "./") && !strings.HasPrefix(source, "../") {
+				continue
+			}
+
+			// Skip if it looks like a remote module
+			if isRemoteModuleSource(source) {
+				continue
+			}
+
+			label := resolveModuleSourceToLabel(source, currentPackage)
+			if label != "" && !seen[label] {
+				seen[label] = true
+				modules = append(modules, label)
+			}
+		}
+	}
+
+	sort.Strings(modules)
+	return modules
+}
+
+// isRemoteModuleSource checks if a source looks like a remote module reference.
+func isRemoteModuleSource(source string) bool {
+	// Remote module patterns to filter out
+	remotePatterns := []string{
+		"git::",
+		"hg::",
+		"s3::",
+		"gcs::",
+		"https://",
+		"http://",
+		"registry.terraform.io",
+	}
+	for _, pattern := range remotePatterns {
+		if strings.Contains(source, pattern) {
+			return true
+		}
+	}
+	// Registry modules like "hashicorp/consul/aws"
+	if strings.Count(source, "/") >= 2 && !strings.HasPrefix(source, ".") {
+		return true
+	}
+	return false
+}
+
+// resolveModuleSourceToLabel converts a relative module source to a Bazel label.
+// e.g., "./modules/foo" -> "//current/package/modules/foo:tf_module"
+// e.g., "../sibling" -> "//parent/sibling:tf_module"
+func resolveModuleSourceToLabel(source, currentPackage string) string {
+	// Handle empty package (root)
+	if currentPackage == "" {
+		// Remove leading ./
+		source = strings.TrimPrefix(source, "./")
+		if strings.HasPrefix(source, "../") {
+			// Can't go above root
+			return ""
+		}
+		return "//" + source + ":tf_module"
+	}
+
+	// Split current package into parts
+	parts := strings.Split(currentPackage, "/")
+
+	// Handle ./ prefix
+	if strings.HasPrefix(source, "./") {
+		source = strings.TrimPrefix(source, "./")
+		finalPath := currentPackage + "/" + source
+		return "//" + finalPath + ":tf_module"
+	}
+
+	// Handle ../ prefix - go up directories
+	sourceParts := strings.Split(source, "/")
+	for len(sourceParts) > 0 && sourceParts[0] == ".." {
+		sourceParts = sourceParts[1:]
+		if len(parts) > 0 {
+			parts = parts[:len(parts)-1]
+		}
+	}
+
+	// Combine remaining parts
+	var finalPath string
+	if len(parts) > 0 {
+		finalPath = strings.Join(parts, "/") + "/" + strings.Join(sourceParts, "/")
+	} else {
+		finalPath = strings.Join(sourceParts, "/")
+	}
+
+	return "//" + finalPath + ":tf_module"
 }

@@ -3,6 +3,7 @@ load("//tf2/internal:sources_validation.bzl", "tf_untracked_files_test")
 # Positive test: All .tf files are tracked in srcs
 tf_untracked_files_test(
     name = "tracked_positive_test",
+    size = "small",
     srcs = glob(["*.tf"]) + ["README.md"],
     visibility = ["//tests/unit/sources:__pkg__"],
 )

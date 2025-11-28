@@ -3,19 +3,21 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
-def _process_module_files(_, module, module_name):
+def _process_module_files(_, module, module_name, skip_nested_modules = None):
     """Process a module's files for inclusion in a parent module.
 
     Args:
         _: Unused rule context (kept for API compatibility)
         module: Module target with TfModuleInfo
         module_name: Name for the module directory
+        skip_nested_modules: Optional dict of nested module names to skip (because they're top-level)
 
     Returns:
         List of (src_file, dest_path) tuples
     """
     files_to_copy = []
     module_info = module[TfModuleInfo]
+    skip_nested_modules = skip_nested_modules or {}
 
     for src_file in module_info.srcs.to_list():
         # Create destination path under modules/module_name
@@ -33,10 +35,21 @@ def _process_module_files(_, module, module_name):
             if bin_idx != -1:
                 actual_path = src_path[bin_idx + 5:]  # Skip "/bin/"
 
-        # Skip files that are from nested modules (they have /modules/ in their path after the package)
-        # Check both the original path and the extracted path
-        if (actual_path.startswith(module_package + "/modules/") or
-            "/modules/" in actual_path.replace(module_package + "/", "")):
+        # Check if this file is from a nested module that should be skipped
+        # (because it's also a top-level module in the parent)
+        should_skip = False
+        if "/modules/" in actual_path:
+            # Extract the nested module name from the path
+            # Path format: package/modules/nested_module_name/file.tf
+            path_after_package = actual_path.replace(module_package + "/", "")
+            if path_after_package.startswith("modules/"):
+                parts = path_after_package.split("/")
+                if len(parts) >= 2:
+                    nested_module_name = parts[1]
+                    if nested_module_name in skip_nested_modules:
+                        should_skip = True
+
+        if should_skip:
             continue
 
         # Get the relative path within the module
@@ -126,16 +139,19 @@ def process_nested_modules(ctx, parent_srcs, modules):
         if TfModuleInfo not in module:
             continue
 
-        # Determine module name
+        # Determine module name from package path (last directory component)
+        # This ensures unique names even when targets are named "tf_module"
+        path_parts = module.label.package.split("/")
+        package_name = path_parts[-1] if path_parts else module.label.name
+
         if "service_intents" in module.label.package:
-            path_parts = module.label.package.split("/")
             if len(path_parts) >= 4:
                 platform = path_parts[3]
-                module_name = platform + "_" + module.label.name
+                module_name = platform + "_" + package_name
             else:
-                module_name = module.label.name
+                module_name = package_name
         else:
-            module_name = module.label.name
+            module_name = package_name
 
         # Track this as a top-level module (use string representation of label)
         label_str = str(module.label)
@@ -156,22 +172,38 @@ def process_nested_modules(ctx, parent_srcs, modules):
             continue
 
         # Use a unique module directory name to avoid conflicts
-        # For service_intents modules, include the platform to make them unique
+        # Derive from package path (last directory component) instead of target name
+        # This ensures unique names even when targets are named "tf_module"
+        path_parts = module.label.package.split("/")
+        package_name = path_parts[-1] if path_parts else module.label.name
+
         if "service_intents" in module.label.package:
-            # Extract platform from path like iac/modules/service_intents/aws/service_instance
-            path_parts = module.label.package.split("/")
             if len(path_parts) >= 4:  # ['iac', 'modules', 'service_intents', 'platform', ...]
                 platform = path_parts[3]  # e.g., 'aws', 'azure', 'palo_alto'
-                module_name = platform + "_" + module.label.name
+                module_name = platform + "_" + package_name
             else:
-                module_name = module.label.name
+                module_name = package_name
         else:
-            module_name = module.label.name
+            module_name = package_name
 
         # Validate that the staged module name doesn't conflict with other modules
         if module_name in module_name_to_label:
             existing_label = module_name_to_label[module_name]
             current_label = str(module.label)
+
+            # Check if both modules are in the same package - if so, use target name to differentiate
+            existing_package = existing_label.split(":")[0].lstrip("@").lstrip("/")
+            current_module_package = module.label.package
+            if existing_package == current_module_package:
+                # Same package - use target name to differentiate
+                module_name = module.label.name
+                if module_name in module_name_to_label:
+                    # Still conflicts - this shouldn't happen, but handle gracefully
+                    pass  # Will be caught by the existing error handling below
+                else:
+                    module_name_to_label[module_name] = current_label
+                    module_names.append(module_name)
+                    continue
 
             # Check if this is a parent-child relationship (local submodule)
             current_package = ctx.label.package
@@ -331,15 +363,48 @@ def process_nested_modules(ctx, parent_srcs, modules):
                     # Create a mapping to reference it from this module (not parent)
                     nested_name = top_level_modules[nested_label_str]
 
-                    # Map from the nested reference to the sibling top-level module
-                    # When agency_workspaces references ./modules/workspace, it should become ../workspace
-                    module_specific_mappings["./modules/" + nested_module.label.name] = "../" + nested_name
+                    # Get the nested module's package name (used in its modules/ directory)
+                    nested_path_parts = nested_module.label.package.split("/")
+                    nested_package_name = nested_path_parts[-1] if nested_path_parts else nested_module.label.name
 
-        # Process module files
-        module_files = _process_module_files(ctx, module, module_name)
+                    # Map from the nested reference to the sibling top-level module
+                    # Use the package name (which is what gets staged in modules/ directory)
+                    # When child_with_nested_dep references ./modules/nested_dependency_test, it should become ../nested_dependency_test
+                    module_specific_mappings["./modules/" + nested_package_name] = "../" + nested_name
+
+                    # Also handle sibling-style references (e.g., ../flow_logs)
+                    # When vpc references ../flow_logs, and both vpc and flow_logs are staged
+                    # as sibling modules, the path should become ../flow_logs (which stays the same
+                    # but now resolves correctly in the staged structure)
+
+                    # Map various sibling reference patterns to the top-level staged name
+                    module_specific_mappings["../" + nested_package_name] = "../" + nested_name
+
+                    # Also handle deeper relative references (e.g., ../../generic/ipam_cidr_allocator)
+                    # Calculate relative path from this module's package to the nested module's package
+                    module_package_parts = module.label.package.split("/")
+                    nested_package_parts = nested_module.label.package.split("/")
+
+                    # Find common ancestor depth
+                    common_depth = 0
+                    for i in range(min(len(module_package_parts), len(nested_package_parts))):
+                        if module_package_parts[i] == nested_package_parts[i]:
+                            common_depth = i + 1
+                        else:
+                            break
+
+                    # Calculate the relative path from this module to the nested module
+                    levels_up = len(module_package_parts) - common_depth
+                    remaining_path = "/".join(nested_package_parts[common_depth:])
+
+                    if remaining_path and levels_up > 0:
+                        # Create the relative path mapping
+                        rel_path = "../" * levels_up + remaining_path
+                        module_specific_mappings[rel_path] = "../" + nested_name
 
         # Track which nested modules we should skip (because they're top-level)
-        skip_nested = {}
+        # Build a dict of nested module directory names to skip
+        skip_nested_modules = {}
         if hasattr(module_info, "modules") and module_info.modules:
             for nested_module in module_info.modules:
                 nested_label_str = str(nested_module.label)
@@ -348,21 +413,16 @@ def process_nested_modules(ctx, parent_srcs, modules):
                 elif nested_label_str.startswith("//"):
                     nested_label_str = nested_label_str[2:]
                 if nested_label_str in top_level_modules:
-                    # The nested module files will be under modules/parent_module/modules/nested_module/
-                    skip_prefix = "modules/" + module_name + "/modules/" + nested_module.label.name
-                    skip_nested[skip_prefix] = True
+                    # Get the nested module's staged directory name
+                    # This is the name used when it was staged in the child's modules/ directory
+                    nested_path_parts = nested_module.label.package.split("/")
+                    nested_package_name = nested_path_parts[-1] if nested_path_parts else nested_module.label.name
+                    skip_nested_modules[nested_package_name] = True
+
+        # Process module files with skip list
+        module_files = _process_module_files(ctx, module, module_name, skip_nested_modules)
 
         for src_file, dest_path in module_files:
-            # Skip files from nested modules that are also top-level
-            # Check if this file belongs to a nested module we should skip
-            should_skip = False
-            for skip_prefix in skip_nested:
-                if dest_path.startswith(skip_prefix + "/"):
-                    should_skip = True
-                    break
-
-            if should_skip:
-                continue
 
             # Skip if we've already processed this destination path
             # This prevents duplicate symlinks when a module is included both directly and transitively

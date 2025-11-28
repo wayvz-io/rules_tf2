@@ -9,6 +9,7 @@ bzl_library(
     srcs = ["registry_publish.bzl"],
     deps = [
         ":config",
+        "//tf2/internal:docs_collection",
         "//tf2/providers/core:info",
     ],
 )

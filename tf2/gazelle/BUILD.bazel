@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 
 # Go library for the Terraform Gazelle extension
@@ -13,6 +13,20 @@ go_library(
         "@gazelle//language:go_default_library",
         "@gazelle//repo:go_default_library",
         "@gazelle//resolve:go_default_library",
+        "@gazelle//rule:go_default_library",
+    ],
+)
+
+# Unit tests for the Terraform Gazelle extension
+go_test(
+    name = "terraform_test",
+    size = "small",
+    srcs = ["terraform_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":terraform"],
+    deps = [
+        "@gazelle//config:go_default_library",
+        "@gazelle//language:go_default_library",
         "@gazelle//rule:go_default_library",
     ],
 )

@@ -42,7 +42,21 @@
       "Bash(buildozer --version:*)",
       "Bash(buildozer:*)",
       "Bash(sed:*)",
-      "WebFetch(domain:pkg.go.dev)"
+      "WebFetch(domain:pkg.go.dev)",
+      "Bash(git log:*)",
+      "Bash({} ;)",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager_migration checkout:*)",
+      "Bash(while read f)",
+      "Bash(do if ! grep -q 'srcs' \"$f\")",
+      "Bash(then echo \"Missing srcs: $f\" fi done)",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager_migration diff iac/networking/azure/hub/BUILD.bazel)",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager stash)",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager_migration diff --stat iac/)",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager_migration diff iac/)",
+      "Bash(for module in external_allocation flow_logs aws_service_instance aws_service_instance_intents azure_service_instance azure_service_instance_intents palo_alto_service_instance palo_alto_service_instance_intents service_instance_schema panorama)",
+      "Bash(do echo \"--- $module ---\")",
+      "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager show HEAD:iac/networking/service_intents/aws/environment/BUILD.bazel)",
+      "Bash(readlink:*)"
     ],
     "deny": [],
     "ask": [
