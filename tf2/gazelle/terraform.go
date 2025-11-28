@@ -352,7 +352,6 @@ func getConfig(c *config.Config) *terraformConfig {
 	return newTerraformConfig()
 }
 
-
 // extractProvidersFromTerraformTf extracts provider requirements from terraform.tf.
 func extractProvidersFromTerraformTf(path string, cfg *terraformConfig) []string {
 	content, err := os.ReadFile(path)
