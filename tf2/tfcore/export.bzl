@@ -250,6 +250,7 @@ echo "========================================="
 
     # Collect all inputs for runfiles
     all_inputs = module_files
+
     # Add documentation files from docs_map
     for doc_file in docs_map.values():
         all_inputs = all_inputs + [doc_file]

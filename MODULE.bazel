@@ -38,6 +38,7 @@ git_override(
     commit = "cb5dab0b54b52f3dcc2d9c8b7ab936b47aba63ff",
     remote = "https://github.com/bazelbuild/bazel-gazelle",
 )
+
 bazel_dep(name = "rules_nixpkgs_go", version = "0.13.0")
 git_override(
     module_name = "rules_nixpkgs_go",

@@ -6,8 +6,8 @@ tf_untracked_files_negative_test(
     name = "untracked_negative_test",
     size = "small",
     srcs = [
-        "main.tf",  # Only track main.tf, intentionally exclude untracked.tf
         "README.md",
+        "main.tf",  # Only track main.tf, intentionally exclude untracked.tf
     ],
     visibility = ["//tests/unit/sources:__pkg__"],
 )

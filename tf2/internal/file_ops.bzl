@@ -18,6 +18,114 @@ def copy_source_files(source_files, output_prefix = ""):
             output_files.append(src_file.basename)
     return output_files
 
+def build_staging_copy_commands(source_files, staging_dir_path, package_path):
+    """Build shell commands to copy source files to a staging directory.
+
+    This function handles:
+    - Files directly in the package (copied to staging root)
+    - Files in subdirectories within the package (preserve relative paths)
+    - Files from bazel-out with nested modules (preserve modules/ structure)
+
+    Args:
+        source_files: List of source files to stage
+        staging_dir_path: Path to the staging directory
+        package_path: The Bazel package path (ctx.label.package)
+
+    Returns:
+        List of shell commands to copy files
+    """
+    copy_commands = []
+    created_dirs = {}
+
+    for src_file in source_files:
+        src_path = src_file.short_path
+
+        # Determine the destination path based on the source file location
+        dest_path = src_file.basename  # Default to just the filename
+
+        # Check if this file is within the package and has subdirectories
+        if src_path.startswith(package_path + "/"):
+            # Extract everything after the package
+            relative_path = src_path[len(package_path) + 1:]
+
+            # If the file is in a subdirectory, preserve the directory structure
+            if "/" in relative_path:
+                dest_path = relative_path
+
+                # Create parent directories if needed
+                parts = relative_path.split("/")
+                if len(parts) > 1:
+                    dest_dir = "/".join(parts[:-1])
+                    if dest_dir not in created_dirs:
+                        copy_commands.append("mkdir -p '{}/{}'".format(staging_dir_path, dest_dir))
+                        created_dirs[dest_dir] = True
+            else:
+                # File is directly in the package root
+                dest_path = relative_path
+
+            # Check if this is a bazel-out processed file with nested modules
+        elif "bazel-out" in src_path and "/modules/" in src_path:
+            # This is a processed file - extract the module structure
+            parts = src_path.split("/")
+            for i, part in enumerate(parts):
+                if part == "modules" and i < len(parts) - 1:
+                    # Found the modules directory, preserve structure from here
+                    module_path = "/".join(parts[i:])
+                    dest_path = module_path
+
+                    # Create parent directories
+                    dest_dir = "/".join(parts[i:-1])
+                    if dest_dir not in created_dirs:
+                        copy_commands.append("mkdir -p '{}/{}'".format(staging_dir_path, dest_dir))
+                        created_dirs[dest_dir] = True
+                    break
+
+        # Otherwise, it's a file from outside the package - use just basename
+
+        copy_commands.append("cp -L '{}' '{}/{}'".format(
+            src_file.path,
+            staging_dir_path,
+            dest_path,
+        ))
+
+    return copy_commands
+
+def create_staging_directory(ctx, name_suffix, source_files, package_path = None):
+    """Create a staging directory with source files using a single shell action.
+
+    Args:
+        ctx: Rule context
+        name_suffix: Suffix for the staging directory name
+        source_files: List of source files to stage
+        package_path: Optional package path override (defaults to ctx.label.package)
+
+    Returns:
+        The staging directory (declared directory)
+    """
+    if package_path == None:
+        package_path = ctx.label.package
+
+    staging_dir = ctx.actions.declare_directory("{}_{}".format(ctx.label.name, name_suffix))
+
+    copy_commands = build_staging_copy_commands(source_files, staging_dir.path, package_path)
+
+    ctx.actions.run_shell(
+        inputs = source_files,
+        outputs = [staging_dir],
+        command = """
+set -euo pipefail
+mkdir -p '{staging_dir}'
+{copy_commands}
+""".format(
+            staging_dir = staging_dir.path,
+            copy_commands = "\n".join(copy_commands),
+        ),
+        mnemonic = "PrepareTerraformStaging",
+        progress_message = "Preparing Terraform staging for %s" % ctx.label,
+    )
+
+    return staging_dir
+
 def stage_terraform_files(ctx, output_dir, source_files, nested_modules = None):
     """Stage Terraform files into a directory structure using Starlark actions.
 

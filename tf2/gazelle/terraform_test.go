@@ -5,6 +5,7 @@ import (
 
 	"github.com/bazelbuild/bazel-gazelle/config"
 	"github.com/bazelbuild/bazel-gazelle/language"
+	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
 func TestNewLanguage(t *testing.T) {
@@ -38,8 +39,8 @@ func TestLoads(t *testing.T) {
 	}
 
 	load := loads[0]
-	if load.Name != "//tf2:def.bzl" {
-		t.Errorf("expected load name '//tf2:def.bzl', got %q", load.Name)
+	if load.Name != "@rules_tf2//tf2:def.bzl" {
+		t.Errorf("expected load name '@rules_tf2//tf2:def.bzl', got %q", load.Name)
 	}
 
 	symbols := make(map[string]bool)
@@ -140,8 +141,7 @@ func TestGenerateRules_ModuleWithTests(t *testing.T) {
 	c := config.New()
 	c.Exts[terraformName] = newTerraformConfig()
 
-	// Note: tf_test is only generated if there's an existing tf_test rule
-	// tf_module macro handles test files internally
+	// tf_test is always generated when test files exist
 	args := language.GenerateArgs{
 		Config:       c,
 		Dir:          "testdata/module_with_tests",
@@ -151,20 +151,48 @@ func TestGenerateRules_ModuleWithTests(t *testing.T) {
 
 	result := lang.GenerateRules(args)
 
-	// Only tf_module is generated (tf_module macro handles test files)
-	if len(result.Gen) != 1 {
-		t.Fatalf("expected 1 rule (tf_module only - tf_module macro handles tests), got %d", len(result.Gen))
+	// Both tf_module and tf_test are generated
+	if len(result.Gen) != 2 {
+		t.Fatalf("expected 2 rules (tf_module and tf_test), got %d", len(result.Gen))
 	}
 
 	// Find the module rule
-	moduleRule := result.Gen[0]
-	if moduleRule.Kind() != "tf_module" {
+	var moduleRule, testRule *rule.Rule
+	for _, r := range result.Gen {
+		switch r.Kind() {
+		case "tf_module":
+			moduleRule = r
+		case "tf_test":
+			testRule = r
+		}
+	}
+
+	if moduleRule == nil {
 		t.Fatal("expected tf_module rule")
+	}
+	if testRule == nil {
+		t.Fatal("expected tf_test rule")
 	}
 
 	// Check tf_module name is the default
 	if moduleRule.Name() != "tf_module" {
 		t.Errorf("expected module name 'tf_module', got %q", moduleRule.Name())
+	}
+
+	// Check tf_test name is the default
+	if testRule.Name() != "tf_test" {
+		t.Errorf("expected test name 'tf_test', got %q", testRule.Name())
+	}
+
+	// Check tf_test has correct module reference
+	if testRule.AttrString("module") != ":tf_module" {
+		t.Errorf("expected module ':tf_module', got %q", testRule.AttrString("module"))
+	}
+
+	// Check test_files contains the test file
+	testFiles := testRule.AttrStrings("test_files")
+	if len(testFiles) != 1 || testFiles[0] != "basic.tftest.hcl" {
+		t.Errorf("expected test_files ['basic.tftest.hcl'], got %v", testFiles)
 	}
 }
 
@@ -257,8 +285,6 @@ func TestKnownDirectives(t *testing.T) {
 }
 
 func TestGenerateRules_MultipleTestFiles(t *testing.T) {
-	// tf_module macro handles test files internally
-	// Gazelle only generates tf_test if there's an existing one to update
 	lang := NewLanguage().(*terraformLang)
 
 	c := config.New()
@@ -273,18 +299,40 @@ func TestGenerateRules_MultipleTestFiles(t *testing.T) {
 
 	result := lang.GenerateRules(args)
 
-	// Only tf_module generated (tf_module macro handles tests)
-	if len(result.Gen) != 1 {
-		t.Fatalf("expected 1 rule (tf_module only), got %d", len(result.Gen))
+	// Both tf_module and tf_test are generated
+	if len(result.Gen) != 2 {
+		t.Fatalf("expected 2 rules (tf_module and tf_test), got %d", len(result.Gen))
 	}
 
-	if result.Gen[0].Kind() != "tf_module" {
-		t.Error("expected tf_module rule")
+	var moduleRule, testRule *rule.Rule
+	for _, r := range result.Gen {
+		switch r.Kind() {
+		case "tf_module":
+			moduleRule = r
+		case "tf_test":
+			testRule = r
+		}
+	}
+
+	if moduleRule == nil {
+		t.Fatal("expected tf_module rule")
+	}
+	if testRule == nil {
+		t.Fatal("expected tf_test rule")
+	}
+
+	// Check test_files are sorted
+	testFiles := testRule.AttrStrings("test_files")
+	if len(testFiles) != 3 {
+		t.Fatalf("expected 3 test files, got %d", len(testFiles))
+	}
+	// Files should be sorted: a, b, z
+	if testFiles[0] != "a.tftest.hcl" || testFiles[1] != "b.tftest.hcl" || testFiles[2] != "z.tftest.hcl" {
+		t.Errorf("expected sorted test files, got %v", testFiles)
 	}
 }
 
 func TestGenerateRules_TftestJsonFiles(t *testing.T) {
-	// tf_module macro handles test files internally
 	lang := NewLanguage().(*terraformLang)
 
 	c := config.New()
@@ -299,13 +347,27 @@ func TestGenerateRules_TftestJsonFiles(t *testing.T) {
 
 	result := lang.GenerateRules(args)
 
-	// Only tf_module generated (tf_module macro handles tests)
-	if len(result.Gen) != 1 {
-		t.Fatalf("expected 1 rule (tf_module only), got %d", len(result.Gen))
+	// Both tf_module and tf_test are generated
+	if len(result.Gen) != 2 {
+		t.Fatalf("expected 2 rules (tf_module and tf_test), got %d", len(result.Gen))
 	}
 
-	if result.Gen[0].Kind() != "tf_module" {
-		t.Error("expected tf_module rule")
+	var testRule *rule.Rule
+	for _, r := range result.Gen {
+		if r.Kind() == "tf_test" {
+			testRule = r
+			break
+		}
+	}
+
+	if testRule == nil {
+		t.Fatal("expected tf_test rule")
+	}
+
+	// Check test_files contains the JSON test file
+	testFiles := testRule.AttrStrings("test_files")
+	if len(testFiles) != 1 || testFiles[0] != "test.tftest.json" {
+		t.Errorf("expected test_files ['test.tftest.json'], got %v", testFiles)
 	}
 }
 

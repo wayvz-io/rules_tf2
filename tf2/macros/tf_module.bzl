@@ -63,7 +63,6 @@ def tf_module(
         fail("tf_module '{}' requires explicit srcs attribute. ".format(name) +
              "Please add: srcs = glob([\"*.tf\"]) + [\"README.md\"]")
 
-
     # Create the dependencies filegroup
     if deps:
         tf_module_deps(
@@ -83,6 +82,7 @@ def tf_module(
 
     # Extract documentation files
     doc_files = [f for f in srcs if f.endswith("README.md") or f.endswith(".tfdoc.yaml") or f.endswith(".terraform-docs.yml")]
+
     # Extract terraform source files (everything except docs)
     tf_source_files = [f for f in srcs if f not in doc_files]
 
@@ -283,25 +283,6 @@ def tf_module(
         visibility = visibility,
         testonly = testonly,
     )
-
-    # Auto-discover and create test targets for .tftest.hcl files
-    # Note: This will be deprecated in favor of explicit tf_test declarations
-    test_files = native.glob(["*.tftest.hcl", "*.tftest.json"])
-    if test_files:
-        provider_registry = "@tf_provider_registry//:unpacked_providers"
-        test_srcs = [":" + name + "_processed"] if modules else [":" + name + "_sources"]
-
-        tf_test(
-            name = name + "_tftest",
-            srcs = test_srcs,
-            test_files = test_files,
-            lock_file = ":" + name + "_generated_lock",
-            provider_registry = provider_registry,
-            visibility = visibility,
-            testonly = True,
-            size = "small",
-            tags = tags,
-        )
 
     # Create validation test (unless skip_validation is True)
     if not skip_validation:

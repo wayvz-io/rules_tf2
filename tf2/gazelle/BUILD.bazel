@@ -1,5 +1,5 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 # Go library for the Terraform Gazelle extension
 go_library(

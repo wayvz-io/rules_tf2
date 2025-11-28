@@ -1,0 +1,3 @@
+load(":empty_dir_detection_test.bzl", "empty_dir_detection_test_suite")
+
+empty_dir_detection_test_suite(name = "empty_dir_detection_tests")

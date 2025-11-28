@@ -4,6 +4,8 @@
 TERRAFORM_BASE_RULES = {
     "terraform_comment_syntax": {"enabled": True},
     "terraform_deprecated_index": {"enabled": True},
+    "terraform_deprecated_interpolation": {"enabled": True},
+    "terraform_deprecated_lookup": {"enabled": True},
     "terraform_documented_outputs": {"enabled": True},
     "terraform_documented_variables": {"enabled": True},
     "terraform_empty_list_equality": {"enabled": True},
@@ -16,106 +18,133 @@ TERRAFORM_BASE_RULES = {
 }
 
 # AWS TFLint plugin rules
+# See: https://github.com/terraform-linters/tflint-ruleset-aws/blob/master/docs/rules/README.md
 AWS_PLUGIN_RULES = {
-    # Instance rules
-    "aws_instance_invalid_type": {"enabled": True},
-    "aws_instance_previous_type": {"enabled": True},
+    # EC2 Instance rules
     "aws_instance_invalid_ami": {"enabled": True},
+    "aws_instance_invalid_iam_profile": {"enabled": True},
     "aws_instance_invalid_key_name": {"enabled": True},
     "aws_instance_invalid_subnet": {"enabled": True},
-    "aws_instance_invalid_vpc_security_group_id": {"enabled": True},
-    "aws_instance_invalid_iam_profile": {"enabled": True},
+    "aws_instance_invalid_vpc_security_group": {"enabled": True},
+    "aws_instance_previous_type": {"enabled": True},
 
-    # Security Group rules
-    "aws_security_group_invalid_id": {"enabled": True},
-    "aws_security_group_rule_invalid_id": {"enabled": True},
-
-    # VPC rules
-    "aws_vpc_invalid_id": {"enabled": True},
-    "aws_subnet_invalid_id": {"enabled": True},
-    "aws_route_table_invalid_id": {"enabled": True},
-
-    # ELB rules
-    "aws_elb_invalid_name": {"enabled": True},
-    "aws_alb_invalid_name": {"enabled": True},
+    # ALB/ELB rules
+    "aws_alb_invalid_security_group": {"enabled": True},
+    "aws_alb_invalid_subnet": {"enabled": True},
+    "aws_elb_invalid_instance": {"enabled": True},
+    "aws_elb_invalid_security_group": {"enabled": True},
+    "aws_elb_invalid_subnet": {"enabled": True},
 
     # RDS rules
-    "aws_db_instance_invalid_type": {"enabled": True},
-    "aws_db_instance_previous_type": {"enabled": True},
+    "aws_db_instance_invalid_db_subnet_group": {"enabled": True},
     "aws_db_instance_invalid_engine": {"enabled": True},
+    "aws_db_instance_invalid_option_group": {"enabled": True},
+    "aws_db_instance_invalid_parameter_group": {"enabled": True},
+    "aws_db_instance_invalid_type": {"enabled": True},
+    "aws_db_instance_invalid_vpc_security_group": {"enabled": True},
+    "aws_db_instance_default_parameter_group": {"enabled": True},
+    "aws_db_instance_previous_type": {"enabled": True},
+
+    # Security Group rules
+    "aws_security_group_invalid_protocol": {"enabled": True},
+    "aws_security_group_rule_invalid_protocol": {"enabled": True},
+    "aws_security_group_inline_rules": {"enabled": True},
+    "aws_security_group_rule_deprecated": {"enabled": True},
 
     # S3 rules
-    "aws_s3_bucket_invalid_name": {"enabled": True},
     "aws_s3_bucket_name": {"enabled": True},
 
-    # Spot instance rules
-    "aws_spot_instance_request_invalid_type": {"enabled": True},
+    # Route rules
+    "aws_route_invalid_egress_only_gateway": {"enabled": True},
+    "aws_route_invalid_gateway": {"enabled": True},
+    "aws_route_invalid_instance": {"enabled": True},
+    "aws_route_invalid_nat_gateway": {"enabled": True},
+    "aws_route_invalid_network_interface": {"enabled": True},
+    "aws_route_invalid_route_table": {"enabled": True},
+    "aws_route_invalid_vpc_peering_connection": {"enabled": True},
+    "aws_route_not_specified_target": {"enabled": True},
+    "aws_route_specified_multiple_targets": {"enabled": True},
 
-    # Auto Scaling rules
-    "aws_autoscaling_group_invalid_subnets": {"enabled": True},
+    # Launch Configuration rules
+    "aws_launch_configuration_invalid_iam_profile": {"enabled": True},
     "aws_launch_configuration_invalid_image_id": {"enabled": True},
 
-    # ECS rules
-    "aws_ecs_cluster_invalid_name": {"enabled": True},
-    "aws_ecs_service_invalid_name": {"enabled": True},
-
     # Lambda rules
-    "aws_lambda_function_invalid_runtime": {"enabled": True},
+    "aws_lambda_function_deprecated_runtime": {"enabled": True},
 
-    # CloudWatch rules
-    "aws_cloudwatch_log_group_invalid_name": {"enabled": True},
+    # ElastiCache rules
+    "aws_elasticache_cluster_invalid_parameter_group": {"enabled": True},
+    "aws_elasticache_cluster_invalid_security_group": {"enabled": True},
+    "aws_elasticache_cluster_invalid_subnet_group": {"enabled": True},
+    "aws_elasticache_cluster_invalid_type": {"enabled": True},
+    "aws_elasticache_cluster_default_parameter_group": {"enabled": True},
+    "aws_elasticache_cluster_previous_type": {"enabled": True},
+    "aws_elasticache_replication_group_invalid_type": {"enabled": True},
+    "aws_elasticache_replication_group_default_parameter_group": {"enabled": True},
+    "aws_elasticache_replication_group_previous_type": {"enabled": True},
 
     # IAM rules
-    "aws_iam_role_invalid_name": {"enabled": True},
-    "aws_iam_policy_invalid_name": {"enabled": True},
+    "aws_iam_group_policy_too_long": {"enabled": True},
+    "aws_iam_policy_sid_invalid_characters": {"enabled": True},
+    "aws_iam_policy_too_long_policy": {"enabled": True},
+    "aws_iam_role_deprecated_policy_attributes": {"enabled": True},
+    "aws_iam_policy_attachment_exclusive_attachment": {"enabled": True},
 
-    # Deep inspection rules (disabled by default due to sandbox limitations)
-    "aws_instance_invalid_ami_owner": {"enabled": False},  # Requires AWS API access
-    "aws_db_instance_invalid_backup_retention_period": {"enabled": False},  # Requires AWS API access
+    # DynamoDB rules
+    "aws_dynamodb_table_invalid_stream_view_type": {"enabled": True},
+
+    # API Gateway rules
+    "aws_api_gateway_model_invalid_name": {"enabled": True},
+
+    # Elastic Beanstalk rules
+    "aws_elastic_beanstalk_environment_invalid_name_format": {"enabled": True},
+
+    # MQ rules
+    "aws_mq_broker_invalid_engine_type": {"enabled": True},
+    "aws_mq_configuration_invalid_engine_type": {"enabled": True},
+
+    # Spot Fleet rules
+    "aws_spot_fleet_request_invalid_excess_capacity_termination_policy": {"enabled": True},
+
+    # Best practices
+    "aws_acm_certificate_lifecycle": {"enabled": True},
+    "aws_ephemeral_resources": {"enabled": True},
 }
 
 # Azure TFLint plugin rules
+# See: https://github.com/terraform-linters/tflint-ruleset-azurerm
+# Note: Azure plugin has many auto-generated rules; only explicitly configure rules that exist
 AZURERM_PLUGIN_RULES = {
-    # Virtual Machine rules
+    # Virtual Machine rules (validated to exist in v0.27.0)
     "azurerm_virtual_machine_invalid_vm_size": {"enabled": True},
-    "azurerm_virtual_machine_scale_set_invalid_vm_size": {"enabled": True},
-
-    # Kubernetes rules
-    "azurerm_kubernetes_cluster_default_node_pool_invalid_vm_size": {"enabled": True},
-    "azurerm_kubernetes_cluster_node_pool_invalid_vm_size": {"enabled": True},
-
-    # Container Instance rules
-    "azurerm_container_group_invalid_os_type": {"enabled": True},
-
-    # Network rules
-    "azurerm_virtual_network_invalid_address_space": {"enabled": True},
-    "azurerm_subnet_invalid_address_prefix": {"enabled": True},
-
-    # Storage rules
-    "azurerm_storage_account_invalid_name": {"enabled": True},
-
-    # Deep inspection rules (disabled by default due to sandbox limitations)
-    "azurerm_virtual_machine_invalid_image": {"enabled": False},  # Requires Azure API access
 }
 
 # Google Cloud TFLint plugin rules
+# See: https://github.com/terraform-linters/tflint-ruleset-google
 GOOGLE_PLUGIN_RULES = {
     # Compute Engine rules
     "google_compute_instance_invalid_machine_type": {"enabled": True},
-    "google_compute_disk_invalid_type": {"enabled": True},
+    "google_compute_instance_template_invalid_machine_type": {"enabled": True},
+    "google_compute_reservation_invalid_machine_type": {"enabled": True},
 
-    # Project rules
-    "google_project_invalid_machine_type": {"enabled": True},
-
-    # Container rules
+    # Container/GKE rules
     "google_container_cluster_invalid_machine_type": {"enabled": True},
     "google_container_node_pool_invalid_machine_type": {"enabled": True},
 
-    # SQL rules
-    "google_sql_database_instance_invalid_tier": {"enabled": True},
+    # Composer rules
+    "google_composer_environment_invalid_machine_type": {"enabled": True},
 
-    # Deep inspection rules (disabled by default due to sandbox limitations)
-    "google_compute_instance_invalid_image": {"enabled": False},  # Requires GCP API access
+    # Dataflow rules
+    "google_dataflow_job_invalid_machine_type": {"enabled": True},
+
+    # IAM rules
+    "google_project_iam_audit_config_invalid_member": {"enabled": True},
+    "google_project_iam_binding_invalid_member": {"enabled": True},
+    "google_project_iam_member_invalid_member": {"enabled": True},
+    "google_project_iam_policy_invalid_member": {"enabled": True},
+
+    # Deep checking (requires API access)
+    "google_disabled_api": {"enabled": False},  # Requires GCP API access
 }
 
 # OPA TFLint plugin rules (for policy as code)

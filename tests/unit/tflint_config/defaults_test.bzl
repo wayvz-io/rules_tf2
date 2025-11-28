@@ -34,21 +34,20 @@ def _test_get_provider_rules_impl(ctx):
 
     # Test AWS provider rules
     aws_rules = get_provider_rules("aws")
-    asserts.true(env, "aws_instance_invalid_type" in aws_rules)
     asserts.true(env, "aws_instance_invalid_ami" in aws_rules)
-    asserts.equals(env, True, aws_rules["aws_instance_invalid_type"]["enabled"])
-    asserts.equals(env, False, aws_rules["aws_instance_invalid_ami_owner"]["enabled"])  # Deep scan disabled
+    asserts.true(env, "aws_instance_previous_type" in aws_rules)
+    asserts.true(env, "aws_db_instance_invalid_type" in aws_rules)
+    asserts.equals(env, True, aws_rules["aws_instance_invalid_ami"]["enabled"])
 
     # Test Azure provider rules
     azurerm_rules = get_provider_rules("azurerm")
     asserts.true(env, "azurerm_virtual_machine_invalid_vm_size" in azurerm_rules)
-    asserts.true(env, "azurerm_container_group_invalid_os_type" in azurerm_rules)
     asserts.equals(env, True, azurerm_rules["azurerm_virtual_machine_invalid_vm_size"]["enabled"])
-    asserts.equals(env, False, azurerm_rules["azurerm_virtual_machine_invalid_image"]["enabled"])  # Deep scan disabled
 
     # Test Google provider rules
     google_rules = get_provider_rules("google")
     asserts.true(env, "google_compute_instance_invalid_machine_type" in google_rules)
+    asserts.true(env, "google_container_cluster_invalid_machine_type" in google_rules)
     asserts.equals(env, True, google_rules["google_compute_instance_invalid_machine_type"]["enabled"])
 
     # Test OPA provider rules

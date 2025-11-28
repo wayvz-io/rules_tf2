@@ -423,7 +423,6 @@ def process_nested_modules(ctx, parent_srcs, modules):
         module_files = _process_module_files(ctx, module, module_name, skip_nested_modules)
 
         for src_file, dest_path in module_files:
-
             # Skip if we've already processed this destination path
             # This prevents duplicate symlinks when a module is included both directly and transitively
             if dest_path in processed_dest_paths:

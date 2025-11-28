@@ -5,7 +5,9 @@ A Gazelle language extension that automatically generates and maintains `BUILD.b
 ## Features
 
 - Generates `tf_module` rules from directories containing `.tf` files
-- Uses default name `tf_module` (no explicit name needed since 1 module per directory)
+- Generates `tf_test` rules when `.tftest.hcl` or `.tftest.json` files are present
+- Uses explicit file lists (not glob) for deterministic builds
+- Uses default name `tf_module` / `tf_test` (one per directory)
 - Includes `README.md` in sources when present
 - Supports provider mapping via directives
 - Preserves manually-set attributes when updating existing rules
@@ -44,7 +46,12 @@ Gazelle generates:
 load("//tf2:def.bzl", "tf_module")
 
 tf_module(
-    srcs = glob(["*.tf"]),
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
 )
 ```
 
@@ -52,23 +59,46 @@ Note: The `name` attribute defaults to `"tf_module"` and is omitted. Reference t
 
 ### Module with README
 
-When `README.md` is present, files are listed explicitly:
+When `README.md` is present, it's included in the explicit file list:
 
 ```starlark
 tf_module(
     srcs = [
         "main.tf",
         "outputs.tf",
+        "README.md",
         "terraform.tf",
         "variables.tf",
-        "README.md",
     ],
 )
 ```
 
 ### Module with Tests
 
-Test files (`.tftest.hcl`, `.tftest.json`) are handled automatically by the `tf_module` macro - no separate `tf_test` rule is needed.
+When `.tftest.hcl` or `.tftest.json` files are present, Gazelle generates a separate `tf_test` rule:
+
+```starlark
+load("//tf2:def.bzl", "tf_module", "tf_test")
+
+tf_module(
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
+)
+
+tf_test(
+    module = ":tf_module",
+    test_files = [
+        "basic.tftest.hcl",
+        "validation.tftest.hcl",
+    ],
+)
+```
+
+Note: Test files are kept separate from `tf_module.srcs` and only appear in `tf_test.test_files`.
 
 ## Directives
 
@@ -95,7 +125,11 @@ When configured, Gazelle parses `terraform.tf` and adds matching providers:
 
 ```starlark
 tf_module(
-    srcs = glob(["*.tf"]),
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     providers = ["@tf_provider_registry//:aws_5"],
 )
 ```
