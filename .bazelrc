@@ -42,3 +42,17 @@ build --extra_toolchains=@nixpkgs_java_runtime_toolchain//:all # necessary on Ni
 # Set C++ standard to C++23 (required by modern dependencies like Abseil)
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
+
+# Remote Build Execution (RBE) Configuration
+# Using Tailscale endpoint for secure connectivity to Buildbarn cluster
+startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
+build:rbe --remote_executor=grpc://sandpit-bb-api.tail2a574c.ts.net:8980
+build:rbe --remote_instance_name=default
+build:rbe --extra_execution_platforms=//tools/remote-toolchains:rbe_nix_platform
+build:rbe --jobs=64
+build:rbe --remote_timeout=3600
+build:rbe --incompatible_strict_action_env
+build:rbe --remote_download_toplevel
+build:rbe --action_env=PATH
+build:rbe --verbose_failures
+build:rbe --toolchain_resolution_debug=.*

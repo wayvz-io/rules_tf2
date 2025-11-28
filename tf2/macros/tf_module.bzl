@@ -98,7 +98,7 @@ def tf_module(
     if not native.existing_rule(generated_lock_name):
         tf_generate_lockfile_for_validation(
             name = generated_lock_name,
-            provider_locks = "@tf_provider_registry//:provider_locks.bzl",
+            provider_locks = "@tf_provider_registry//:provider_locks.json",
             versions_json = actual_provider_configurations,
             visibility = ["//visibility:private"],
             testonly = testonly,

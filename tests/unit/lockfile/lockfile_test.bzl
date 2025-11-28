@@ -241,34 +241,48 @@ create_tf_files_with_lock = rule(
 def _mock_provider_locks_impl(ctx):
     """Create a mock provider locks configuration"""
 
-    # This would normally be generated from the provider registry
-    locks_bzl = ctx.actions.declare_file("provider_locks.bzl")
+    # Generate JSON in the expanded format expected by hcl_tool
+    locks_json = ctx.actions.declare_file("provider_locks.json")
     ctx.actions.write(
-        output = locks_bzl,
-        content = """
-# Mock provider locks
-PROVIDER_LOCKS = {
-    "hashicorp/aws:6.12.0": [
-        "h1:mock_hash_aws_1",
-        "h1:mock_hash_aws_2",
-    ],
-    "hashicorp/azurerm:4.11.0": [
-        "h1:mock_hash_azure_1",
-        "h1:mock_hash_azure_2",
-    ],
-    "hashicorp/google:6.15.0": [
-        "h1:mock_hash_google_1",
-        "h1:mock_hash_google_2",
-    ],
-    "hashicorp/random:3.6.3": [
-        "h1:mock_hash_random_1",
-        "h1:mock_hash_random_2",
-    ],
+        output = locks_json,
+        content = """{
+  "hashicorp/aws:6.12.0": {
+    "provider": "hashicorp/aws",
+    "version": "6.12.0",
+    "hashes": [
+      "h1:mock_hash_aws_1",
+      "h1:mock_hash_aws_2"
+    ]
+  },
+  "hashicorp/azurerm:4.11.0": {
+    "provider": "hashicorp/azurerm",
+    "version": "4.11.0",
+    "hashes": [
+      "h1:mock_hash_azure_1",
+      "h1:mock_hash_azure_2"
+    ]
+  },
+  "hashicorp/google:6.15.0": {
+    "provider": "hashicorp/google",
+    "version": "6.15.0",
+    "hashes": [
+      "h1:mock_hash_google_1",
+      "h1:mock_hash_google_2"
+    ]
+  },
+  "hashicorp/random:3.6.3": {
+    "provider": "hashicorp/random",
+    "version": "3.6.3",
+    "hashes": [
+      "h1:mock_hash_random_1",
+      "h1:mock_hash_random_2"
+    ]
+  }
 }
 """,
     )
 
-    return [DefaultInfo(files = depset([locks_bzl]))]
+    return [DefaultInfo(files = depset([locks_json]))]
 
 mock_provider_locks = rule(
     implementation = _mock_provider_locks_impl,

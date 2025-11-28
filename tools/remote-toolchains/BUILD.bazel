@@ -1,0 +1,14 @@
+platform(
+    name = "rbe_nix_platform",
+    constraint_values = [
+        "@platforms//cpu:aarch64",
+        "@platforms//os:linux",
+    ],
+    exec_properties = {
+        "OSFamily": "linux",
+        "cpu": "aarch64",
+        "container-image": "docker://ghcr.io/wayvz-io/network_intent_manager/rbe-worker-default:latest",
+        "nix-support": "true",
+    },
+    visibility = ["//visibility:public"],
+)

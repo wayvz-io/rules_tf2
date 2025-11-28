@@ -30,7 +30,10 @@
       "Read(/usr/bin/**)",
       "Bash(bash:*)",
       "Bash(direnv reload:*)",
-      "Bash(git worktree add:*)"
+      "Bash(git worktree add:*)",
+      "Bash(tflint --init:*)",
+      "Bash(tflint:*)",
+      "Bash(TFL INT_PLUGIN_DIR=/home/rorychatterton/repos/wayvz/tflint-rules-tf2/bazel-bin/go/tflint_ruleset tflint:*)"
     ],
     "deny": [],
     "ask": [

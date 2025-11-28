@@ -54,8 +54,8 @@ def _generate_lock_hcl_from_json(lock_json):
 def _terraform_providers_impl(ctx):
     """Implementation of terraform_providers repository rule.
 
-    This rule creates a BUILD file with individual provider download targets.
-    Each provider/platform combination gets its own target that downloads on demand.
+    This rule creates a BUILD file that references provider download repositories.
+    Each provider/platform combination is a separate repository created by the module extension.
     """
 
     # Use provider hashes if provided, otherwise parse raw content
@@ -86,86 +86,52 @@ def _terraform_providers_impl(ctx):
     build_content = [
         'package(default_visibility = ["//visibility:public"])',
         "",
-        'load("@rules_tf2//tf2/providers/download:provider_download_action.bzl", "provider_download_action")',
         'load("@rules_tf2//tf2/providers/registry:provider_metadata.bzl", "provider_metadata")',
         'load("@rules_tf2//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")',
         "",
-        "# Individual provider download targets",
-        "# These are only fetched when actually needed by a build",
+        "# Individual provider targets (references to provider repositories)",
+        "# These reference external repositories that download providers during loading phase",
         "",
     ]
 
-    # Track which downloads we've created for use in aliases
+    # Track which providers we've created targets for
     provider_downloads = {}  # provider:version -> {platform: target_name}
 
-    # Create download targets for each provider/version/platform
-    for provider_key, data in provider_info.items():
-        # Handle both formats: provider_key might be the full source or need extraction
-        if ":" in provider_key:
-            # Format: "hashicorp/aws:6.12.0"
-            source = provider_key.split(":")[0]
-        else:
-            # Format: "hashicorp/aws" with version in data
-            source = provider_key
+    # Create references to provider repositories
+    # ctx.attr.provider_repositories is a dict like:
+    # {"hashicorp/aws": {"6.12.0": {"linux_amd64": "tf_provider_aws_6_12_0_linux_amd64", ...}}}
+    provider_repositories = {}
+    if hasattr(ctx.attr, "provider_repositories_json") and ctx.attr.provider_repositories_json:
+        provider_repositories = json.decode(ctx.attr.provider_repositories_json)
 
-        version = data.get("version", "")
-        if not version:
-            continue
+    for provider_source, versions in provider_repositories.items():
+        _, name = provider_source.split("/") if "/" in provider_source else ("", provider_source)
 
-        _, name = source.split("/") if "/" in source else ("", source)
+        if provider_source not in provider_downloads:
+            provider_downloads[provider_source] = {}
 
-        if source not in provider_downloads:
-            provider_downloads[source] = {}
-        if version not in provider_downloads[source]:
-            provider_downloads[source][version] = {}
+        for version, platforms in versions.items():
+            if version not in provider_downloads[provider_source]:
+                provider_downloads[provider_source][version] = {}
 
-        # Get hashes for verification
-        # Collect zh hashes (hex SHA256) - these are the actual provider zip file hashes
-        zh_hashes = []
-        if "hashes" in data:
-            # Handle both formats: list of strings or dict with h1/zh keys
-            if type(data["hashes"]) == "list":
-                # List format - extract zh hashes (hex format)
-                for hash_val in data["hashes"]:
-                    if hash_val.startswith("zh:"):
-                        zh_hashes.append(hash_val[3:])  # Remove "zh:" prefix
-            elif type(data["hashes"]) == "dict":
-                # Dict format from our parsed JSON
-                if "zh" in data["hashes"]:
-                    zh_hashes.extend(data["hashes"]["zh"])
+            # Create alias targets for each platform that point to the provider repository
+            for platform, repo_name in platforms.items():
+                target_name = "download_{}_{}_{}".format(
+                    name,
+                    version.replace(".", "_"),
+                    platform,
+                )
 
-        # Create download target for each platform
-        platforms = ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]
-        for platform in platforms:
-            os_name, arch = platform.split("_")
-            url, _ = get_provider_download_info(source, version, os_name, arch)
+                provider_downloads[provider_source][version][platform] = target_name
 
-            target_name = "download_{}_{}_{}".format(
-                name,
-                version.replace(".", "_"),
-                platform,
-            )
-
-            provider_downloads[source][version][platform] = target_name
-
-            build_content.extend([
-                "provider_download_action(",
-                '    name = "{}",'.format(target_name),
-                '    url = "{}",'.format(url),
-            ])
-
-            # Pass zh hashes as comma-separated list (these are hex SHA256)
-            # The download script will verify against any of them
-            if zh_hashes:
-                build_content.append('    sha256 = "{}",'.format(",".join(zh_hashes)))
-
-            build_content.extend([
-                '    provider = "{}",'.format(source),
-                '    version = "{}",'.format(version),
-                '    platform = "{}",'.format(platform),
-                ")",
-                "",
-            ])
+                # Create an alias that points to the provider repository
+                build_content.extend([
+                    "alias(",
+                    '    name = "{}",'.format(target_name),
+                    '    actual = "@{}//:files",'.format(repo_name),
+                    ")",
+                    "",
+                ])
 
     # Create provider aliases based on providers found in lock file
     build_content.extend([
@@ -274,6 +240,7 @@ def _terraform_providers_impl(ctx):
         "exports_files([",
         '    ".terraform.lock.hcl",',
         '    "provider_locks.bzl",',
+        '    "provider_locks.json",',
         "])",
     ])
 
@@ -319,6 +286,20 @@ def _terraform_providers_impl(ctx):
     ]
     ctx.file("provider_locks.bzl", "\n".join(locks_content))
 
+    # Generate JSON in the format expected by hcl_tool (expanded format)
+    # From: {"hashicorp/aws:6.13.0": ["hash1", "hash2"]}
+    # To: {"hashicorp/aws:6.13.0": {"provider": "hashicorp/aws", "version": "6.13.0", "hashes": [...]}}
+    expanded_locks = {}
+    for key, hashes in locks_dict.items():
+        if ":" in key:
+            provider, version = key.rsplit(":", 1)
+            expanded_locks[key] = {
+                "provider": provider,
+                "version": version,
+                "hashes": hashes,
+            }
+    ctx.file("provider_locks.json", json.encode(expanded_locks))
+
     # Also create a manifest of all providers for debugging
     manifest = {
         "providers": ctx.attr.providers,
@@ -347,6 +328,10 @@ terraform_providers = repository_rule(
             doc = "Provider hashes: provider:version -> [hashes]",
             mandatory = False,
             default = {},
+        ),
+        "provider_repositories_json": attr.string(
+            doc = "JSON-encoded map of provider repositories: provider -> version -> platform -> repo_name",
+            default = "{}",
         ),
     },
 )

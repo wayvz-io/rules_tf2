@@ -1,7 +1,7 @@
 """Module extensions for tf2"""
 
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
-
+load("//tf2/providers/download:provider_download_repository.bzl", "provider_download_repository")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
@@ -258,6 +258,61 @@ def _tf_providers_impl(module_ctx):
         combined_aliases.update(test_aliases)
         combined_hashes.update(test_hashes)
 
+    # Create individual provider download repositories for each provider/version/platform
+    # These repositories download providers during the loading phase
+    created_repositories = {}
+    if combined_providers:
+        platforms = [
+            ("linux", "amd64"),
+            ("linux", "arm64"),
+            ("darwin", "amd64"),
+            ("darwin", "arm64"),
+        ]
+
+        for provider_source, versions in combined_providers.items():
+            _, provider_name = provider_source.split("/")
+
+            for version in versions:
+                provider_key = "{}:{}".format(provider_source, version)
+
+                # Get hashes for this provider:version
+                hashes = combined_hashes.get(provider_key, [])
+
+                # Extract zh hashes (hex SHA256) for download verification
+                zh_hashes = []
+                for hash_val in hashes:
+                    if hash_val.startswith("zh:"):
+                        zh_hashes.append(hash_val[3:])  # Remove "zh:" prefix
+
+                # Create a repository for each platform
+                for os_name, arch in platforms:
+                    platform_str = "{}_{}".format(os_name, arch)
+
+                    # Repository name: tf_provider_{name}_{version}_{os}_{arch}
+                    # Replace dots with underscores for valid repository names
+                    repo_name = "tf_provider_{}_{}_{}".format(
+                        provider_name,
+                        version.replace(".", "_"),
+                        platform_str,
+                    )
+
+                    # Create the provider download repository
+                    provider_download_repository(
+                        name = repo_name,
+                        provider_source = provider_source,
+                        version = version,
+                        os_name = os_name,
+                        arch = arch,
+                        sha256 = ",".join(zh_hashes) if zh_hashes else "",
+                    )
+
+                    # Track created repositories for terraform_providers to reference
+                    if provider_source not in created_repositories:
+                        created_repositories[provider_source] = {}
+                    if version not in created_repositories[provider_source]:
+                        created_repositories[provider_source][version] = {}
+                    created_repositories[provider_source][version][platform_str] = repo_name
+
     # Create registry based on what we have
     if combined_providers:
         # We have actual providers - create real registry
@@ -266,6 +321,7 @@ def _tf_providers_impl(module_ctx):
             providers = combined_providers,
             aliases = combined_aliases,
             provider_hashes = combined_hashes,
+            provider_repositories_json = json.encode(created_repositories),
         )
     else:
         # No providers found (likely because we're a dependency, not root)
@@ -275,6 +331,7 @@ def _tf_providers_impl(module_ctx):
             providers = {},
             aliases = {},
             provider_hashes = {},
+            provider_repositories_json = "{}",
         )
 
 # Tag class for the download configuration
