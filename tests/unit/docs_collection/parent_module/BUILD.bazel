@@ -1,0 +1,10 @@
+load("//tf2:def.bzl", "tf_module")
+
+# Parent module with nested child module
+tf_module(
+    name = "parent_module",
+    srcs = glob(["*.tf"]) + ["README.md"],
+    modules = ["//tests/unit/docs_collection/child_module:child_module"],
+    providers = ["@tf_provider_registry//:random_3"],
+    visibility = ["//visibility:public"],
+)

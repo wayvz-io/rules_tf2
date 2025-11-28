@@ -1,5 +1,6 @@
 """File export capability for Terraform modules"""
 
+load("//tf2/internal:docs_collection.bzl", "collect_module_docs")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 def _tf_file_export_impl(ctx):
@@ -15,8 +16,11 @@ def _tf_file_export_impl(ctx):
 
     module_info = module[TfModuleInfo]
 
-    # Get all files from the module
+    # Get terraform source files from the module
     module_files = module_info.srcs.to_list()
+
+    # Collect documentation files from module tree
+    docs_map = collect_module_docs(module_info)
 
     # Get the lockfile if it exists
     lock_file = module_info.lock_file
@@ -143,6 +147,30 @@ cp -L "$RUNFILES/{src}" "$TARGET_PATH/{dest}"
             dest = rel_path,
         )
 
+    # Add documentation file copies
+    for dest_path, doc_file in docs_map.items():
+        # Track directory creation for docs
+        if "/" in dest_path:
+            dest_dir = "/".join(dest_path.split("/")[:-1])
+            dirs_to_create[dest_dir] = True
+
+        # Compute runfile path for doc
+        doc_path = doc_file.short_path
+        if doc_path.startswith("../"):
+            doc_runfile_path = doc_path[3:]
+        elif doc_path.startswith(ctx.workspace_name + "/"):
+            doc_runfile_path = doc_path
+        else:
+            doc_runfile_path = ctx.workspace_name + "/" + doc_path
+
+        script_content += """# Copy documentation {filename}
+cp -L "$RUNFILES/{src}" "$TARGET_PATH/{dest}"
+""".format(
+            filename = dest_path,
+            src = doc_runfile_path,
+            dest = dest_path,
+        )
+
     # Add lockfile copy if it exists
     if lock_file:
         lock_file_path = lock_file.short_path
@@ -202,6 +230,10 @@ echo "Files exported:"
 
         script_content += 'echo "  - {}"\n'.format(rel_path)
 
+    # Add docs to file listing
+    for dest_path in sorted(docs_map.keys()):
+        script_content += 'echo "  - {}"\n'.format(dest_path)
+
     if lock_file:
         script_content += 'echo "  - .terraform.lock.hcl"\n'
 
@@ -218,6 +250,9 @@ echo "========================================="
 
     # Collect all inputs for runfiles
     all_inputs = module_files
+    # Add documentation files from docs_map
+    for doc_file in docs_map.values():
+        all_inputs = all_inputs + [doc_file]
     if lock_file:
         all_inputs = all_inputs + [lock_file]
 

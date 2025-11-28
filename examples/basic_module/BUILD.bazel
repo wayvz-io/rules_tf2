@@ -1,4 +1,4 @@
-load("@rules_tf2//tf2:def.bzl", "tf_module")
+load("@rules_tf2//tf2:def.bzl", "tf_module", "tf_test")
 
 # A basic Terraform module example demonstrating provider inheritance
 #
@@ -17,6 +17,8 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # providers from the entire dependency tree.
 tf_module(
     name = "basic_module",
+    # Explicit sources (will be mandatory in future version)
+    srcs = glob(["*.tf"]) + ["README.md"],
     # Providers this module requires directly
     providers = [
         "@tf_provider_registry//:aws_5",  # AWS provider v5.x
@@ -24,4 +26,15 @@ tf_module(
         "@tf_provider_registry//:null_3",  # Null provider v3.x (child only, demonstrates inheritance)
     ],
     visibility = ["//visibility:public"],
+)
+
+# Example: Standalone tf_test with explicit module reference
+# This demonstrates the new explicit testing pattern
+tf_test(
+    name = "example_standalone_test",
+    module = ":basic_module",  # Reference to the tf_module being tested
+    test_files = ["example_test.tftest.hcl"],  # Explicit test files
+    provider_registry = "@tf_provider_registry//:unpacked_providers",
+    size = "small",
+    tags = ["manual"],  # Manual for demonstration purposes
 )

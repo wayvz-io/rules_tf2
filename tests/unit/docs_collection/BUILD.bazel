@@ -1,0 +1,9 @@
+# Test suite for docs collection functionality
+
+test_suite(
+    name = "docs_collection",
+    tests = [
+        "//tests/unit/docs_collection/child_module:child_module_format_test",
+        "//tests/unit/docs_collection/parent_module:parent_module_format_test",
+    ],
+)
