@@ -189,13 +189,20 @@ def _terraform_providers_impl(ctx):
         ])
         mirror_exists[platform] = True
 
-    # For backward compatibility, create an alias
+    # Create platform-aware unpacked_providers using select()
+    # Note: alias() doesn't support select(), so we use filegroup instead
     build_content.extend([
         "",
-        "# Create unpacked_providers alias for backward compatibility",
-        "alias(",
+        "# Platform-aware provider mirror selection",
+        "# Automatically selects the correct platform's providers based on execution platform",
+        "filegroup(",
         '    name = "unpacked_providers",',
-        '    actual = ":mirror_linux_arm64",',  # Use current platform directly for now
+        "    srcs = select({",
+        '        ":linux_x86_64": [":mirror_linux_amd64"],',
+        '        ":linux_aarch64": [":mirror_linux_arm64"],',
+        '        ":macos_x86_64": [":mirror_darwin_amd64"],',
+        '        ":macos_aarch64": [":mirror_darwin_arm64"],',
+        "    }),",
         ")",
         "",
     ])
@@ -275,13 +282,29 @@ def _terraform_providers_impl(ctx):
                 else:
                     locks_dict[key] = hashes
 
+    # Build alias mapping for macro-time lookup
+    # Format: {"aws_6": {"provider": "hashicorp/aws", "version": "6.14.0"}, ...}
+    alias_mapping = {}
+    if ctx.attr.aliases:
+        for alias_name, provider_spec in ctx.attr.aliases.items():
+            if len(provider_spec) >= 2:
+                alias_mapping[alias_name] = {
+                    "provider": provider_spec[0],
+                    "version": provider_spec[1],
+                }
+
     locks_content = [
-        '"""Provider lock file information"""',
+        '"""Provider lock file information and alias mappings"""',
         "",
         "# This file provides lock file information for provider hashes",
+        "# and alias-to-version mappings for per-module provider filtering",
         "# It is auto-generated from the terraform.lock.hcl file",
         "",
         "PROVIDER_LOCKS = " + str(locks_dict),
+        "",
+        "# Alias to provider/version mapping",
+        "# Used by tf_module macro to compute download targets at macro time",
+        "PROVIDER_ALIASES = " + str(alias_mapping),
         "",
     ]
     ctx.file("provider_locks.bzl", "\n".join(locks_content))

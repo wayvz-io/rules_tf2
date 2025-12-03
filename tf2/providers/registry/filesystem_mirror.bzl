@@ -1,104 +1,155 @@
 """BUILD rule for creating a Terraform provider filesystem mirror"""
 
+load("@bazel_skylib//lib:paths.bzl", "paths")
+
+# Namespace mapping for provider names
+_NAMESPACE_MAPPING = {
+    "aws": "hashicorp",
+    "azurerm": "hashicorp",
+    "google": "hashicorp",
+    "null": "hashicorp",
+    "random": "hashicorp",
+    "local": "hashicorp",
+    "archive": "hashicorp",
+    "time": "hashicorp",
+    "tls": "hashicorp",
+    "helm": "hashicorp",
+    "kubernetes": "hashicorp",
+    "tfe": "hashicorp",
+    "panos": "paloaltonetworks",
+    "onepassword": "1password",
+    "flux": "fluxcd",
+    "cloudflare": "cloudflare",
+}
+
+# Known platform suffixes
+_PLATFORMS = ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]
+
+def _parse_provider_from_label(label):
+    """Parse provider metadata from a label.
+
+    Handles both:
+    - Alias names like "download_aws_6_12_0_linux_amd64"
+    - Repository names like "_main~tf_providers~tf_provider_aws_6_12_0_linux_arm64"
+
+    Args:
+        label: Bazel label object
+
+    Returns:
+        Dict with name, version, platform, namespace, or None if parsing fails
+    """
+    # First, try to parse from the repository name (works when alias is resolved)
+    # Repository names look like: _main~tf_providers~tf_provider_NAME_VERSION_PLATFORM
+    repo_name = label.workspace_name
+
+    # Look for "tf_provider_" prefix in repository name
+    provider_marker = "tf_provider_"
+    if provider_marker in repo_name:
+        # Extract the part after "tf_provider_"
+        idx = repo_name.find(provider_marker)
+        name_version_platform = repo_name[idx + len(provider_marker):]
+    elif label.name.startswith("download_"):
+        # Fallback: try to parse from target name (direct reference, not alias)
+        name_version_platform = label.name[9:]  # Remove "download_" prefix
+    else:
+        return None
+
+    # Find and extract the platform suffix
+    platform = None
+    name_version = None
+    for p in _PLATFORMS:
+        suffix = "_" + p
+        if name_version_platform.endswith(suffix):
+            platform = p
+            name_version = name_version_platform[:-len(suffix)]
+            break
+
+    if not platform or not name_version:
+        return None
+
+    # Extract provider name and version from name_version
+    # Format: NAME_MAJOR_MINOR_PATCH (e.g., "aws_6_12_0" or "palo_alto_2_0_5")
+    # Version is always the last 3 underscore-separated parts
+    parts = name_version.split("_")
+    if len(parts) < 4:
+        # Not enough parts for name + version
+        return None
+
+    # Last 3 parts are version components
+    version = "{}.{}.{}".format(parts[-3], parts[-2], parts[-1])
+    name = "_".join(parts[:-3])
+
+    if not name:
+        return None
+
+    # Get namespace from mapping
+    namespace = _NAMESPACE_MAPPING.get(name, "unknown")
+
+    return {
+        "name": name,
+        "version": version,
+        "platform": platform,
+        "namespace": namespace,
+    }
+
 def _filesystem_mirror_impl(ctx):
     """Implementation of filesystem_mirror rule.
 
     This rule aggregates individual provider downloads and creates a filesystem
     mirror structure that Terraform can use with the filesystem_mirror configuration.
+
+    Uses symlinks instead of copies to minimize disk usage and improve build times.
     """
-
-    # Create the output directory for the mirror
-    mirror_dir = ctx.actions.declare_directory(ctx.label.name)
-
-    # Collect all provider files and build inline command
-    provider_files = []
-    command_lines = [
-        "set -euo pipefail",
-        "MIRROR_DIR=\"{}\"".format(mirror_dir.path),
-        "mkdir -p \"$MIRROR_DIR\"",
-        "",
-    ]
+    # Collect all provider files and their target paths
+    symlink_outputs = []
+    provider_inputs = []
 
     # Process each provider dependency
     for provider_dep in ctx.attr.providers:
+        # Parse provider metadata from the label (handles aliases correctly)
+        metadata = _parse_provider_from_label(provider_dep.label)
+        if not metadata:
+            # Skip providers we can't parse - this shouldn't happen with valid download targets
+            continue
+
         # Get the files from the provider download
         for file in provider_dep.files.to_list():
-            provider_files.append(file)
+            provider_inputs.append(file)
 
-            # Parse provider metadata from the target name if available
-            # Expected format: download_NAME_VERSION_PLATFORM
-            target_name = provider_dep.label.name
-            if target_name.startswith("download_"):
-                parts = target_name[9:].rsplit("_", 2)  # Remove "download_" prefix
-                if len(parts) == 3:
-                    name_version = parts[0]
-                    os_name = parts[1]
-                    arch = parts[2]
-                    platform = "{}_{}".format(os_name, arch)
+            # Build the target path in the mirror structure
+            target_path = "registry.terraform.io/{}/{}/{}/{}".format(
+                metadata["namespace"],
+                metadata["name"],
+                metadata["version"],
+                metadata["platform"],
+            )
 
-                    # Try to extract provider name and version
-                    # This is a heuristic - ideally we'd have metadata
-                    if "_" in name_version:
-                        name_parts = name_version.rsplit("_", 3)
-                        if len(name_parts) >= 4:
-                            # Reconstruct version from last 3 parts (major_minor_patch)
-                            version = "{}.{}.{}".format(name_parts[-3], name_parts[-2], name_parts[-1])
-                            name = "_".join(name_parts[:-3])
-                        else:
-                            # Fallback
-                            name = name_version
-                            version = "unknown"
-                    else:
-                        name = name_version
-                        version = "unknown"
+            # Declare the symlink output file
+            # Use the original file's basename to preserve the binary name
+            output_path = paths.join(ctx.label.name, target_path, file.basename)
+            symlink_file = ctx.actions.declare_file(output_path)
 
-                    # Guess namespace - this should be provided as metadata
-                    if name in ["aws", "azurerm", "null", "random", "local", "archive", "time", "tls", "helm", "kubernetes", "tfe"]:
-                        namespace = "hashicorp"
-                    elif name == "panos":
-                        namespace = "paloaltonetworks"
-                    elif name == "onepassword":
-                        namespace = "1password"
-                    elif name == "flux":
-                        namespace = "fluxcd"
-                    elif name == "cloudflare":
-                        namespace = "cloudflare"
-                    else:
-                        namespace = "unknown"
+            # Create symlink to the original provider binary
+            ctx.actions.symlink(
+                output = symlink_file,
+                target_file = file,
+            )
 
-                    # Create the target directory structure
-                    target_path = "registry.terraform.io/{}/{}/{}/{}".format(
-                        namespace,
-                        name,
-                        version,
-                        platform,
-                    )
+            symlink_outputs.append(symlink_file)
 
-                    command_lines.extend([
-                        "# Provider: {}/{}@{} for {}".format(namespace, name, version, platform),
-                        "mkdir -p \"$MIRROR_DIR/{}\"".format(target_path),
-                        "if [ -d '{}' ]; then".format(file.path),
-                        "    cp -r {}/* \"$MIRROR_DIR/{}/\" 2>/dev/null || true".format(file.path, target_path),
-                        "elif [ -f '{}' ]; then".format(file.path),
-                        "    cp '{}' \"$MIRROR_DIR/{}/\"".format(file.path, target_path),
-                        "fi",
-                        "",
-                    ])
-
-    # Execute inline command (no script file or shebang needed)
-    ctx.actions.run_shell(
-        outputs = [mirror_dir],
-        inputs = provider_files,
-        command = "\n".join(command_lines),
-        mnemonic = "FilesystemMirror",
-        progress_message = "Creating filesystem mirror with {} providers".format(len(ctx.attr.providers)),
-        use_default_shell_env = True,  # This gives us access to system tools
-    )
+    # If no providers were processed, create an empty marker file
+    if not symlink_outputs:
+        empty_marker = ctx.actions.declare_file(paths.join(ctx.label.name, ".empty"))
+        ctx.actions.write(
+            output = empty_marker,
+            content = "# Empty provider mirror\n",
+        )
+        symlink_outputs.append(empty_marker)
 
     return [
         DefaultInfo(
-            files = depset([mirror_dir]),
-            runfiles = ctx.runfiles(files = [mirror_dir]),
+            files = depset(symlink_outputs),
+            runfiles = ctx.runfiles(files = symlink_outputs),
         ),
     ]
 

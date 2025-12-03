@@ -2,6 +2,7 @@
 
 load("//tf2/internal:organization.bzl", "tf_organization_check_test", "tf_reorganize")
 load("//tf2/internal:sources_validation.bzl", "tf_untracked_files_test")
+load("//tf2/providers/module:module_provider_mirror.bzl", "tf_module_provider_mirror")
 load("//tf2/tfcore:deps.bzl", "tf_module_deps_test")
 load("//tf2/tfcore:export.bzl", "tf_file_export")
 load("//tf2/tfcore:module.bzl", "tf_module_deps", "tf_module_rule")
@@ -13,6 +14,23 @@ load("//tf2/tfdocs:generator.bzl", "tf_doc_test", "tf_generate_docs")
 load("//tf2/tflint:format.bzl", "tf_format", "tf_format_test")
 load("//tf2/tflint:test.bzl", "tf_lint_test")
 load("//tf2/tflint:validate.bzl", "tf_tflint_fix", "tf_tflint_validate_test")
+
+def _extract_provider_aliases(providers):
+    """Extract provider alias names from provider label strings.
+
+    Args:
+        providers: List of provider labels like ["@tf_provider_registry:aws_6"]
+
+    Returns:
+        List of alias names like ["aws_6"]
+    """
+    aliases = []
+    for provider in providers:
+        # Handle both @tf_provider_registry:alias and @tf_provider_registry//:alias formats
+        if ":" in provider:
+            alias = provider.split(":")[-1]
+            aliases.append(alias)
+    return aliases
 
 def tf_module(
         name = "tf_module",
@@ -286,7 +304,26 @@ def tf_module(
 
     # Create validation test (unless skip_validation is True)
     if not skip_validation:
-        provider_registry = "@tf_provider_registry//:unpacked_providers"
+        # Create per-module provider mirror with only the needed providers
+        # This ensures each module only caches the providers it actually uses
+        provider_mirror_name = name + "_provider_mirror"
+        provider_aliases = _extract_provider_aliases(providers or [])
+
+        # Also collect provider aliases from nested modules if any
+        # (Their providers are already included via tf_generate_versions_from_mirrors)
+        if provider_aliases:
+            tf_module_provider_mirror(
+                name = provider_mirror_name,
+                providers = provider_aliases,
+                visibility = visibility,
+                testonly = True,
+            )
+            provider_registry = ":" + provider_mirror_name
+        else:
+            # Fallback to global registry if no direct providers specified
+            # This shouldn't happen with properly configured modules
+            provider_registry = "@tf_provider_registry//:unpacked_providers"
+
         validate_srcs = [":" + name + "_processed"] if modules else [":" + name + "_sources"]
 
         tf_validate_test(
