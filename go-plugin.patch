@@ -1,0 +1,19 @@
+--- a/internal/plugin/BUILD.bazel
++++ b/internal/plugin/BUILD.bazel
+@@ -15,13 +15,13 @@
+ go_proto_library(
+     name = "plugin_go_proto",
+     compilers = ["@io_bazel_rules_go//proto:go_grpc"],
+-    importpath = "./plugin",
++    importpath = "github.com/hashicorp/go-plugin/internal/plugin",
+     proto = ":plugin_proto",
+     visibility = ["//:__subpackages__"],
+ )
+
+ go_library(
+     name = "plugin",
+     embed = [":plugin_go_proto"],
+-    importpath = "./plugin",
++    importpath = "github.com/hashicorp/go-plugin/internal/plugin",
+     visibility = ["//:__subpackages__"],
+ )

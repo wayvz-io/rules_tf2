@@ -65,7 +65,16 @@ def _create_tflint_test_action(ctx, name, srcs, config = None, expect_issues = F
     if plugins:
         plugins_setup = '''mkdir -p "$WORK_DIR/.tflint.d/plugins"'''
         for plugin in plugins:
-            plugin_path = plugin.short_path if plugin.short_path.startswith("bazel-out/") else "_main/{}".format(plugin.short_path)
+            # Handle paths for both internal and external repos
+            # External repo paths start with "../repo_name/" in short_path
+            # but in runfiles they're at "$RUNFILES/repo_name/"
+            if plugin.short_path.startswith("../"):
+                # Remove leading "../" for external repos
+                plugin_path = plugin.short_path[3:]
+            elif plugin.short_path.startswith("bazel-out/"):
+                plugin_path = plugin.short_path
+            else:
+                plugin_path = "_main/{}".format(plugin.short_path)
             plugin_name = plugin.basename
             plugins_setup += '''
 cp "$RUNFILES/{plugin_path}" "$WORK_DIR/.tflint.d/plugins/{plugin_name}"
@@ -73,6 +82,7 @@ chmod +x "$WORK_DIR/.tflint.d/plugins/{plugin_name}"'''.format(
                 plugin_path = plugin_path,
                 plugin_name = plugin_name,
             )
+        plugins_setup += '\nexport TFLINT_PLUGIN_DIR="$WORK_DIR/.tflint.d/plugins"'
 
     # Build test logic based on expect_issues
     if expect_issues:
@@ -132,8 +142,8 @@ cd "$WORK_DIR"
 
 {plugins_setup}
 
-# Initialize TFLint
-{tflint_bin} --init >/dev/null 2>&1
+# Initialize TFLint (optional - may fail if plugins are already provided hermetically)
+{tflint_bin} --init >/dev/null 2>&1 || true
 
 {test_logic}
 '''.format(
@@ -190,7 +200,16 @@ def _create_tflint_autofix_action(ctx, name, srcs, config = None, plugins = None
     if plugins:
         plugins_setup = '''mkdir -p "$WORK_DIR/.tflint.d/plugins"'''
         for plugin in plugins:
-            plugin_path = plugin.short_path if plugin.short_path.startswith("bazel-out/") else "_main/{}".format(plugin.short_path)
+            # Handle paths for both internal and external repos
+            # External repo paths start with "../repo_name/" in short_path
+            # but in runfiles they're at "$RUNFILES/repo_name/"
+            if plugin.short_path.startswith("../"):
+                # Remove leading "../" for external repos
+                plugin_path = plugin.short_path[3:]
+            elif plugin.short_path.startswith("bazel-out/"):
+                plugin_path = plugin.short_path
+            else:
+                plugin_path = "_main/{}".format(plugin.short_path)
             plugin_name = plugin.basename
             plugins_setup += '''
 cp "$RUNFILES/{plugin_path}" "$WORK_DIR/.tflint.d/plugins/{plugin_name}"
@@ -198,6 +217,7 @@ chmod +x "$WORK_DIR/.tflint.d/plugins/{plugin_name}"'''.format(
                 plugin_path = plugin_path,
                 plugin_name = plugin_name,
             )
+        plugins_setup += '\nexport TFLINT_PLUGIN_DIR="$WORK_DIR/.tflint.d/plugins"'
 
     # Build source file copy commands
     autofix_copy_commands = []
@@ -237,8 +257,8 @@ cd "$WORK_DIR"
 
 {plugins_setup}
 
-# Initialize TFLint
-{tflint_bin} --init >/dev/null 2>&1
+# Initialize TFLint (optional - may fail if plugins are already provided hermetically)
+{tflint_bin} --init >/dev/null 2>&1 || true
 
 # Check for issues first
 echo "Checking for lint issues..."

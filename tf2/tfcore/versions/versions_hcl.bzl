@@ -52,7 +52,7 @@ tf_update_versions = rule(
     implementation = _tf_update_versions_impl,
     attrs = {
         "hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+            default = "@rules_tf2//go/hcl_tool",
             executable = True,
             cfg = "exec",
             doc = "The HCL tool binary",
@@ -107,7 +107,7 @@ tf_parse_lock = rule(
             doc = "The terraform.lock.hcl file to parse",
         ),
         "hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+            default = "@rules_tf2//go/hcl_tool",
             executable = True,
             cfg = "exec",
             doc = "The HCL tool binary",
@@ -162,7 +162,7 @@ tf_read_versions = rule(
             doc = "Terraform source files to read versions from",
         ),
         "hcl_tool": attr.label(
-            default = "@rules_tf2//hcl_tool",
+            default = "@rules_tf2//go/hcl_tool",
             executable = True,
             cfg = "exec",
             doc = "The HCL tool binary",

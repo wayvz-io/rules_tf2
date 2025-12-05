@@ -1,0 +1,45 @@
+load("//tf2/tflint:test.bzl", "tf_lint_negative_test", "tf_lint_test")
+
+# Test properly organized files (should pass)
+tf_lint_test(
+    name = "properly_organized_test",
+    size = "small",
+    srcs = glob(["properly_organized/*.tf"]),
+    config = ".tflint.hcl",
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test terraform block in wrong file (should fail)
+tf_lint_negative_test(
+    name = "terraform_in_wrong_file_test",
+    size = "small",
+    srcs = glob(["terraform_in_wrong_file/*.tf"]),
+    config = ".tflint.hcl",
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test variables in wrong file (should fail)
+tf_lint_negative_test(
+    name = "variables_in_wrong_file_test",
+    size = "small",
+    srcs = glob(["variables_in_wrong_file/*.tf"]),
+    config = ".tflint.hcl",
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test outputs in wrong file (should fail)
+tf_lint_negative_test(
+    name = "outputs_in_wrong_file_test",
+    size = "small",
+    srcs = glob(["outputs_in_wrong_file/*.tf"]),
+    config = ".tflint.hcl",
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)

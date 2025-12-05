@@ -59,7 +59,11 @@
       "Bash(readlink:*)",
       "Bash(gt add:*)",
       "Bash(gt continue:*)",
-      "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2 checkout tf2/tools/runners/terraform.bzl)"
+      "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2 checkout tf2/tools/runners/terraform.bzl)",
+      "Bash(TFLINT_LOG=trace tflint:*)",
+      "Bash(env TFLINT_LOG=trace tflint:*)",
+      "Bash(git -C /home/rorychatterton/repos/wayvz/tflint-rules-tf2 status)",
+      "Bash(./bazel-bin/tests/unit/tflint_plugins/aws/aws_plugin_test_lint.sh.sh:*)"
     ],
     "deny": [],
     "ask": [

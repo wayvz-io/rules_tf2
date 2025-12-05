@@ -1,0 +1,41 @@
+load("//tf2/tflint:test.bzl", "tf_lint_negative_test", "tf_lint_test")
+
+# Test that valid configuration passes
+tf_lint_test(
+    name = "valid_config_test",
+    size = "small",
+    srcs = ["valid_config.tf"],
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test that missing version constraint fails
+tf_lint_negative_test(
+    name = "missing_version_test",
+    size = "small",
+    srcs = ["missing_version.tf"],
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test that missing source fails
+tf_lint_negative_test(
+    name = "missing_source_test",
+    size = "small",
+    srcs = ["missing_source.tf"],
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)
+
+# Test that no required_providers block fails
+tf_lint_negative_test(
+    name = "no_required_providers_test",
+    size = "small",
+    srcs = ["no_required_providers.tf"],
+    plugins = [
+        "@tflint_plugin_registry//:tf2_bin",
+    ],
+)

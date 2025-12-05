@@ -28,6 +28,10 @@ TFLINT_PLUGIN_CONFIG = {
         "repo": "terraform-linters/tflint-ruleset-opa",
         "binary_name": "tflint-ruleset-opa",
     },
+    "terraform": {
+        "repo": "terraform-linters/tflint-ruleset-terraform",
+        "binary_name": "tflint-ruleset-terraform",
+    },
 }
 
 def _get_latest_tflint_version(repository_ctx):

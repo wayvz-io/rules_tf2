@@ -1,6 +1,8 @@
 """Default TFLint rule configurations for each provider"""
 
 # Base Terraform rules that are always enabled
+# NOTE: terraform_required_providers from upstream is disabled because we use
+# the enhanced version from the tf2 plugin (supports allowlists, version validation, autofix)
 TERRAFORM_BASE_RULES = {
     "terraform_comment_syntax": {"enabled": True},
     "terraform_deprecated_index": {"enabled": True},
@@ -10,7 +12,7 @@ TERRAFORM_BASE_RULES = {
     "terraform_documented_variables": {"enabled": True},
     "terraform_empty_list_equality": {"enabled": True},
     "terraform_naming_convention": {"enabled": True},
-    "terraform_required_providers": {"enabled": True},
+    "terraform_required_providers": {"enabled": False},  # Replaced by tf2 plugin version
     "terraform_required_version": {"enabled": True},
     "terraform_standard_module_structure": {"enabled": False},  # Disabled for template modules
     "terraform_typed_variables": {"enabled": True, "force": True},
@@ -117,6 +119,7 @@ AWS_PLUGIN_RULES = {
 AZURERM_PLUGIN_RULES = {
     # Virtual Machine rules (validated to exist in v0.27.0)
     "azurerm_virtual_machine_invalid_vm_size": {"enabled": True},
+    "azurerm_resources_missing_prevent_destroy": {"enabled": False},
 }
 
 # Google Cloud TFLint plugin rules
