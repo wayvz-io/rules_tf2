@@ -84,5 +84,6 @@ def docs_map_to_list(docs_map):
         List of (dest_path, source_file) tuples, sorted by dest_path
     """
     items = [(k, v) for k, v in docs_map.items()]
+
     # Sort by destination path for deterministic ordering
     return sorted(items, key = lambda x: x[0])

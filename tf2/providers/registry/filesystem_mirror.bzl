@@ -79,6 +79,8 @@ def _filesystem_mirror_impl(ctx):
                         "mkdir -p \"$MIRROR_DIR/{}\"".format(target_path),
                         "if [ -d '{}' ]; then".format(file.path),
                         "    cp -r {}/* \"$MIRROR_DIR/{}/\" 2>/dev/null || true".format(file.path, target_path),
+                        "elif [ -f '{}' ]; then".format(file.path),
+                        "    cp '{}' \"$MIRROR_DIR/{}/\"".format(file.path, target_path),
                         "fi",
                         "",
                     ])

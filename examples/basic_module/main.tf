@@ -22,26 +22,28 @@ resource "aws_security_group" "instance" {
   name        = "example-${random_pet.instance.id}"
   description = "Security group for example instance"
 
-  ingress {
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = var.ssh_cidr_blocks
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
   tags = merge(
     var.tags,
     {
       Name = "example-${random_pet.instance.id}"
     }
   )
+}
+
+# Security group ingress rule for SSH
+resource "aws_vpc_security_group_ingress_rule" "ssh" {
+  security_group_id = aws_security_group.instance.id
+  from_port         = 22
+  to_port           = 22
+  ip_protocol       = "tcp"
+  cidr_ipv4         = var.ssh_cidr_blocks[0]
+}
+
+# Security group egress rule for all traffic
+resource "aws_vpc_security_group_egress_rule" "all" {
+  security_group_id = aws_security_group.instance.id
+  ip_protocol       = "-1"
+  cidr_ipv4         = "0.0.0.0/0"
 }
 
 # EC2 Instance

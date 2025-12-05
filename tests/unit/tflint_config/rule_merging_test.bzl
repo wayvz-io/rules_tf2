@@ -102,10 +102,14 @@ def _test_consumer_module_overrides_impl(ctx):
 def _test_test_module_overrides_impl(ctx):
     env = unittest.begin(ctx)
 
-    # Start with base rules and AWS provider rules
+    # Start with base rules and provider rules
     base_rules = get_base_rules()
     aws_rules = get_provider_rules("aws")
     azurerm_rules = get_provider_rules("azurerm")
+
+    # Verify provider rules have content
+    asserts.true(env, "aws_instance_invalid_ami" in aws_rules)
+    asserts.true(env, "azurerm_virtual_machine_invalid_vm_size" in azurerm_rules)
 
     # Merge base with provider rules
     merged_with_providers = merge_rule_configs(base_rules, aws_rules, azurerm_rules)
@@ -115,16 +119,15 @@ def _test_test_module_overrides_impl(ctx):
     final_merged = merge_rule_configs(merged_with_providers, test_overrides)
 
     # Test that tagging rules are disabled for test modules
-    # Tags rules are disabled for test modules - using different rules for testing
     asserts.equals(env, False, final_merged["terraform_documented_outputs"]["enabled"])
     asserts.equals(env, False, final_merged["terraform_documented_variables"]["enabled"])
 
-    # Test that documentation rules are disabled
-    asserts.equals(env, False, final_merged["terraform_documented_outputs"]["enabled"])
-    asserts.equals(env, False, final_merged["terraform_documented_variables"]["enabled"])
+    # Test that base rules are preserved
+    asserts.equals(env, True, final_merged["terraform_comment_syntax"]["enabled"])
+    asserts.equals(env, True, final_merged["terraform_required_providers"]["enabled"])
 
-    # Test that other rules are preserved
-    asserts.equals(env, True, final_merged["aws_instance_invalid_type"]["enabled"])
+    # Test that provider rules are preserved
+    asserts.equals(env, True, final_merged["aws_instance_invalid_ami"]["enabled"])
     asserts.equals(env, True, final_merged["azurerm_virtual_machine_invalid_vm_size"]["enabled"])
 
     return unittest.end(env)
@@ -138,6 +141,9 @@ def _test_complex_merging_scenario_impl(ctx):
     base_rules = get_base_rules()
     aws_rules = get_provider_rules("aws")
     standalone_overrides = get_tagged_overrides("standalone_module")
+
+    # Verify AWS rules have content
+    asserts.true(env, "aws_instance_invalid_ami" in aws_rules)
 
     # Module-specific overrides
     module_overrides = {
@@ -158,7 +164,7 @@ def _test_complex_merging_scenario_impl(ctx):
     asserts.equals(env, True, final_config["terraform_comment_syntax"]["enabled"])
 
     # Test that provider rules are preserved
-    asserts.equals(env, True, final_config["aws_instance_invalid_type"]["enabled"])
+    asserts.equals(env, True, final_config["aws_instance_invalid_ami"]["enabled"])
 
     # Test that custom rules are added
     asserts.equals(env, True, final_config["custom_rule"]["enabled"])

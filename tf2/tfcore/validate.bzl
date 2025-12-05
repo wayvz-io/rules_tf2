@@ -1,5 +1,6 @@
 """Terraform validation test rule"""
 
+load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
@@ -25,98 +26,21 @@ def _tf_validate_test_impl(ctx):
     if not has_module_info:
         source_files = ctx.files.srcs
 
-    # Debug: print what files we got
-    # print("DEBUG: validate_test {} got {} source files".format(ctx.label.name, len(source_files)))
-    # for f in source_files:
-    #     if "modules/" in f.short_path or f.basename.startswith("."):
-    #         print("  - {}".format(f.short_path))
-
-    # Import the staging function from tf_runner
-    # We need to create a compatible context
+    # Create staging directory
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.label.name))
 
-    # Build commands to create the staging directory
-    copy_commands = []
+    # Build copy commands using shared utility
+    copy_commands = build_staging_copy_commands(source_files, staging_dir.path, ctx.label.package)
     all_inputs = list(source_files)
 
-    # Add lockfile if present
+    # Add lockfile if present (handled separately since it has special naming)
     if ctx.attr.lock_file and ctx.files.lock_file:
         lock_file = ctx.files.lock_file[0]
-        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
+        copy_commands.insert(0, "cp -L '{}' '{}/.terraform.lock.hcl'".format(
             lock_file.path,
             staging_dir.path,
         ))
         all_inputs.append(lock_file)
-
-    # Process source files - copy them to staging directory
-    # Track directories we've created to avoid duplicate mkdir commands
-    created_dirs = {}
-
-    for src_file in source_files:
-        src_path = src_file.short_path
-
-        # Determine the destination path based on the source file location
-        dest_path = src_file.basename  # Default to just the filename
-
-        # Determine if this is a nested module file
-        # Nested modules ONLY exist when:
-        # 1. A module has been processed to include nested dependencies
-        # 2. The nested modules are placed in a modules/ subdirectory WITHIN the package
-        #
-        # For example, if we're testing //iac/stacks/nw_lab:
-        # - "iac/stacks/nw_lab/main.tf" -> main file, goes to root
-        # - "iac/stacks/nw_lab/modules/workspace/main.tf" -> nested module, preserve modules/ structure
-        #
-        # But if we're testing //iac/modules/aws/flow_logs:
-        # - "iac/modules/aws/flow_logs/main.tf" -> main file, goes to root
-        # - There are no nested modules for this case
-
-        test_package = ctx.label.package  # e.g., "iac/modules/aws/flow_logs" or "iac/stacks/nw_lab"
-
-        # Check if this file is within the test package and has subdirectories
-        if src_path.startswith(test_package + "/"):
-            # Extract everything after the test package
-            relative_path = src_path[len(test_package) + 1:]  # Remove package and leading /
-
-            # If the file is in a subdirectory, preserve the directory structure
-            if "/" in relative_path:
-                dest_path = relative_path
-
-                # Create parent directories if needed
-                parts = relative_path.split("/")
-                if len(parts) > 1:
-                    dest_dir = "/".join(parts[:-1])
-                    if dest_dir not in created_dirs:
-                        copy_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dest_dir))
-                        created_dirs[dest_dir] = True
-            else:
-                # File is directly in the package root
-                dest_path = relative_path
-
-            # Check if this is a bazel-out processed file with nested modules
-        elif "bazel-out" in src_path and "/modules/" in src_path:
-            # This is a processed file - extract the module structure
-            parts = src_path.split("/")
-            for i, part in enumerate(parts):
-                if part == "modules" and i < len(parts) - 1:
-                    # Found the modules directory, preserve structure from here
-                    module_path = "/".join(parts[i:])
-                    dest_path = module_path
-
-                    # Create parent directories
-                    dest_dir = "/".join(parts[i:-1])
-                    if dest_dir not in created_dirs:
-                        copy_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dest_dir))
-                        created_dirs[dest_dir] = True
-                    break
-
-        # Otherwise, it's a file from outside the package - use just basename
-
-        copy_commands.append("cp -L '{}' '{}/{}'".format(
-            src_file.path,
-            staging_dir.path,
-            dest_path,
-        ))
 
     # Create the staging directory
     ctx.actions.run_shell(
@@ -192,8 +116,52 @@ export TF_INPUT=false
 # Run terraform init with backend disabled for validation
 $TERRAFORM_BIN init -backend=false -upgrade=false -lockfile=readonly -no-color
 
-# Run terraform validate
-$TERRAFORM_BIN validate -no-color
+# Run terraform validate with JSON output to detect warnings
+VALIDATE_OUTPUT=$($TERRAFORM_BIN validate -json -no-color 2>&1) || true
+
+# Check if we got valid JSON
+if ! echo "$VALIDATE_OUTPUT" | jq -e . >/dev/null 2>&1; then
+    echo "ERROR: Terraform validate did not return valid JSON"
+    echo "Output was:"
+    echo "$VALIDATE_OUTPUT"
+    exit 1
+fi
+
+VALIDATE_VALID=$(echo "$VALIDATE_OUTPUT" | jq -r '.valid // "false"')
+
+# Filter out known acceptable warnings:
+# - "Redundant empty provider block" is expected for modules with provider aliases
+FILTERED_WARNINGS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]? | select(.severity == "warning") | select(.summary != "Redundant empty provider block")]')
+VALIDATE_WARNINGS=$(echo "$FILTERED_WARNINGS" | jq 'length')
+VALIDATE_ERRORS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]? | select(.severity == "error")] | length')
+
+# Show any diagnostics (including filtered ones for visibility)
+ALL_DIAGNOSTICS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]?] | length')
+if [ "$ALL_DIAGNOSTICS" -gt 0 ]; then
+    echo "Terraform validation diagnostics:"
+    echo "$VALIDATE_OUTPUT" | jq -r '.diagnostics[] | "  \\(.severity | ascii_upcase): \\(.summary)\\n    \\(.detail // "No details")\\n    at \\(.range.filename // "unknown"):\\(.range.start.line // 0)"'
+
+    # Note if we filtered any warnings
+    SKIPPED=$((ALL_DIAGNOSTICS - VALIDATE_WARNINGS - VALIDATE_ERRORS))
+    if [ "$SKIPPED" -gt 0 ]; then
+        echo ""
+        echo "Note: $SKIPPED warning(s) were skipped (known acceptable patterns)"
+    fi
+fi
+
+# Fail on errors
+if [ "$VALIDATE_VALID" != "true" ]; then
+    echo "ERROR: Terraform validation failed with errors"
+    exit 1
+fi
+
+# Fail on actionable warnings (after filtering)
+if [ "$VALIDATE_WARNINGS" -gt 0 ]; then
+    echo "ERROR: Terraform validation produced $VALIDATE_WARNINGS actionable warning(s)"
+    exit 1
+fi
+
+echo "Terraform validation passed (no errors or warnings)"
 """.format(
         staging_basename = staging_dir.basename,
         terraform_bin = terraform_bin,

@@ -1,4 +1,4 @@
-load("//tf2:def.bzl", "tf_module")
+load("//tf2:def.bzl", "tf_module", "tf_test")
 
 # Define the module
 tf_module(
@@ -12,4 +12,12 @@ tf_module(
     tfdoc_config = "//tests/fixtures:tfdoc-config",
     tflint_config = "//tests/fixtures:tflint-config-modules",
     visibility = ["//visibility:public"],
+)
+
+# Explicit tf_test declaration
+tf_test(
+    name = "simple_module_test",
+    size = "small",
+    module = ":simple_module",
+    test_files = ["simple_module.tftest.hcl"],
 )

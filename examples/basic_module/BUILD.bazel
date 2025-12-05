@@ -32,9 +32,8 @@ tf_module(
 # This demonstrates the new explicit testing pattern
 tf_test(
     name = "example_standalone_test",
-    module = ":basic_module",  # Reference to the tf_module being tested
-    test_files = ["example_test.tftest.hcl"],  # Explicit test files
-    provider_registry = "@tf_provider_registry//:unpacked_providers",
     size = "small",
+    module = ":basic_module",  # Reference to the tf_module being tested
     tags = ["manual"],  # Manual for demonstration purposes
+    test_files = ["example_test.tftest.hcl"],  # Explicit test files
 )

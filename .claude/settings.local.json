@@ -56,7 +56,10 @@
       "Bash(for module in external_allocation flow_logs aws_service_instance aws_service_instance_intents azure_service_instance azure_service_instance_intents palo_alto_service_instance palo_alto_service_instance_intents service_instance_schema panorama)",
       "Bash(do echo \"--- $module ---\")",
       "Bash(git -C /home/rorychatterton/repos/dcs/network_intent_manager show HEAD:iac/networking/service_intents/aws/environment/BUILD.bazel)",
-      "Bash(readlink:*)"
+      "Bash(readlink:*)",
+      "Bash(gt add:*)",
+      "Bash(gt continue:*)",
+      "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2 checkout tf2/tools/runners/terraform.bzl)"
     ],
     "deny": [],
     "ask": [

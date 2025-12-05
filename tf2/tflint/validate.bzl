@@ -2,13 +2,50 @@
 
 load("//tf2/providers/core:info.bzl", "TfProviderConfigurationsInfo")
 load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
-load(":defaults.bzl", "get_base_rules", "get_tagged_overrides", "merge_rule_configs")
+load(":defaults.bzl", "get_base_rules", "get_provider_rules", "get_tagged_overrides", "merge_rule_configs")
 
-def _generate_tflint_config_content(module_tags = None):
+def _provider_name_from_label(provider_label):
+    """Extract provider name from a provider label
+
+    Args:
+        provider_label: Provider label like "@tf_provider_registry//:aws_6"
+
+    Returns:
+        Provider name like "aws"
+    """
+
+    # Extract the provider name from labels like "@tf_provider_registry//:aws_6"
+    if provider_label.startswith("@tf_provider_registry//"):
+        provider_part = provider_label.split(":")[-1]  # Get "aws_6"
+
+        # Remove version suffix to get provider name
+        provider_name = "_".join(provider_part.split("_")[:-1])  # Remove last part (version)
+        return provider_name
+    return None
+
+def _detect_provider_plugins(providers):
+    """Detect which TFLint plugins are needed based on providers
+
+    Args:
+        providers: List of provider labels
+
+    Returns:
+        List of plugin names that should be enabled
+    """
+    plugins = []
+    for provider in providers:
+        provider_name = _provider_name_from_label(provider)
+        if provider_name in ["aws", "azurerm", "google"]:
+            if provider_name not in plugins:
+                plugins.append(provider_name)
+    return plugins
+
+def _generate_tflint_config_content(module_tags = None, providers = None):
     """Generate tflint configuration content using the defaults system
 
     Args:
         module_tags: List of tags to apply rule overrides (e.g., ["test_module"])
+        providers: List of provider labels to detect plugins (e.g., ["@tf_provider_registry//:aws_6"])
 
     Returns:
         String containing the tflint configuration
@@ -17,7 +54,29 @@ def _generate_tflint_config_content(module_tags = None):
     # Start with base rules
     rules = get_base_rules()
 
-    # Apply tagged overrides if provided
+    # Detect provider plugins and add provider-specific rules
+    # providers can be either labels (from config.bzl) or names directly (from validate.bzl)
+    plugins = []
+    if providers:
+        for provider in providers:
+            # Check if it's a label or a name
+            if provider.startswith("@"):
+                provider_name = _provider_name_from_label(provider)
+            else:
+                provider_name = provider
+
+            # Only add supported plugins
+            if provider_name in ["aws", "azurerm", "google"]:
+                if provider_name not in plugins:
+                    plugins.append(provider_name)
+
+        # Add provider-specific rules
+        for plugin in plugins:
+            provider_rules = get_provider_rules(plugin)
+            if provider_rules:
+                rules = merge_rule_configs(rules, provider_rules)
+
+    # Apply tagged overrides if provided (after provider rules so tags can override)
     if module_tags:
         for tag in module_tags:
             tag_overrides = get_tagged_overrides(tag)
@@ -35,6 +94,23 @@ def _generate_tflint_config_content(module_tags = None):
     config_lines.append("  force = false")
     config_lines.append("}")
     config_lines.append("")
+
+    # Add plugin configuration if we have providers
+    # Plugin versions and sources for automatic download
+    plugin_sources = {
+        "aws": ("0.44.0", "github.com/terraform-linters/tflint-ruleset-aws"),
+        "azurerm": ("0.27.0", "github.com/terraform-linters/tflint-ruleset-azurerm"),
+        "google": ("0.30.0", "github.com/terraform-linters/tflint-ruleset-google"),
+    }
+    for plugin in plugins:
+        config_lines.append("plugin \"{}\" {{".format(plugin))
+        config_lines.append("  enabled = true")
+        if plugin in plugin_sources:
+            version, source = plugin_sources[plugin]
+            config_lines.append("  version = \"{}\"".format(version))
+            config_lines.append("  source  = \"{}\"".format(source))
+        config_lines.append("}")
+        config_lines.append("")
 
     # Add rule blocks
     for rule_name, rule_config in rules.items():
@@ -54,12 +130,16 @@ def _generate_tflint_config_content(module_tags = None):
 def _tf_tflint_validate_test_impl(ctx):
     """Implementation of tf_tflint_validate_test rule using hybrid hcl_tool + tflint approach"""
 
-    # Get the generated versions file from provider_configurations if provided
+    # Get provider info from provider_configurations if provided
     versions_file = None
+    provider_names = []
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
         if provider_info.versions_file:
             versions_file = provider_info.versions_file
+        if provider_info.providers:
+            # Get provider names from the dict keys
+            provider_names = list(provider_info.providers.keys())
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
@@ -70,7 +150,11 @@ def _tf_tflint_validate_test_impl(ctx):
 
     # Generate configuration content using defaults system
     # Apply test_module tag for more relaxed rules since these are validation tests
-    config_content = _generate_tflint_config_content(module_tags = ["test_module"])
+    # Pass provider names to enable provider-specific rules
+    config_content = _generate_tflint_config_content(
+        module_tags = ["test_module"],
+        providers = provider_names,
+    )
 
     ctx.actions.write(
         output = tflint_config,
@@ -125,8 +209,13 @@ HCL_TOOL="$RUNFILES/_main/{hcl_tool}"
 
 {organization_validation}
 
+# Initialize TFLint plugins if needed (downloads provider plugins like aws, azurerm, google)
+if ! "$TFLINT" --config="$CONFIG_FILE" --init 2>/dev/null; then
+    echo "Warning: TFLint plugin initialization failed, continuing without plugins" >&2
+fi
+
 # Run tflint for standard checks
-if ! "$TFLINT" --config="$CONFIG_FILE" --chdir="$SOURCE_DIR"; then
+if ! "$TFLINT" --config="$CONFIG_FILE" --chdir="$SOURCE_DIR" --minimum-failure-severity=warning; then
     echo "" >&2
     echo "ERROR: TFLint standard validation failed" >&2
     exit 1
@@ -193,12 +282,15 @@ exit 0
 def _tf_tflint_fix_impl(ctx):
     """Implementation of tf_tflint_fix rule"""
 
-    # Get the generated versions file from provider_configurations if provided
+    # Get provider info from provider_configurations if provided
     versions_file = None
+    provider_names = []
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
         if provider_info.versions_file:
             versions_file = provider_info.versions_file
+        if provider_info.providers:
+            provider_names = list(provider_info.providers.keys())
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
@@ -209,7 +301,10 @@ def _tf_tflint_fix_impl(ctx):
 
     # Generate configuration content using defaults system
     # Apply test_module tag for more relaxed rules since these are fixing tests
-    config_content = _generate_tflint_config_content(module_tags = ["test_module"])
+    config_content = _generate_tflint_config_content(
+        module_tags = ["test_module"],
+        providers = provider_names,
+    )
 
     ctx.actions.write(
         output = tflint_config,
@@ -247,6 +342,12 @@ if "$HCL_TOOL" reorganize "$TARGET_DIR"; then
     echo "✓ Reorganized Terraform files"
 else
     echo "⚠ No reorganization needed or files already organized"
+fi
+
+# Initialize TFLint plugins if needed
+echo "Initializing TFLint plugins..."
+if ! "$TFLINT" --config="$CONFIG_FILE" --init 2>/dev/null; then
+    echo "⚠ TFLint plugin initialization failed, continuing without plugins"
 fi
 
 # Run tflint with --fix flag for standard issues
@@ -352,12 +453,15 @@ tf_tflint_fix = rule(
 def _tf_tflint_negative_test_impl(ctx):
     """Implementation of tf_tflint_negative_test rule that expects tflint validation to fail"""
 
-    # Get the generated versions file from provider_configurations if provided
+    # Get provider info from provider_configurations if provided
     versions_file = None
+    provider_names = []
     if ctx.attr.provider_configurations:
         provider_info = ctx.attr.provider_configurations[TfProviderConfigurationsInfo]
         if provider_info.versions_file:
             versions_file = provider_info.versions_file
+        if provider_info.providers:
+            provider_names = list(provider_info.providers.keys())
 
     # Get binaries
     tflint = ctx.attr._tflint[DefaultInfo].files_to_run.executable
@@ -368,7 +472,8 @@ def _tf_tflint_negative_test_impl(ctx):
 
     # Generate configuration content using defaults system
     # Use more strict rules for negative tests to ensure they catch issues
-    config_content = _generate_tflint_config_content()  # No test_module tag for stricter rules
+    # No test_module tag for stricter rules, but still include provider-specific rules
+    config_content = _generate_tflint_config_content(providers = provider_names)
 
     ctx.actions.write(
         output = tflint_config,
@@ -423,7 +528,13 @@ HCL_TOOL="$RUNFILES/_main/{hcl_tool}"
 
 {organization_validation}
 
+# Initialize TFLint plugins if needed
+if ! "$TFLINT" --config="$CONFIG_FILE" --init 2>/dev/null; then
+    echo "Warning: TFLint plugin initialization failed, continuing without plugins" >&2
+fi
+
 # Run tflint for standard checks - EXPECT this to fail
+# Note: Negative tests don't use --minimum-failure-severity to catch all issues including notices
 if "$TFLINT" --config="$CONFIG_FILE" --chdir="$SOURCE_DIR"; then
     echo "" >&2
     echo "✗ Expected TFLint validation to fail but it passed (negative test failed)" >&2

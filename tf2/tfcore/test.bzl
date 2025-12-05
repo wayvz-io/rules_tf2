@@ -1,78 +1,224 @@
 """Terraform test execution rule"""
 
-load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
-load("//tf2/tools/runners:terraform.bzl", "create_terraform_script", "terraform_init_script")
+load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _tf_test_impl(ctx):
-    """Implementation of tf_test rule"""
+    """Implementation of tf_test rule.
 
-    # Validate that either module or srcs is provided
-    if not ctx.attr.module and not ctx.attr.srcs:
-        fail("Either 'module' or 'srcs' attribute must be provided")
+    Creates a test that runs terraform test against a module.
+    Uses TfModuleInfo to get staged module files, then adds test files.
+    """
+    module = ctx.attr.module
+    if TfModuleInfo not in module:
+        fail("module must be a tf_module target")
 
-    # Get sources, lock file, and provider configurations from module if provided
-    # Otherwise use direct attributes for backward compatibility
-    if ctx.attr.module:
-        module_info = ctx.attr.module[TfModuleInfo]
-        all_srcs = module_info.srcs.to_list()
-        lock_file_files = [module_info.lock_file] if module_info.lock_file else []
+    module_info = module[TfModuleInfo]
 
-        # Get provider configurations from module
-        if module_info.provider_configurations:
-            provider_config = ctx.attr.module[TfModuleInfo].provider_configurations
-            # For now, we still need provider_registry for the unpacked providers
-            # This will be improved in future phases
-    else:
-        # Backward compatibility: use direct srcs attribute
-        all_srcs = ctx.files.srcs
-        lock_file_files = ctx.files.lock_file if ctx.attr.lock_file else []
+    # Get terraform source files from the module
+    module_files = module_info.srcs.to_list()
 
-    # Get plugin directory from provider registry if available
-    plugin_dir = None
-    extra_runfiles = []
-    if ctx.attr.provider_registry:
-        # The provider_registry is a directory containing the providers
-        plugin_dir = ctx.file.provider_registry
-        if plugin_dir:
-            extra_runfiles.append(plugin_dir)
+    # Get the lockfile
+    lock_file = module_info.lock_file
 
-    # Add lock file to sources
-    if lock_file_files:
-        all_srcs = all_srcs + lock_file_files
-        extra_runfiles.extend(lock_file_files)
+    # Get test files
+    test_files = ctx.files.test_files
 
-    # Add data files to runfiles
-    if ctx.attr.data:
-        extra_runfiles.extend(ctx.files.data)
+    # Create staging directory
+    staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.label.name))
 
-    # Create terraform init and test commands
-    init_cmd = terraform_init_script(ctx, plugin_dir = plugin_dir)
-    terraform_bin = get_terraform_path(ctx)
-    test_cmd = "{} test -no-color".format(terraform_bin)
+    # Build copy commands - follow tf_file_export pattern
+    copy_commands = []
+    dirs_to_create = {}
 
-    # Add specific test file if provided
-    if ctx.attr.test_files:
-        for test_file in ctx.files.test_files:
-            test_cmd += " " + test_file.basename
+    # Get module package for path calculation
+    module_package = ctx.attr.module.label.package
 
-    script, runfiles = create_terraform_script(
-        ctx,
-        name = ctx.label.name + "_test.sh",
-        commands = [init_cmd, test_cmd],
-        srcs = all_srcs + ctx.files.test_files,
-        extra_runfiles = extra_runfiles,
+    # Copy module files with path preservation
+    for file in module_files:
+        file_path = file.short_path
+
+        # Extract relative path from the file
+        if module_package in file_path:
+            idx = file_path.find(module_package)
+            if idx >= 0:
+                rel_path = file_path[idx + len(module_package) + 1:]
+            else:
+                rel_path = file.basename
+        elif "/modules/" in file_path:
+            # Handle nested modules from bazel-out
+            modules_idx = file_path.rfind("/modules/")
+            if modules_idx != -1:
+                rel_path = file_path[modules_idx + 1:]
+            else:
+                rel_path = file.basename
+        else:
+            rel_path = file.basename
+
+        # Track directory creation
+        if "/" in rel_path:
+            dest_dir = "/".join(rel_path.split("/")[:-1])
+            dirs_to_create[dest_dir] = True
+
+        copy_commands.append("cp -L '{}' '{}/{}'".format(
+            file.path,
+            staging_dir.path,
+            rel_path,
+        ))
+
+    # Copy lock file if present
+    if lock_file:
+        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
+            lock_file.path,
+            staging_dir.path,
+        ))
+
+    # Copy test files to staging root (flat copy)
+    for test_file in test_files:
+        copy_commands.append("cp -L '{}' '{}/{}'".format(
+            test_file.path,
+            staging_dir.path,
+            test_file.basename,
+        ))
+
+    # Build mkdir commands for nested directories
+    mkdir_commands = []
+    for dir_path in sorted(dirs_to_create.keys()):
+        mkdir_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dir_path))
+
+    # Create the staging directory action
+    all_inputs = module_files + test_files
+    if lock_file:
+        all_inputs = all_inputs + [lock_file]
+
+    ctx.actions.run_shell(
+        inputs = all_inputs,
+        outputs = [staging_dir],
+        command = """
+set -euo pipefail
+mkdir -p '{staging_dir}'
+{mkdir_commands}
+{copy_commands}
+""".format(
+            staging_dir = staging_dir.path,
+            mkdir_commands = "\n".join(mkdir_commands),
+            copy_commands = "\n".join(copy_commands),
+        ),
+        mnemonic = "PrepareTerraformTestStaging",
+        progress_message = "Preparing Terraform test staging for %s" % ctx.label,
     )
 
-    # Merge runfiles from provider registry if available
-    if ctx.attr.provider_registry and ctx.files.provider_registry:
-        runfiles = runfiles.merge(ctx.runfiles(files = ctx.files.provider_registry))
+    # Get terraform binary path
+    terraform_bin = get_terraform_path(ctx)
+
+    # Create the test script
+    script = ctx.actions.declare_file("{}_test.sh".format(ctx.label.name))
+
+    # Get provider registry path
+    provider_mirror_path = ""
+    if ctx.files._provider_registry:
+        for f in ctx.files._provider_registry:
+            if "mirror_linux" in f.path or "mirror_darwin" in f.path:
+                provider_mirror_path = f.dirname
+                break
+
+    script_content = """#!/usr/bin/env bash
+set -euo pipefail
+
+# Get the script directory
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+STAGING_DIR="$SCRIPT_DIR/{staging_basename}"
+
+# Set up runfiles
+if [ -n "${{RUNFILES_DIR:-}}" ]; then
+    RUNFILES="$RUNFILES_DIR"
+elif [ -f "$0.runfiles_manifest" ]; then
+    RUNFILES="$0.runfiles"
+else
+    RUNFILES="$0.runfiles"
+fi
+
+# Use terraform binary from runfiles
+TERRAFORM_BIN="{terraform_bin}"
+
+# Create a temporary work directory (staging dir is read-only)
+WORK_DIR=$(mktemp -d)
+trap "rm -rf $WORK_DIR" EXIT
+
+# Copy all files from staging directory to work directory (with write permissions)
+cp -r "$STAGING_DIR"/. "$WORK_DIR/"
+chmod -R u+w "$WORK_DIR"
+
+# CD to work directory
+cd "$WORK_DIR"
+
+# Set Terraform environment
+export TF_DISABLE_CHECKPOINT=true
+export CHECKPOINT_DISABLE=true
+export TF_IN_AUTOMATION=true
+export TF_INPUT=false
+
+# Set up provider mirror if available
+{provider_setup}
+
+# Run terraform init and capture output for error detection
+INIT_OUTPUT=$($TERRAFORM_BIN init -backend=false -upgrade=false -lockfile=readonly -no-color 2>&1) || true
+INIT_EXIT_CODE=$?
+echo "$INIT_OUTPUT"
+
+# Check for empty directory initialization - this indicates a configuration problem
+if echo "$INIT_OUTPUT" | grep -q "Terraform initialized in an empty directory"; then
+    echo ""
+    echo "ERROR: Terraform reports empty directory - no configuration files found"
+    echo "This indicates the tf_test rule failed to stage source files correctly."
+    echo ""
+    echo "Debug info:"
+    echo "  Staging directory: $STAGING_DIR"
+    echo "  Work directory contents:"
+    ls -la "$WORK_DIR" || true
+    exit 1
+fi
+
+# Check if init failed for other reasons
+if [ $INIT_EXIT_CODE -ne 0 ]; then
+    echo "ERROR: terraform init failed with exit code $INIT_EXIT_CODE"
+    exit $INIT_EXIT_CODE
+fi
+
+# Run terraform test
+$TERRAFORM_BIN test -no-color
+""".format(
+        staging_basename = staging_dir.basename,
+        terraform_bin = terraform_bin,
+        provider_setup = """
+if [ -d "$RUNFILES/{provider_mirror_path}" ]; then
+    cat > "$WORK_DIR/.terraformrc" <<EOF
+provider_installation {{
+  filesystem_mirror {{
+    path = "$RUNFILES/{provider_mirror_path}"
+  }}
+}}
+disable_checkpoint = true
+EOF
+    export TF_CLI_CONFIG_FILE="$WORK_DIR/.terraformrc"
+fi
+""".format(provider_mirror_path = provider_mirror_path) if provider_mirror_path else "",
+    )
+
+    ctx.actions.write(
+        output = script,
+        content = script_content,
+        is_executable = True,
+    )
+
+    # Build runfiles
+    runfiles_files = [staging_dir, script] + ctx.files._tools + ctx.files._provider_registry
 
     return [
         DefaultInfo(
             files = depset([script]),
             executable = script,
-            runfiles = runfiles,
+            runfiles = ctx.runfiles(files = runfiles_files),
         ),
     ]
 
@@ -80,53 +226,45 @@ tf_test = rule(
     implementation = _tf_test_impl,
     attrs = {
         "module": attr.label(
-            doc = "Reference to a tf_module target (provides module sources, lock file, and provider config)",
+            doc = "The tf_module target to test",
             providers = [TfModuleInfo],
-        ),
-        "srcs": attr.label_list(
-            allow_files = True,
-            doc = "Module source files to test (use this OR 'module', not both)",
-        ),
-        "test_files": attr.label_list(
-            allow_files = [".tftest.hcl", ".tftest.json"],
-            doc = "Terraform test files (*.tftest.hcl or *.tftest.json) - MANDATORY",
             mandatory = True,
         ),
-        "data": attr.label_list(
+        "test_files": attr.label_list(
             allow_files = True,
-            doc = "Additional data files needed by tests (e.g., test fixtures)",
-        ),
-        "lock_file": attr.label(
-            allow_single_file = [".terraform.lock.hcl"],
-            doc = "Terraform lock file (only needed if using 'srcs' instead of 'module')",
-        ),
-        "provider_registry": attr.label(
-            doc = "Provider registry directory containing downloaded providers",
-            allow_single_file = True,
+            doc = "Test files (.tftest.hcl, .json, or any supporting data)",
+            mandatory = True,
         ),
         "_tools": attr.label(
             default = "@tf_tool_registry//:all",
             allow_files = True,
         ),
+        "_provider_registry": attr.label(
+            default = "@tf_provider_registry//:unpacked_providers",
+            allow_files = True,
+        ),
     },
     test = True,
-    doc = """Runs Terraform tests.
+    doc = """Runs Terraform tests against a module.
 
-Usage:
-  1. Reference a tf_module (recommended):
-     tf_test(
-         name = "my_test",
-         module = ":my_module",
-         test_files = ["tests/example.tftest.hcl"],
-     )
+This rule runs `terraform test` against a tf_module target.
+It uses the module's staged files (including nested modules) and adds
+test files to the working directory.
 
-  2. Or specify sources directly (backward compatibility):
-     tf_test(
-         name = "my_test",
-         srcs = glob(["*.tf"]),
-         test_files = ["tests/example.tftest.hcl"],
-         lock_file = ":my_lock",
-         provider_registry = "@tf_provider_registry//:unpacked_providers",
-     )
+Example:
+    tf_module(
+        name = "my_module",
+        srcs = glob(["*.tf"]) + ["README.md"],
+        providers = ["@tf_provider_registry//:aws_5"],
+    )
+
+    tf_test(
+        name = "my_module_test",
+        module = ":my_module",
+        test_files = [
+            "validation.tftest.hcl",
+            "test_fixtures.json",
+        ],
+    )
 """,
 )
