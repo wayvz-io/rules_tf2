@@ -135,6 +135,7 @@ def process_nested_modules(ctx, parent_srcs, modules):
     top_level_modules = {}  # label string -> module_name mapping
 
     # First pass: identify all top-level modules
+    current_package = ctx.label.package
     for module in modules:
         if TfModuleInfo not in module:
             continue
@@ -144,7 +145,15 @@ def process_nested_modules(ctx, parent_srcs, modules):
         path_parts = module.label.package.split("/")
         package_name = path_parts[-1] if path_parts else module.label.name
 
-        if "service_intents" in module.label.package:
+        # Check if this is a LOCAL submodule (inside parent's modules/ directory)
+        # Local submodules should NOT get a platform prefix - they use the directory name as-is
+        # to match the Terraform source path: ./modules/<directory_name>
+        is_local_submodule = module.label.package.startswith(current_package + "/modules/")
+
+        if is_local_submodule:
+            # For local submodules, use the directory name as-is (no platform prefix)
+            module_name = package_name
+        elif "service_intents" in module.label.package:
             if len(path_parts) >= 4:
                 platform = path_parts[3]
                 module_name = platform + "_" + package_name
@@ -177,7 +186,15 @@ def process_nested_modules(ctx, parent_srcs, modules):
         path_parts = module.label.package.split("/")
         package_name = path_parts[-1] if path_parts else module.label.name
 
-        if "service_intents" in module.label.package:
+        # Check if this is a LOCAL submodule (inside parent's modules/ directory)
+        # Local submodules should NOT get a platform prefix - they use the directory name as-is
+        # to match the Terraform source path: ./modules/<directory_name>
+        is_local_submodule = module.label.package.startswith(current_package + "/modules/")
+
+        if is_local_submodule:
+            # For local submodules, use the directory name as-is (no platform prefix)
+            module_name = package_name
+        elif "service_intents" in module.label.package:
             if len(path_parts) >= 4:  # ['iac', 'modules', 'service_intents', 'platform', ...]
                 platform = path_parts[3]  # e.g., 'aws', 'azure', 'palo_alto'
                 module_name = platform + "_" + package_name
