@@ -116,8 +116,8 @@ mkdir -p '{staging_dir}'
 
     # Get provider registry path
     provider_mirror_path = ""
-    if ctx.files._provider_registry:
-        for f in ctx.files._provider_registry:
+    if ctx.files.provider_registry:
+        for f in ctx.files.provider_registry:
             if "mirror_linux" in f.path or "mirror_darwin" in f.path:
                 provider_mirror_path = f.dirname
                 break
@@ -212,7 +212,7 @@ fi
     )
 
     # Build runfiles
-    runfiles_files = [staging_dir, script] + ctx.files._tools + ctx.files._provider_registry
+    runfiles_files = [staging_dir, script] + ctx.files._tools + ctx.files.provider_registry
 
     return [
         DefaultInfo(
@@ -235,12 +235,13 @@ tf_test = rule(
             doc = "Test files (.tftest.hcl, .json, or any supporting data)",
             mandatory = True,
         ),
-        "_tools": attr.label(
-            default = "@tf_tool_registry//:all",
+        "provider_registry": attr.label(
+            doc = "Provider registry directory containing downloaded providers. If not specified, uses the global registry.",
+            default = "@tf_provider_registry//:unpacked_providers",
             allow_files = True,
         ),
-        "_provider_registry": attr.label(
-            default = "@tf_provider_registry//:unpacked_providers",
+        "_tools": attr.label(
+            default = "@tf_tool_registry//:all",
             allow_files = True,
         ),
     },

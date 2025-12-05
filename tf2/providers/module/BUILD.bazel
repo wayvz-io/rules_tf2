@@ -1,0 +1,13 @@
+"""Per-module provider mirror utilities"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+bzl_library(
+    name = "module_provider_mirror",
+    srcs = ["module_provider_mirror.bzl"],
+    deps = [
+        "//tf2/providers/registry:filesystem_mirror",
+    ],
+)
