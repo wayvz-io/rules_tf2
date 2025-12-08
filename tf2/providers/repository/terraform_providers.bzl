@@ -86,6 +86,7 @@ def _terraform_providers_impl(ctx):
     build_content = [
         'package(default_visibility = ["//visibility:public"])',
         "",
+        'load("@bazel_skylib//:bzl_library.bzl", "bzl_library")',
         'load("@rules_tf2//tf2/providers/registry:provider_metadata.bzl", "provider_metadata")',
         'load("@rules_tf2//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")',
         "",
@@ -249,6 +250,12 @@ def _terraform_providers_impl(ctx):
         '    "provider_locks.bzl",',
         '    "provider_locks.json",',
         "])",
+        "",
+        "# bzl_library for stardoc integration",
+        "bzl_library(",
+        '    name = "provider_locks",',
+        '    srcs = ["provider_locks.bzl"],',
+        ")",
     ])
 
     # Write the BUILD file

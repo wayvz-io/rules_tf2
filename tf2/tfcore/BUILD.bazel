@@ -32,7 +32,9 @@ bzl_library(
     srcs = ["tf_runner.bzl"],
     deps = [
         ":variables",
+        "//tf2/internal:file_ops",
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:tool_paths",
     ],
 )
 
@@ -40,7 +42,10 @@ bzl_library(
     name = "validate",
     srcs = ["validate.bzl"],
     deps = [
+        "//tf2/internal:file_ops",
+        "//tf2/providers/core:info",
         "//tf2/tools/runners:terraform",
+        "//tf2/tools/runners:tool_paths",
     ],
 )
 
@@ -48,7 +53,10 @@ bzl_library(
     name = "test",
     srcs = ["test.bzl"],
     deps = [
+        "//tf2/internal:file_ops",
+        "//tf2/providers/core:info",
         "//tf2/tools/runners:terraform",
+        "//tf2/tools/runners:tool_paths",
     ],
 )
 

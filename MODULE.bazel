@@ -90,6 +90,9 @@ use_repo(non_module_deps, "nixpkgs_java_runtime")
 use_repo(non_module_deps, "nixpkgs_java_runtime_toolchain")
 use_repo(non_module_deps, "nixpkgs_java_jdk_toolchain")
 
+# mdbook for documentation generation
+use_repo(non_module_deps, "nixpkgs_mdbook")
+
 # Go SDK configuration for development (only when rules_tf2 is root module)
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
 go_sdk.host()  # Use host Go SDK for development

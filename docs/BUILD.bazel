@@ -1,19 +1,79 @@
-"""Documentation generation for rules_tf2"""
+"""Documentation generation for rules_tf2 using mdbook"""
 
-# # Generate documentation for extensions
-# stardoc(
-#     name = "extensions_docs",
-#     out = "extensions.md",
-#     input = "//tf2:extensions.bzl",
-#     deps = ["//tf2:extensions"],
-# )
+# Serve documentation locally with live reload
+sh_binary(
+    name = "serve",
+    srcs = ["serve.sh"],
+    data = [
+        "book.toml",
+        "//tf2:tf_module_docs",
+        "//tf2:tf_runner_docs",
+        "//tf2:tf_test_docs",
+        "//tf2:tf_variables_docs",
+        "//tf2:tf_file_export_docs",
+        "//tf2:tf_cloud_docs",
+        "//tf2:provider_mirror_docs",
+        "//tf2:tf_publish_docs",
+        "//tf2:tf_oci_docs",
+        "//tf2:extensions_docs",
+        "@nixpkgs_mdbook//:bin/mdbook",
+    ] + glob(["src/**/*.md"]),
+    visibility = ["//visibility:public"],
+)
 
-# Placeholder for documentation
-filegroup(
-    name = "all_docs",
+genrule(
+    name = "book",
     srcs = [
-        # ":api_docs",
-        # ":extensions_docs",
-    ],
+        "book.toml",
+        # Stardoc-generated API reference
+        "//tf2:tf_module_docs",
+        "//tf2:tf_runner_docs",
+        "//tf2:tf_test_docs",
+        "//tf2:tf_variables_docs",
+        "//tf2:tf_file_export_docs",
+        "//tf2:tf_cloud_docs",
+        "//tf2:provider_mirror_docs",
+        "//tf2:tf_publish_docs",
+        "//tf2:tf_oci_docs",
+        "//tf2:extensions_docs",
+    ] + glob(["src/**/*.md"]),
+    outs = ["book.tar.gz"],
+    cmd = """
+        # Create temp directory for mdbook output
+        BOOK_OUT=$$(mktemp -d)
+
+        # Create working copy of docs directory with write permissions
+        WORK_DIR=$$(mktemp -d)
+        DOCS_DIR=$$(dirname $(location book.toml))
+        cp -rL $$DOCS_DIR/* $$WORK_DIR/
+        chmod -R u+w $$WORK_DIR/
+
+        # Copy stardoc outputs over placeholder files with auto-generated banner
+        add_banner() {
+            echo '> **Note**: This page is auto-generated from source code docstrings using [Stardoc](https://github.com/bazelbuild/stardoc). Do not edit directly.'
+            echo ''
+            cat "$$1"
+        }
+        add_banner $(location //tf2:tf_module_docs) > $$WORK_DIR/src/reference/rules/tf-module.md
+        add_banner $(location //tf2:tf_runner_docs) > $$WORK_DIR/src/reference/rules/tf-runner.md
+        add_banner $(location //tf2:tf_test_docs) > $$WORK_DIR/src/reference/rules/tf-test.md
+        add_banner $(location //tf2:tf_variables_docs) > $$WORK_DIR/src/reference/rules/tf-variables.md
+        add_banner $(location //tf2:tf_file_export_docs) > $$WORK_DIR/src/reference/rules/tf-file-export.md
+        add_banner $(location //tf2:tf_cloud_docs) > $$WORK_DIR/src/reference/cloud/tf-cloud-configuration.md
+        add_banner $(location //tf2:provider_mirror_docs) > $$WORK_DIR/src/reference/providers/provider-mirror.md
+        add_banner $(location //tf2:tf_publish_docs) > $$WORK_DIR/src/reference/publishing/tf-module-publish.md
+        add_banner $(location //tf2:tf_oci_docs) > $$WORK_DIR/src/reference/publishing/tf-module-push-oci.md
+        add_banner $(location //tf2:extensions_docs) > $$WORK_DIR/src/reference/extensions/README.md
+
+        # Run mdbook build from working directory
+        $(execpath @nixpkgs_mdbook//:bin/mdbook) build $$WORK_DIR -d $$BOOK_OUT
+
+        # Create tarball of the output
+        tar -czf $@ -C $$BOOK_OUT .
+
+        # Cleanup
+        rm -rf $$BOOK_OUT $$WORK_DIR
+    """,
+    tools = ["@nixpkgs_mdbook//:bin/mdbook"],
     visibility = ["//visibility:public"],
 )

@@ -1,3 +1,20 @@
 """Provider download mechanisms"""
 
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
 package(default_visibility = ["//visibility:public"])
+
+bzl_library(
+    name = "provider_download_repository",
+    srcs = ["provider_download_repository.bzl"],
+)
+
+bzl_library(
+    name = "provider_http_files",
+    srcs = ["provider_http_files.bzl"],
+)
+
+bzl_library(
+    name = "provider_download_action",
+    srcs = ["provider_download_action.bzl"],
+)
