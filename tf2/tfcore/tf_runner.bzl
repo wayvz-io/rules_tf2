@@ -1,77 +1,66 @@
 """General-purpose Terraform runner rule for executing terraform commands."""
 
+load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tfcore:variables.bzl", "TfVariablesInfo")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
-def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None):
-    """Prepare a staging directory with all Terraform files.
+def _tf_runner_impl(ctx):
+    """Implementation of tf_runner rule."""
 
-    This creates a proper staging directory that preserves the directory structure
-    to avoid file name conflicts.
-
-    Returns:
-        staging_dir: The staging directory
-        all_inputs: All input files
-    """
-    staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
+    # Get the stack's files
+    stack_info = ctx.attr.stack[TfModuleInfo]
     srcs = stack_info.srcs.to_list()
 
-    # Build commands to create the staging directory and copy files
-    copy_commands = []
-    mkdir_commands = {}
+    # Get variable files if provided
+    var_files = []
+    if ctx.attr.variables:
+        variables_info = ctx.attr.variables[TfVariablesInfo]
+        var_files = variables_info.all_files
 
-    # Process stack files - copy them to root of staging directory
-    for src_file in srcs:
-        src_path = src_file.short_path
+    # Generate backend configuration if needed
+    backend_config = None
+    if ctx.attr.backend_type == "cloud":
+        backend_config = """terraform {{
+  cloud {{
+    organization = "{organization}"
 
-        # Check if this file is in a subdirectory (modules, templates, etc)
-        if "/" in src_file.basename:
-            # This shouldn't happen - basename should just be the file name
-            dest_path = src_file.basename
-        else:
-            # Check if the file is in a subdirectory structure we need to preserve
-            if "/modules/" in src_path or "/templates/" in src_path:
-                # For modules and templates, preserve the directory structure
-                parts = src_path.split("/")
-                dest_path = src_file.basename  # Default
+    workspaces {{
+      name = "{workspace}"
+    }}
+  }}
+}}""".format(
+            organization = ctx.attr.backend_organization,
+            workspace = ctx.attr.backend_workspace,
+        )
+    elif ctx.attr.backend_type == "remote":
+        backend_config = """terraform {{
+  backend "remote" {{
+    organization = "{organization}"
 
-                # Find the modules or templates directory
-                for i, part in enumerate(parts):
-                    if part in ["modules", "templates"] and i < len(parts) - 1:
-                        # Preserve structure from modules/templates onward
-                        dest_path = "/".join(parts[i:])
-                        dest_dir = "/".join(parts[i:-1])
-                        if dest_dir:
-                            mkdir_commands["mkdir -p '{}/{}'".format(staging_dir.path, dest_dir)] = True
-                        break
-            else:
-                # For regular files, just copy to root
-                dest_path = src_file.basename
+    workspaces {{
+      name = "{workspace}"
+    }}
+  }}
+}}""".format(
+            organization = ctx.attr.backend_organization,
+            workspace = ctx.attr.backend_workspace,
+        )
 
-        copy_commands.append("cp -L '{}' '{}/{}'".format(
-            src_file.path,
-            staging_dir.path,
-            dest_path,
-        ))
+    # Create staging directory
+    staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
 
-    # Process variable files - these go to root
-    for var_file in var_files:
-        dest_name = var_file.basename
+    # Build copy commands using shared utility
+    copy_commands = build_staging_copy_commands(
+        source_files = srcs,
+        staging_dir_path = staging_dir.path,
+        package_path = ctx.attr.stack.label.package,
+        var_files = var_files,
+        lock_file = stack_info.lock_file,
+        rename_tfvars = True,  # TFC compatibility
+    )
 
-        # Auto-rename tfvars files for TFC compatibility
-        if dest_name.endswith(".tfvars") and not dest_name.endswith(".auto.tfvars"):
-            dest_name = dest_name[:-7] + ".auto.tfvars"
-        elif dest_name.endswith(".tfvars.json") and not dest_name.endswith(".auto.tfvars.json"):
-            dest_name = dest_name[:-12] + ".auto.tfvars.json"
-
-        copy_commands.append("cp -L '{}' '{}/{}'".format(
-            var_file.path,
-            staging_dir.path,
-            dest_name,
-        ))
-
-    # Create backend file if config provided
+    # Create backend file if config provided (handled separately since it needs to be written)
     backend_file = None
     if backend_config:
         backend_file = ctx.actions.declare_file("{}_backend_override.tf".format(ctx.attr.name))
@@ -81,13 +70,6 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
         )
         copy_commands.append("cp -L '{}' '{}/backend_override.tf'".format(
             backend_file.path,
-            staging_dir.path,
-        ))
-
-    # Add lockfile if present in stack_info
-    if stack_info.lock_file:
-        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
-            stack_info.lock_file.path,
             staging_dir.path,
         ))
 
@@ -105,62 +87,14 @@ def _prepare_staging_directory(ctx, stack_info, var_files, backend_config = None
         command = """
 set -euo pipefail
 mkdir -p '{staging_dir}'
-{mkdir_commands}
 {copy_commands}
 """.format(
             staging_dir = staging_dir.path,
-            mkdir_commands = "\n".join(sorted(mkdir_commands.keys())),
             copy_commands = "\n".join(copy_commands),
         ),
         mnemonic = "PrepareTerraformStaging",
         progress_message = "Preparing Terraform staging for %s" % ctx.label,
     )
-
-    return staging_dir, all_inputs
-
-def _tf_runner_impl(ctx):
-    """Implementation of tf_runner rule."""
-
-    # Get the stack's files
-    stack_info = ctx.attr.stack[TfModuleInfo]
-
-    # Get variable files if provided
-    var_files = []
-    if ctx.attr.variables:
-        variables_info = ctx.attr.variables[TfVariablesInfo]
-        var_files = variables_info.all_files
-
-    # Generate backend configuration if needed
-    backend_config = None
-    if ctx.attr.backend_type == "cloud":
-        backend_config = """terraform {{
-  cloud {{
-    organization = "{organization}"
-    
-    workspaces {{
-      name = "{workspace}"
-    }}
-  }}
-}}""".format(
-            organization = ctx.attr.backend_organization,
-            workspace = ctx.attr.backend_workspace,
-        )
-    elif ctx.attr.backend_type == "remote":
-        backend_config = """terraform {{
-  backend "remote" {{
-    organization = "{organization}"
-    
-    workspaces {{
-      name = "{workspace}"
-    }}
-  }}
-}}""".format(
-            organization = ctx.attr.backend_organization,
-            workspace = ctx.attr.backend_workspace,
-        )
-
-    # Prepare staging directory with proper structure
-    staging_dir, _ = _prepare_staging_directory(ctx, stack_info, var_files, backend_config)
 
     # Get terraform binary path
     terraform_bin = get_terraform_path(ctx)
