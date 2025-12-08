@@ -1,5 +1,6 @@
 """Terraform test execution rule"""
 
+load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
@@ -27,64 +28,24 @@ def _tf_test_impl(ctx):
     # Create staging directory
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.label.name))
 
-    # Build copy commands - follow tf_file_export pattern
-    copy_commands = []
-    dirs_to_create = {}
-
     # Get module package for path calculation
     module_package = ctx.attr.module.label.package
 
-    # Copy module files with path preservation
-    for file in module_files:
-        file_path = file.short_path
+    # Build copy commands using shared utility
+    copy_commands = build_staging_copy_commands(
+        source_files = module_files,
+        staging_dir_path = staging_dir.path,
+        package_path = module_package,
+        lock_file = lock_file,
+    )
 
-        # Extract relative path from the file
-        if module_package in file_path:
-            idx = file_path.find(module_package)
-            if idx >= 0:
-                rel_path = file_path[idx + len(module_package) + 1:]
-            else:
-                rel_path = file.basename
-        elif "/modules/" in file_path:
-            # Handle nested modules from bazel-out
-            modules_idx = file_path.rfind("/modules/")
-            if modules_idx != -1:
-                rel_path = file_path[modules_idx + 1:]
-            else:
-                rel_path = file.basename
-        else:
-            rel_path = file.basename
-
-        # Track directory creation
-        if "/" in rel_path:
-            dest_dir = "/".join(rel_path.split("/")[:-1])
-            dirs_to_create[dest_dir] = True
-
-        copy_commands.append("cp -L '{}' '{}/{}'".format(
-            file.path,
-            staging_dir.path,
-            rel_path,
-        ))
-
-    # Copy lock file if present
-    if lock_file:
-        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
-            lock_file.path,
-            staging_dir.path,
-        ))
-
-    # Copy test files to staging root (flat copy)
+    # Copy test files to staging root (flat copy - test-specific behavior)
     for test_file in test_files:
         copy_commands.append("cp -L '{}' '{}/{}'".format(
             test_file.path,
             staging_dir.path,
             test_file.basename,
         ))
-
-    # Build mkdir commands for nested directories
-    mkdir_commands = []
-    for dir_path in sorted(dirs_to_create.keys()):
-        mkdir_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dir_path))
 
     # Create the staging directory action
     all_inputs = module_files + test_files
@@ -97,11 +58,9 @@ def _tf_test_impl(ctx):
         command = """
 set -euo pipefail
 mkdir -p '{staging_dir}'
-{mkdir_commands}
 {copy_commands}
 """.format(
             staging_dir = staging_dir.path,
-            mkdir_commands = "\n".join(mkdir_commands),
             copy_commands = "\n".join(copy_commands),
         ),
         mnemonic = "PrepareTerraformTestStaging",

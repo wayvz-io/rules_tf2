@@ -18,18 +18,29 @@ def copy_source_files(source_files, output_prefix = ""):
             output_files.append(src_file.basename)
     return output_files
 
-def build_staging_copy_commands(source_files, staging_dir_path, package_path):
+def build_staging_copy_commands(
+        source_files,
+        staging_dir_path,
+        package_path,
+        var_files = [],
+        lock_file = None,
+        rename_tfvars = False):
     """Build shell commands to copy source files to a staging directory.
 
     This function handles:
     - Files directly in the package (copied to staging root)
     - Files in subdirectories within the package (preserve relative paths)
-    - Files from bazel-out with nested modules (preserve modules/ structure)
+    - Files from bazel-out with nested modules/templates (preserve structure)
+    - Variable files with optional .tfvars → .auto.tfvars renaming
+    - Lock file copying as .terraform.lock.hcl
 
     Args:
         source_files: List of source files to stage
         staging_dir_path: Path to the staging directory
         package_path: The Bazel package path (ctx.label.package)
+        var_files: List of variable files to copy to staging root
+        lock_file: Optional lock file to copy as .terraform.lock.hcl
+        rename_tfvars: If True, rename .tfvars to .auto.tfvars (TFC compatibility)
 
     Returns:
         List of shell commands to copy files
@@ -63,13 +74,13 @@ def build_staging_copy_commands(source_files, staging_dir_path, package_path):
                 # File is directly in the package root
                 dest_path = relative_path
 
-            # Check if this is a bazel-out processed file with nested modules
-        elif "bazel-out" in src_path and "/modules/" in src_path:
-            # This is a processed file - extract the module structure
+        # Check if this is a bazel-out processed file with nested modules or templates
+        elif "bazel-out" in src_path and ("/modules/" in src_path or "/templates/" in src_path):
+            # This is a processed file - extract the module/templates structure
             parts = src_path.split("/")
             for i, part in enumerate(parts):
-                if part == "modules" and i < len(parts) - 1:
-                    # Found the modules directory, preserve structure from here
+                if part in ["modules", "templates"] and i < len(parts) - 1:
+                    # Found the modules/templates directory, preserve structure from here
                     module_path = "/".join(parts[i:])
                     dest_path = module_path
 
@@ -86,6 +97,30 @@ def build_staging_copy_commands(source_files, staging_dir_path, package_path):
             src_file.path,
             staging_dir_path,
             dest_path,
+        ))
+
+    # Process variable files - copy to staging root with optional rename
+    for var_file in var_files:
+        dest_name = var_file.basename
+
+        # Auto-rename tfvars files for TFC compatibility if requested
+        if rename_tfvars:
+            if dest_name.endswith(".tfvars") and not dest_name.endswith(".auto.tfvars"):
+                dest_name = dest_name[:-7] + ".auto.tfvars"
+            elif dest_name.endswith(".tfvars.json") and not dest_name.endswith(".auto.tfvars.json"):
+                dest_name = dest_name[:-12] + ".auto.tfvars.json"
+
+        copy_commands.append("cp -L '{}' '{}/{}'".format(
+            var_file.path,
+            staging_dir_path,
+            dest_name,
+        ))
+
+    # Add lockfile if present
+    if lock_file:
+        copy_commands.append("cp -L '{}' '{}/.terraform.lock.hcl'".format(
+            lock_file.path,
+            staging_dir_path,
         ))
 
     return copy_commands
