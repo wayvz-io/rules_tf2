@@ -1,0 +1,36 @@
+# Mock Terraform plan with non-compliant resources
+#
+# This mock represents a Terraform plan where AWS resources
+# are missing the required tags (Environment, Owner, Project).
+
+resource_changes = {
+	"aws_instance.web": {
+		"address": "aws_instance.web",
+		"mode":    "managed",
+		"type":    "aws_instance",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"ami":           "ami-0c55b159cbfafe1f0",
+				"instance_type": "t3.micro",
+				"tags": {
+					"Name": "web-server",
+				},
+			},
+		},
+	},
+	"aws_s3_bucket.data": {
+		"address": "aws_s3_bucket.data",
+		"mode":    "managed",
+		"type":    "aws_s3_bucket",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"bucket": "my-data-bucket",
+				"tags": {
+					"Environment": "production",
+				},
+			},
+		},
+	},
+}

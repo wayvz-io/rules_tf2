@@ -1,0 +1,19 @@
+# Mock tfplan with non-compliant resources (missing required tags)
+
+resource_changes = {
+	"aws_instance.example": {
+		"address": "aws_instance.example",
+		"mode":    "managed",
+		"type":    "aws_instance",
+		"change": {
+			"actions": ["create"],
+			"after": {
+				"ami":           "ami-12345678",
+				"instance_type": "t2.micro",
+				"tags": {
+					"Name": "my-instance",
+				},
+			},
+		},
+	},
+}
