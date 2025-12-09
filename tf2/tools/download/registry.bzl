@@ -64,6 +64,16 @@ alias(
     actual = "@stacksplugin_tool//:bin",
 )
 
+alias(
+    name = "opa",
+    actual = "@opa_tool//:bin",
+)
+
+alias(
+    name = "opa_bin",
+    actual = "@opa_tool//:bin",
+)
+
 # Filegroup to include all tools
 filegroup(
     name = "all",
@@ -73,6 +83,7 @@ filegroup(
         "@terraform_docs_tool//:bin",
         "@sentinel_tool//:bin",
         "@stacksplugin_tool//:bin",
+        "@opa_tool//:bin",
     ],
 )
 '''

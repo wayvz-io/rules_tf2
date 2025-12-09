@@ -4,6 +4,7 @@ load("//tf2/providers/download:provider_download_repository.bzl", "provider_down
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
+load("//tf2/tools/download:opa.bzl", "download_opa")
 load("//tf2/tools/download:sentinel.bzl", "download_sentinel")
 load("//tf2/tools/download:stacksplugin.bzl", "download_stacksplugin")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
@@ -481,6 +482,7 @@ def _tf_tools_impl(module_ctx):
     terraform_docs_version = None
     sentinel_version = None
     stacksplugin_version = None
+    opa_version = None
 
     # Collect plugin configurations
     tflint_plugins = {}
@@ -502,6 +504,8 @@ def _tf_tools_impl(module_ctx):
                 sentinel_version = get_tool_version(versions_data, "sentinel")
             if not stacksplugin_version:
                 stacksplugin_version = get_tool_version(versions_data, "stacksplugin")
+            if not opa_version:
+                opa_version = get_tool_version(versions_data, "opa")
 
             # Get plugin versions from versions.json
             for plugin_name in ["aws", "azurerm", "google", "opa", "terraform"]:
@@ -548,6 +552,11 @@ def _tf_tools_impl(module_ctx):
     download_stacksplugin(
         name = "stacksplugin_tool",
         version = stacksplugin_version,
+    )
+
+    download_opa(
+        name = "opa_tool",
+        version = opa_version,
     )
 
     # Create individual tflint plugin repositories

@@ -46,6 +46,12 @@ load(
     _tf_sentinel_fmt_test = "tf_sentinel_fmt_test",
     _tf_sentinel_test = "tf_sentinel_test",
 )
+load(
+    "//tf2/opa:test.bzl",
+    _tf_opa_fmt = "tf_opa_fmt",
+    _tf_opa_fmt_test = "tf_opa_fmt_test",
+    _tf_opa_test = "tf_opa_test",
+)
 
 # CDKTF generation moved to repository rules - use @rules_tf2//tf2:cdktf_extensions.bzl
 # load(
@@ -72,6 +78,11 @@ tf_variables = _tf_variables
 tf_sentinel_test = _tf_sentinel_test
 tf_sentinel_fmt_test = _tf_sentinel_fmt_test
 tf_sentinel_fmt = _tf_sentinel_fmt
+
+# OPA rules
+tf_opa_test = _tf_opa_test
+tf_opa_fmt_test = _tf_opa_fmt_test
+tf_opa_fmt = _tf_opa_fmt
 
 # CDKTF generation - moved to repository rules
 # Use module extension @rules_tf2//tf2:cdktf_extensions.bzl instead
