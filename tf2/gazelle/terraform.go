@@ -21,8 +21,10 @@ import (
 const (
 	terraformName     = "terraform"
 	tfModuleKind      = "tf_module"
+	tfStackKind       = "tf_stack"
 	tfTestKind        = "tf_test"
 	defaultModuleName = "tf_module" // Default name for tf_module rules
+	defaultStackName  = "tf_stack"  // Default name for tf_stack rules
 	defaultTestName   = "tf_test"   // Default name for tf_test rules
 )
 
@@ -99,6 +101,13 @@ func (l *terraformLang) Kinds() map[string]rule.KindInfo {
 			MergeableAttrs:  map[string]bool{"srcs": true, "providers": true},
 			ResolveAttrs:    map[string]bool{},
 		},
+		tfStackKind: {
+			MatchAny:        false,
+			NonEmptyAttrs:   map[string]bool{"srcs": true},
+			SubstituteAttrs: map[string]bool{},
+			MergeableAttrs:  map[string]bool{"srcs": true, "modules": true},
+			ResolveAttrs:    map[string]bool{},
+		},
 		tfTestKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"test_files": true},
@@ -117,7 +126,7 @@ func (l *terraformLang) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
 			Name:    "@" + moduleName + "//tf2:def.bzl",
-			Symbols: []string{tfModuleKind, tfTestKind},
+			Symbols: []string{tfModuleKind, tfStackKind, tfTestKind},
 		},
 	}
 }
@@ -168,7 +177,7 @@ func (l *terraformLang) Configure(c *config.Config, rel string, f *rule.File) {
 	c.Exts[terraformName] = cfg
 }
 
-// GenerateRules generates tf_module and tf_test rules for directories containing .tf files.
+// GenerateRules generates tf_module, tf_stack, and tf_test rules for directories containing .tf or .tfcomponent.hcl files.
 func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.GenerateResult {
 	cfg := getConfig(args.Config)
 	if !cfg.enabled {
@@ -179,6 +188,9 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	var tfFiles []string
 	var testFiles []string
 	var templateFiles []string
+	var componentFiles []string
+	var deployFiles []string
+	var dataFiles []string
 	var hasReadme bool
 	var hasTerraformTf bool
 
@@ -186,6 +198,10 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 		switch {
 		case strings.HasSuffix(f, ".tftest.hcl") || strings.HasSuffix(f, ".tftest.json"):
 			testFiles = append(testFiles, f)
+		case strings.HasSuffix(f, ".tfcomponent.hcl"):
+			componentFiles = append(componentFiles, f)
+		case strings.HasSuffix(f, ".tfdeploy.hcl"):
+			deployFiles = append(deployFiles, f)
 		case strings.HasSuffix(f, ".tf"):
 			tfFiles = append(tfFiles, f)
 			if f == "terraform.tf" {
@@ -193,13 +209,15 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 			}
 		case strings.HasSuffix(f, ".tmpl") || strings.HasSuffix(f, ".tpl") || strings.HasSuffix(f, ".tftpl"):
 			templateFiles = append(templateFiles, f)
+		case strings.HasSuffix(f, ".json"):
+			dataFiles = append(dataFiles, f)
 		case f == "README.md":
 			hasReadme = true
 		}
 	}
 
-	// No .tf files, no rules to generate
-	if len(tfFiles) == 0 {
+	// No .tf files and no component files, no rules to generate
+	if len(tfFiles) == 0 && len(componentFiles) == 0 {
 		return language.GenerateResult{}
 	}
 
@@ -210,22 +228,34 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	var imports []interface{}
 
 	// Find existing rules by kind (not by name)
-	var existingModule, existingTest *rule.Rule
+	var existingModule, existingStack, existingTest *rule.Rule
 	if args.File != nil {
 		for _, r := range args.File.Rules {
 			switch r.Kind() {
 			case tfModuleKind:
 				existingModule = r
+			case tfStackKind:
+				existingStack = r
 			case tfTestKind:
 				existingTest = r
 			}
 		}
 	}
 
-	// Generate tf_module rule with default name "tf_module"
-	moduleRule := generateModuleRule(defaultModuleName, tfFiles, templateFiles, hasReadme, hasTerraformTf, args.Dir, cfg, existingModule, detectedModules)
-	rules = append(rules, moduleRule)
-	imports = append(imports, nil)
+	// Generate tf_module rule if .tf files exist
+	if len(tfFiles) > 0 {
+		moduleRule := generateModuleRule(defaultModuleName, tfFiles, templateFiles, hasReadme, hasTerraformTf, args.Dir, cfg, existingModule, detectedModules)
+		rules = append(rules, moduleRule)
+		imports = append(imports, nil)
+	}
+
+	// Generate tf_stack rule if component files exist
+	if len(componentFiles) > 0 {
+		detectedStackModules := extractComponentSources(args.Dir, componentFiles, args.Rel)
+		stackRule := generateStackRule(defaultStackName, componentFiles, deployFiles, dataFiles, args.Dir, existingStack, detectedStackModules)
+		rules = append(rules, stackRule)
+		imports = append(imports, nil)
+	}
 
 	// Generate tf_test rule if test files exist
 	// Always generate explicit tf_test when .tftest.hcl files are present
@@ -556,4 +586,126 @@ func resolveModuleSourceToLabel(source, currentPackage string) string {
 	}
 
 	return "//" + finalPath + ":tf_module"
+}
+
+// generateStackRule creates a tf_stack rule.
+func generateStackRule(name string, componentFiles, deployFiles, dataFiles []string, dir string, existing *rule.Rule, detectedModules []string) *rule.Rule {
+	r := rule.NewRule(tfStackKind, name)
+
+	// Build srcs list - combine all stack files
+	sort.Strings(componentFiles)
+	sort.Strings(deployFiles)
+	sort.Strings(dataFiles)
+
+	srcs := make([]string, 0, len(componentFiles)+len(deployFiles)+len(dataFiles))
+	srcs = append(srcs, componentFiles...)
+	srcs = append(srcs, deployFiles...)
+	srcs = append(srcs, dataFiles...)
+	r.SetAttr("srcs", srcs)
+
+	// Set detected modules
+	finalModules := mergeStackModules(detectedModules, existing)
+	if len(finalModules) > 0 {
+		r.SetAttr("modules", finalModules)
+	}
+
+	// Preserve existing attributes
+	if existing != nil {
+		// Keep visibility if set
+		if existing.Attr("visibility") != nil {
+			r.SetAttr("visibility", existing.Attr("visibility"))
+		}
+		// Keep skip_validation if set
+		if existing.Attr("skip_validation") != nil {
+			r.SetAttr("skip_validation", existing.Attr("skip_validation"))
+		}
+		// Keep tags if set
+		if existing.Attr("tags") != nil {
+			r.SetAttr("tags", existing.Attr("tags"))
+		}
+		// Keep testonly if set
+		if existing.Attr("testonly") != nil {
+			r.SetAttr("testonly", existing.Attr("testonly"))
+		}
+		// Keep terraform_version if set
+		if existing.Attr("terraform_version") != nil {
+			r.SetAttr("terraform_version", existing.Attr("terraform_version"))
+		}
+	}
+
+	return r
+}
+
+// mergeStackModules combines detected modules with existing manual modules.
+func mergeStackModules(detected []string, existing *rule.Rule) []string {
+	seen := make(map[string]bool)
+	var result []string
+
+	// Add all detected modules
+	for _, m := range detected {
+		if !seen[m] {
+			seen[m] = true
+			result = append(result, m)
+		}
+	}
+
+	// Add existing modules that weren't detected (manual entries)
+	if existing != nil && existing.Attr("modules") != nil {
+		existingModules := existing.AttrStrings("modules")
+		for _, m := range existingModules {
+			if !seen[m] {
+				seen[m] = true
+				result = append(result, m)
+			}
+		}
+	}
+
+	sort.Strings(result)
+	return result
+}
+
+// extractComponentSources extracts module references from .tfcomponent.hcl files.
+// It looks for component blocks with source attributes pointing to relative paths.
+func extractComponentSources(dir string, componentFiles []string, currentPackage string) []string {
+	var modules []string
+	seen := make(map[string]bool)
+
+	// Regex to match source = "..." inside component blocks
+	// This matches: component "name" { ... source = "path" ... }
+	sourceRegex := regexp.MustCompile(`source\s*=\s*"([^"]+)"`)
+
+	for _, compFile := range componentFiles {
+		path := filepath.Join(dir, compFile)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		matches := sourceRegex.FindAllStringSubmatch(string(content), -1)
+		for _, match := range matches {
+			if len(match) < 2 {
+				continue
+			}
+			source := match[1]
+
+			// Only process relative paths (starting with ./ or ../)
+			if !strings.HasPrefix(source, "./") && !strings.HasPrefix(source, "../") {
+				continue
+			}
+
+			// Skip if it looks like a remote module
+			if isRemoteModuleSource(source) {
+				continue
+			}
+
+			label := resolveModuleSourceToLabel(source, currentPackage)
+			if label != "" && !seen[label] {
+				seen[label] = true
+				modules = append(modules, label)
+			}
+		}
+	}
+
+	sort.Strings(modules)
+	return modules
 }

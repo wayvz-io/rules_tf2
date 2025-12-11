@@ -44,6 +44,16 @@ alias(
     actual = "@terraform_docs_tool//:bin",
 )
 
+alias(
+    name = "stacksplugin",
+    actual = "@stacksplugin_tool//:bin",
+)
+
+alias(
+    name = "stacksplugin_bin",
+    actual = "@stacksplugin_tool//:bin",
+)
+
 # Filegroup to include all tools
 filegroup(
     name = "all",
@@ -51,6 +61,7 @@ filegroup(
         "@terraform_tool//:bin",
         "@tflint_tool//:bin",
         "@terraform_docs_tool//:bin",
+        "@stacksplugin_tool//:bin",
     ],
 )
 '''

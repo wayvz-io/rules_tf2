@@ -9,6 +9,7 @@ exports_files([
     "terraform.bzl",
     "tflint.bzl",
     "terraform_docs.bzl",
+    "stacksplugin.bzl",
     "registry.bzl",
 ])
 
@@ -32,6 +33,12 @@ bzl_library(
 bzl_library(
     name = "terraform_docs",
     srcs = ["terraform_docs.bzl"],
+    deps = [":platform"],
+)
+
+bzl_library(
+    name = "stacksplugin",
+    srcs = ["stacksplugin.bzl"],
     deps = [":platform"],
 )
 

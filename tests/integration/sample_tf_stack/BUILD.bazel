@@ -1,0 +1,14 @@
+load("//tf2:def.bzl", "tf_stack")
+
+# Sample Terraform Stack demonstrating tf_stack rule
+tf_stack(
+    name = "sample_tf_stack",
+    srcs = glob([
+        "*.tfcomponent.hcl",
+        "*.tfdeploy.hcl",
+    ]),
+    modules = [
+        "//tests/integration/simple_module:simple_module",
+    ],
+    visibility = ["//visibility:public"],
+)

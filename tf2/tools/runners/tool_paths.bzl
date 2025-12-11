@@ -25,6 +25,10 @@ _TOOL_CONFIGS = {
         "binary_name": "terraform-docs",
         "repo_name": "terraform_docs_tool",
     },
+    "stacksplugin": {
+        "binary_name": "tfstacks",
+        "repo_name": "stacksplugin_tool",
+    },
 }
 
 # Plugin configuration for path resolution
@@ -105,6 +109,10 @@ def get_terraform_docs_path(ctx):
     """Get the path to the terraform-docs binary."""
     return get_tool_path(ctx, "terraform-docs")
 
+def get_stacksplugin_path(ctx):
+    """Get the path to the stacksplugin (tfstacks) binary."""
+    return get_tool_path(ctx, "stacksplugin")
+
 def get_tflint_plugin_path(ctx, plugin_name):
     """Get the runfiles path to a TFLint plugin binary.
 
@@ -139,6 +147,7 @@ TOOLS_ATTR = {
             "@tf_tool_registry//:terraform_bin",
             "@tf_tool_registry//:tflint_bin",
             "@tf_tool_registry//:terraform_docs_bin",
+            "@tf_tool_registry//:stacksplugin_bin",
             "@tflint_plugin_registry//:aws",
             "@tflint_plugin_registry//:azurerm",
             "@tflint_plugin_registry//:google",
