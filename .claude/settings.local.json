@@ -71,7 +71,9 @@
       "Bash(tar:*)",
       "WebFetch(domain:diataxis.fr)",
       "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2_docs show 150a1e4 --stat)",
-      "Bash(killall:*)"
+      "Bash(killall:*)",
+      "WebFetch(domain:developer.hashicorp.com)",
+      "WebFetch(domain:app.terraform.io)"
     ],
     "deny": [],
     "ask": [

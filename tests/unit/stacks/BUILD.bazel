@@ -1,0 +1,25 @@
+# Unit tests for Terraform Stack rules
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+package(default_visibility = ["//visibility:private"])
+
+# Test that tf_stack_generate_versions target is discovered by tf_regenerate_all query
+sh_test(
+    name = "stack_generate_versions_query_test",
+    srcs = ["stack_generate_versions_query_test.sh"],
+    data = [
+        "//tests/integration/sample_tf_stack:sample_tf_stack_generate_versions",
+    ],
+    size = "small",
+)
+
+# Test that stack generate_versions outputs expected provider info
+sh_test(
+    name = "stack_generate_versions_output_test",
+    srcs = ["stack_generate_versions_output_test.sh"],
+    data = [
+        "//tests/integration/sample_tf_stack:sample_tf_stack_generate_versions",
+    ],
+    size = "small",
+)

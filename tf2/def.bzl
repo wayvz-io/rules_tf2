@@ -5,6 +5,10 @@ load(
     _tf_module = "tf_module",
 )
 load(
+    "//tf2/macros:tf_stack.bzl",
+    _tf_stack = "tf_stack",
+)
+load(
     "//tf2/providers/registry:provider_mirror.bzl",
     _provider_mirror = "provider_mirror",
 )
@@ -49,6 +53,7 @@ provider_mirror = _provider_mirror
 
 # Core rules
 tf_module = _tf_module
+tf_stack = _tf_stack
 tf_module_push_oci = _tf_module_push_oci
 tf_module_publish = _tf_module_publish
 tf_file_export = _tf_file_export

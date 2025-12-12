@@ -36,6 +36,7 @@
 - [Starlark API]()
   - [Rules](reference/rules/README.md)
     - [tf_module](reference/rules/tf-module.md)
+    - [tf_stack](reference/rules/tf-stack.md)
     - [tf_runner](reference/rules/tf-runner.md)
     - [tf_test](reference/rules/tf-test.md)
     - [tf_variables](reference/rules/tf-variables.md)
