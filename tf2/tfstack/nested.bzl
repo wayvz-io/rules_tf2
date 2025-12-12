@@ -52,6 +52,7 @@ def _derive_component_name(module_label):
     Returns:
         String name for the component directory
     """
+
     # Use the package name (last directory component)
     path_parts = module_label.package.split("/")
     package_name = path_parts[-1] if path_parts else module_label.name

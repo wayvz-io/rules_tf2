@@ -1,0 +1,7 @@
+"""Unit tests for HCL parser."""
+
+load(":hcl_parser_test.bzl", "hcl_parser_test_suite")
+
+package(default_visibility = ["//visibility:public"])
+
+hcl_parser_test_suite(name = "hcl_parser_tests")

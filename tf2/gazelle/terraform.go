@@ -97,22 +97,22 @@ func (l *terraformLang) Kinds() map[string]rule.KindInfo {
 		tfModuleKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"srcs": true, "providers": true},
-			SubstituteAttrs: map[string]bool{},
-			MergeableAttrs:  map[string]bool{"srcs": true, "providers": true},
+			SubstituteAttrs: map[string]bool{"srcs": true}, // Replace globs with explicit file lists
+			MergeableAttrs:  map[string]bool{},
 			ResolveAttrs:    map[string]bool{},
 		},
 		tfStackKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"srcs": true},
-			SubstituteAttrs: map[string]bool{},
-			MergeableAttrs:  map[string]bool{"srcs": true, "modules": true},
+			SubstituteAttrs: map[string]bool{"srcs": true}, // Replace globs with explicit file lists
+			MergeableAttrs:  map[string]bool{},
 			ResolveAttrs:    map[string]bool{},
 		},
 		tfTestKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"test_files": true},
-			SubstituteAttrs: map[string]bool{},
-			MergeableAttrs:  map[string]bool{"test_files": true},
+			SubstituteAttrs: map[string]bool{"test_files": true}, // Replace globs with explicit file lists
+			MergeableAttrs:  map[string]bool{},
 			ResolveAttrs:    map[string]bool{"module": true},
 		},
 	}
@@ -183,6 +183,9 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	if !cfg.enabled {
 		return language.GenerateResult{}
 	}
+
+	// Debug: Log which directory we're processing
+	// fmt.Fprintf(os.Stderr, "DEBUG: Processing %s, files: %v\n", args.Rel, args.RegularFiles)
 
 	// Categorize files
 	var tfFiles []string
@@ -406,8 +409,63 @@ func generateTestRule(testName, moduleName string, testFiles []string, existing 
 	return r
 }
 
-// Fix repairs incorrect rules.
-func (l *terraformLang) Fix(c *config.Config, f *rule.File) {}
+// Fix repairs incorrect rules by replacing glob expressions with explicit file lists.
+func (l *terraformLang) Fix(c *config.Config, f *rule.File) {
+	cfg := getConfig(c)
+	if !cfg.enabled {
+		return
+	}
+
+	// Get the directory path from the file
+	dir := filepath.Join(c.RepoRoot, f.Pkg)
+
+	// Collect actual files in the directory
+	var tfFiles, templateFiles []string
+	var hasReadme bool
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		switch {
+		case strings.HasSuffix(name, ".tf") && !strings.HasSuffix(name, ".tftest.hcl"):
+			tfFiles = append(tfFiles, name)
+		case strings.HasSuffix(name, ".tmpl") || strings.HasSuffix(name, ".tpl") || strings.HasSuffix(name, ".tftpl"):
+			templateFiles = append(templateFiles, name)
+		case name == "README.md":
+			hasReadme = true
+		}
+	}
+
+	// Fix each tf_module rule
+	for _, r := range f.Rules {
+		if r.Kind() != tfModuleKind {
+			continue
+		}
+
+		// Check if srcs contains a glob (AttrStrings returns nil for non-list expressions)
+		if r.Attr("srcs") != nil && r.AttrStrings("srcs") == nil {
+			// srcs is not a simple string list (likely a glob), replace it
+			sort.Strings(tfFiles)
+			sort.Strings(templateFiles)
+
+			srcs := make([]string, 0, len(tfFiles)+len(templateFiles)+1)
+			srcs = append(srcs, tfFiles...)
+			srcs = append(srcs, templateFiles...)
+			if hasReadme {
+				srcs = append(srcs, "README.md")
+			}
+			sort.Strings(srcs)
+			r.SetAttr("srcs", srcs)
+		}
+	}
+}
 
 // Imports returns the imports for dependency resolution.
 func (l *terraformLang) Imports(c *config.Config, r *rule.Rule, f *rule.File) []resolve.ImportSpec {

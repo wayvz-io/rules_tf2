@@ -11,8 +11,8 @@ RBE Compatibility:
     Bazel's platform configuration determines which mirror is selected.
 """
 
-load("//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")
 load("@tf_provider_registry//:provider_locks.bzl", "PROVIDER_ALIASES")
+load("//tf2/providers/registry:filesystem_mirror.bzl", "filesystem_mirror")
 
 # Platforms supported for provider downloads
 _PLATFORMS = ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]

@@ -74,7 +74,7 @@ def build_staging_copy_commands(
                 # File is directly in the package root
                 dest_path = relative_path
 
-        # Check if this is a bazel-out processed file with nested modules or templates
+            # Check if this is a bazel-out processed file with nested modules or templates
         elif "bazel-out" in src_path and ("/modules/" in src_path or "/templates/" in src_path):
             # This is a processed file - extract the module/templates structure
             parts = src_path.split("/")

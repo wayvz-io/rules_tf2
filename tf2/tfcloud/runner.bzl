@@ -110,4 +110,3 @@ def tf_cloud_workspace(
             default_apply_args = "-auto-approve",
             **kwargs
         )
-

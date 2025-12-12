@@ -412,3 +412,94 @@ func TestGenerateRules_SortedFiles(t *testing.T) {
 		}
 	}
 }
+
+func TestKinds_SrcsAreSubstituted(t *testing.T) {
+	// Test that srcs attribute is marked for substitution, not merging
+	// This ensures globs get replaced with explicit file lists
+	lang := NewLanguage()
+	kinds := lang.Kinds()
+
+	tfModuleKind := kinds["tf_module"]
+
+	// srcs should be in SubstituteAttrs (replaced entirely)
+	if !tfModuleKind.SubstituteAttrs["srcs"] {
+		t.Error("tf_module srcs should be in SubstituteAttrs to replace globs")
+	}
+
+	// srcs should NOT be in MergeableAttrs (would try to merge with globs)
+	if tfModuleKind.MergeableAttrs["srcs"] {
+		t.Error("tf_module srcs should NOT be in MergeableAttrs")
+	}
+
+	tfStackKind := kinds["tf_stack"]
+	if !tfStackKind.SubstituteAttrs["srcs"] {
+		t.Error("tf_stack srcs should be in SubstituteAttrs to replace globs")
+	}
+	if tfStackKind.MergeableAttrs["srcs"] {
+		t.Error("tf_stack srcs should NOT be in MergeableAttrs")
+	}
+
+	tfTestKind := kinds["tf_test"]
+	if !tfTestKind.SubstituteAttrs["test_files"] {
+		t.Error("tf_test test_files should be in SubstituteAttrs to replace globs")
+	}
+	if tfTestKind.MergeableAttrs["test_files"] {
+		t.Error("tf_test test_files should NOT be in MergeableAttrs")
+	}
+}
+
+func TestGenerateRules_ExistingRuleWithGlob(t *testing.T) {
+	// Test that when an existing rule has a glob, the generated rule
+	// produces explicit file list that will replace it
+	lang := NewLanguage().(*terraformLang)
+
+	c := config.New()
+	c.Exts[terraformName] = newTerraformConfig()
+
+	// Simulate existing BUILD file with glob
+	existingFile := rule.EmptyFile("test", "pkg")
+	// Note: In real usage, the existing srcs would be a glob call expression
+	// but gazelle's rule package represents this internally
+	existingFile.Sync()
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "testdata/module_with_readme",
+		Rel:          "glob_test",
+		File:         existingFile,
+		RegularFiles: []string{"main.tf", "variables.tf", "outputs.tf", "README.md"},
+	}
+
+	result := lang.GenerateRules(args)
+
+	if len(result.Gen) != 1 {
+		t.Fatalf("expected 1 rule, got %d", len(result.Gen))
+	}
+
+	r := result.Gen[0]
+
+	// The generated rule should have explicit file list
+	srcsList := r.AttrStrings("srcs")
+	if srcsList == nil {
+		t.Fatal("expected srcs to be a string list")
+	}
+
+	// Should contain all the .tf files and README.md
+	expected := map[string]bool{
+		"main.tf":      true,
+		"variables.tf": true,
+		"outputs.tf":   true,
+		"README.md":    true,
+	}
+
+	if len(srcsList) != len(expected) {
+		t.Errorf("expected %d srcs, got %d: %v", len(expected), len(srcsList), srcsList)
+	}
+
+	for _, src := range srcsList {
+		if !expected[src] {
+			t.Errorf("unexpected src: %s", src)
+		}
+	}
+}
+

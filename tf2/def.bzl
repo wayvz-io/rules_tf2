@@ -9,6 +9,12 @@ load(
     _tf_stack = "tf_stack",
 )
 load(
+    "//tf2/opa:test.bzl",
+    _tf_opa_fmt = "tf_opa_fmt",
+    _tf_opa_fmt_test = "tf_opa_fmt_test",
+    _tf_opa_test = "tf_opa_test",
+)
+load(
     "//tf2/providers/registry:provider_mirror.bzl",
     _provider_mirror = "provider_mirror",
 )
@@ -19,6 +25,12 @@ load(
 load(
     "//tf2/publish/registry:registry_publish.bzl",
     _tf_publish_registry = "tf_publish_registry",
+)
+load(
+    "//tf2/sentinel:test.bzl",
+    _tf_sentinel_fmt = "tf_sentinel_fmt",
+    _tf_sentinel_fmt_test = "tf_sentinel_fmt_test",
+    _tf_sentinel_test = "tf_sentinel_test",
 )
 load(
     "//tf2/tfcloud:runner.bzl",
@@ -39,18 +51,6 @@ load(
 load(
     "//tf2/tfcore:variables.bzl",
     _tf_variables = "tf_variables",
-)
-load(
-    "//tf2/sentinel:test.bzl",
-    _tf_sentinel_fmt = "tf_sentinel_fmt",
-    _tf_sentinel_fmt_test = "tf_sentinel_fmt_test",
-    _tf_sentinel_test = "tf_sentinel_test",
-)
-load(
-    "//tf2/opa:test.bzl",
-    _tf_opa_fmt = "tf_opa_fmt",
-    _tf_opa_fmt_test = "tf_opa_fmt_test",
-    _tf_opa_test = "tf_opa_test",
 )
 
 # Provider management

@@ -53,7 +53,7 @@ All user-facing rules/macros:
 
 ### Configuration Files
 - **tests/providers/versions.json**: Tool and provider versions for development
-- **tests/providers/provider_locks.json**: Provider hash locks for hermetic builds
+- **MODULE.bazel.lock**: Provider hashes are automatically generated and stored in the Bazel lockfile via module extension facts (requires Bazel 8.5+)
 
 ## Key Concepts
 
@@ -79,11 +79,10 @@ Child modules' providers are inherited by parents. A parent only declares provid
 
 ### Module Extensions (MODULE.bazel)
 ```starlark
-# Providers
+# Providers - hashes are auto-generated and cached in MODULE.bazel.lock
 tf_providers = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_providers")
 tf_providers.download(
     versions_file = "path/to/versions.json",
-    lock_file = "path/to/provider_locks.json",
 )
 use_repo(tf_providers, "tf_provider_registry")
 
@@ -92,6 +91,13 @@ tf_tools = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_tools")
 tf_tools.from_versions_json(versions_file = "path/to/versions.json")
 use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
 ```
+
+### Provider Hash Generation
+Provider hashes (h1 and zh) are automatically generated when:
+1. A new provider/version is added to versions.json
+2. The MODULE.bazel.lock doesn't have cached hashes for that provider
+
+The extension uses `terraform providers lock` internally to generate hashes for all platforms. This happens during `bazel build` and results are cached in MODULE.bazel.lock via the `facts` mechanism (requires Bazel 8.5+).
 
 ## Development Notes
 

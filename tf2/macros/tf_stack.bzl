@@ -20,6 +20,7 @@ def _extract_provider_aliases(modules):
     Returns:
         List of provider alias names
     """
+
     # Provider aliases will be extracted from modules at analysis time
     # For now, return an empty list - the tf_generate_versions_from_mirrors
     # rule will handle provider aggregation

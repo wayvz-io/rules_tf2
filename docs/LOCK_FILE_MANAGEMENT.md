@@ -6,32 +6,57 @@ This document describes how Terraform lock files are managed centrally in the Ba
 
 The system provides centralized Terraform provider lock file management, eliminating the need for per-machine lock file generation while ensuring reproducible builds across all environments.
 
+**Key feature**: Provider hashes are automatically generated and cached in `MODULE.bazel.lock` via Bazel's module extension facts mechanism. No manual lock file management is required.
+
 ## Architecture
 
-### 1. Provider Download and Lock Generation (One-time)
+### Provider Hash Generation (Automatic)
 
-When providers are configured in `MODULE.bazel`:
+When providers are configured in `versions.json`:
 
-```python
-tf_providers.download(
-    providers = {
-        "hashicorp/aws": ["6.12.0"],
-        "hashicorp/null": ["3.2.4"],
-    },
-)
+```json
+{
+  "providers": {
+    "hashicorp/aws": ["6.26.0"],
+    "hashicorp/null": ["3.2.4"]
+  }
+}
 ```
 
-The `terraform_providers` repository rule:
-1. Downloads all specified providers using `terraform init --upgrade`
-2. Generates a complete `.terraform.lock.hcl` with hashes for all platforms
-3. Parses the lock file and extracts all provider hashes
-4. Stores hashes in `provider_locks.bzl` for reuse
+The `tf_providers` module extension automatically:
+1. Checks `MODULE.bazel.lock` for cached hashes (via `module_ctx.facts`)
+2. For any missing providers, downloads terraform and runs `terraform providers lock`
+3. Parses the generated `.terraform.lock.hcl` to extract h1/zh hashes
+4. Stores new hashes in `MODULE.bazel.lock` via `extension_metadata(facts=...)`
+5. Creates provider download repositories for all platforms
 
-### 2. Stack-Specific Lock File Generation
+```
+versions.json (input)
+     │
+     ▼
+┌──────────────────────────────────────────────────┐
+│  tf_providers Extension (loading phase)          │
+│  1. Read versions.json                           │
+│  2. Check module_ctx.facts for cached hashes     │
+│  3. For missing providers:                       │
+│     - Download terraform inline                  │
+│     - Run terraform providers lock               │
+│     - Parse hashes from .terraform.lock.hcl      │
+│  4. Return extension_metadata(facts=hashes)      │
+└──────────────────────────────────────────────────┘
+     │
+     ▼
+MODULE.bazel.lock (facts section stores all hashes)
+     │
+     ▼
+Provider repositories (ready to use)
+```
 
-For each `tf_stack`, the system automatically:
+### Stack-Specific Lock File Generation
+
+For each `tf_stack` or `tf_module`, the system automatically:
 1. Generates provider specifications based on declared provider dependencies
-2. Creates a `.terraform.lock.hcl` using stored hashes from `provider_locks.bzl`
+2. Creates a `.terraform.lock.hcl` using stored hashes from `@tf_provider_registry//:provider_locks.json`
 3. Includes the lock file in validation tests
 
 ## Usage
@@ -39,7 +64,7 @@ For each `tf_stack`, the system automatically:
 ### Basic Stack Definition
 
 ```python
-load("@tf2//tf2:def.bzl", "tf_stack")
+load("@rules_tf2//tf2:def.bzl", "tf_stack")
 
 tf_stack(
     name = "my_stack",
@@ -79,77 +104,93 @@ bazel test //path/to/stack:stack_name_validate_test
 
 ### Provider Hash Storage
 
-The centralized `provider_locks.bzl` file contains all provider hashes:
+Provider hashes are stored in `MODULE.bazel.lock` under the facts section:
 
-```python
-PROVIDER_LOCKS = {
-    "hashicorp/aws:6.12.0": [
-        "h1:1u4Vi0sgaEOo1h+u3hcoD/hAe5jLSCXDv3jWCq9jtPU=",
-        "h1:8u90EMle+I3Auh4f/LPP6fEfRsAF6xCFnUZF4b7ngEs=",
-        # ... more hashes for different platforms
-    ],
-    # ... more providers
+```json
+{
+  "facts": {
+    "//tf2:extensions.bzl%tf_providers": {
+      "hashicorp/aws:6.26.0": {
+        "h1": ["hash1...", "hash2..."],
+        "zh": ["zhhash1...", "zhhash2..."]
+      }
+    }
+  }
 }
 ```
+
+The extension also generates `@tf_provider_registry//:provider_locks.json` for use by lock file generation rules.
 
 ### Lock File Generation Rule
 
 The `tf_lock_file_generator` rule:
 1. Reads the required providers from Bazel module definitions
-2. Looks up corresponding hashes from `provider_locks.bzl`
+2. Looks up corresponding hashes from `@tf_provider_registry//:provider_locks.json`
 3. Generates a valid `.terraform.lock.hcl` file
 
 ```python
 tf_lock_file_generator(
     name = "stack_lock",
-    provider_locks = "@tf_provider_registry//:provider_locks.bzl",
+    provider_locks = "@tf_provider_registry//:provider_locks.json",
     versions_file = ":provider_config",
 )
 ```
 
 ## Benefits
 
-1. **Single Provider Download**: Providers are downloaded once during repository setup
-2. **No Per-Machine Generation**: Lock files are generated from stored hashes
-3. **Fast Resolution**: No network calls after initial provider download
-4. **Reproducible Builds**: Same hashes used across all environments
-5. **Automatic Integration**: Lock files are automatically generated and used in tests
+1. **Automatic Hash Generation**: No manual scripts needed - hashes generated on first build
+2. **Persistent Caching**: Hashes cached in `MODULE.bazel.lock`, survive clean builds
+3. **Single Provider Download**: Providers downloaded once during hash generation
+4. **No Per-Machine Generation**: Lock files are generated from stored hashes
+5. **Fast Resolution**: No network calls after initial hash generation
+6. **Reproducible Builds**: Same hashes used across all environments
+7. **Automatic Integration**: Lock files are automatically generated and used in tests
 
 ## Updating Provider Versions
 
-When provider versions are updated in `MODULE.bazel`:
+When provider versions are updated in `versions.json`:
 
-1. Run the provider update tool:
+1. Edit `versions.json` to add/update provider versions:
    ```bash
-   bazel run //:tf-update
+   vim tests/providers/versions.json
    ```
 
-2. The tool will:
-   - Update provider versions in `MODULE.bazel`
-   - Trigger provider re-download
-   - Regenerate `provider_locks.bzl` with new hashes
-   - Update all provider specifications
-
-3. Test the changes:
+2. Run any bazel command - hashes will be auto-generated:
    ```bash
-   bazel test //iac/...
+   bazel build //...
+   # INFO: Generating hashes for hashicorp/newprovider:1.0.0 (this may take a while)
    ```
+
+3. The new hashes are automatically stored in `MODULE.bazel.lock`
+
+4. Test the changes:
+   ```bash
+   bazel test //...
+   ```
+
+5. Commit `versions.json` and `MODULE.bazel.lock`:
+   ```bash
+   git add versions.json MODULE.bazel.lock
+   git commit -m "Update provider versions"
+   ```
+
+## Requirements
+
+- **Bazel 8.5+**: Required for `module_ctx.facts` support
+- **Network access**: Required only when generating hashes for new providers
 
 ## Troubleshooting
 
 ### Missing Provider in Lock File
 
 If a provider is missing from the lock file:
-1. Ensure it's declared in `MODULE.bazel`
-2. Check that the version matches exactly
-3. Verify `provider_locks.bzl` contains the provider
+1. Ensure it's declared in `versions.json`
+2. Check that `MODULE.bazel.lock` contains hashes for the provider
+3. Run `bazel build //...` to trigger hash generation if missing
 
-### Lock File Not Generated
+### Hash Generation Taking Too Long
 
-If the lock file isn't being generated:
-1. Check you're not in a test package (lock files aren't generated for tests)
-2. Ensure providers are specified in the `tf_stack` rule
-3. Verify the `tf_provider_registry` repository is available
+Hash generation runs `terraform providers lock` which downloads provider binaries for 5 platforms. For large providers (e.g., AWS), this can take several minutes. This is a one-time cost - subsequent builds use cached hashes.
 
 ### Validation Failures
 
@@ -162,22 +203,16 @@ If validation fails with lock file issues:
 
 ### Files Involved
 
-- `build/rules/tf2/tf/core/repositories/terraform_providers.bzl` - Downloads providers and generates `provider_locks.bzl`
-- `build/rules/tf2/tf/core/providers/lock_file_generator.bzl` - Rule for generating stack-specific lock files
-- `build/rules/tf2/tf/execution/macros/macros.bzl` - Integration in `tf_stack` macro
-- `build/rules/tf2/tf/testing/validate.bzl` - Validation test using lock files
+- `tf2/extensions.bzl` - Module extension that generates hashes and creates provider repositories
+- `tf2/providers/repository/hcl_parser.bzl` - Parses `.terraform.lock.hcl` files
+- `tf2/providers/repository/terraform_providers.bzl` - Repository rule for provider registry
+- `tf2/tfcore/versions/lockfile.bzl` - Rule for generating stack-specific lock files
 
-### Module Extension Integration
+### Module Extension Flow
 
-The system is integrated with Bazel's module extension system:
-- Provider declarations in `MODULE.bazel` trigger downloads
-- The `tf_providers` extension manages provider repositories
-- Lock data is stored and reused across the build
-
-## Future Enhancements
-
-Potential improvements to the system:
-1. Support for provider version constraints (not just exact versions)
-2. Automatic detection of missing providers
-3. Integration with remote caching for faster CI builds
-4. Support for private provider registries
+The `tf_providers` extension:
+1. Reads `versions.json` via `module_ctx.read()`
+2. Checks `module_ctx.facts` for cached hashes
+3. For missing providers, runs terraform inline via `module_ctx.execute()`
+4. Returns `extension_metadata(facts=new_hashes, reproducible=True)`
+5. Bazel persists facts to `MODULE.bazel.lock`

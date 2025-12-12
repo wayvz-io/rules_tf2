@@ -3,7 +3,10 @@ load("//tf2:def.bzl", "tf_module")
 # Test module to verify HCL-based version management
 tf_module(
     name = "tf_module",
-    srcs = glob(["*.tf"]),
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+    ],
     providers = [
         "@tf_provider_registry//:random_3",
         "@tf_provider_registry//:local_2",

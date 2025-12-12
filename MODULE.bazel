@@ -3,6 +3,7 @@
 module(
     name = "rules_tf2",
     version = "0.1.0",
+    bazel_compatibility = [">=8.5.0"],
 )
 
 ##########################
@@ -115,8 +116,8 @@ use_repo(go_deps, "com_github_hashicorp_go_version", "com_github_hashicorp_hcl_v
 tf_providers = use_extension("//tf2:extensions.bzl", "tf_providers")
 
 # Download test providers for tf2 module testing (only when this is the root module)
+# Provider hashes are automatically generated and stored in MODULE.bazel.lock facts
 tf_providers.download(
-    lock_file = "tests/providers/provider_locks.json",
     versions_file = "tests/providers/versions.json",
 )
 use_repo(tf_providers, "tf_provider_registry")

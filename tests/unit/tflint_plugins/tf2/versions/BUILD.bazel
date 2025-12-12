@@ -4,9 +4,9 @@ sh_test(
     size = "small",
     srcs = ["tflint_fix_versions_test.sh"],
     data = [
-        "wrong_version.tf",
         ".tflint.hcl",
-        "@tf_tool_registry//:tflint",
+        "wrong_version.tf",
         "//go/tflint_ruleset:tflint-ruleset-tf2",
+        "@tf_tool_registry//:tflint",
     ],
 )

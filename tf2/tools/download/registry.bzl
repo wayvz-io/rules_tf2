@@ -128,6 +128,7 @@ def _tflint_plugin_registry_impl(repository_ctx):
     for plugin_name in plugins:
         repo_name = "tflint_plugin_{}".format(plugin_name)
         binary_name = plugin_binary_names.get(plugin_name, "tflint-ruleset-{}".format(plugin_name))
+
         # Point to the actual binary file, not the sh_binary wrapper
         plugin_aliases += '''
 alias(

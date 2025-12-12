@@ -3,7 +3,13 @@ load("//tf2:def.bzl", "tf_module", "tf_test")
 # Define the module
 tf_module(
     name = "tf_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     providers = [
         "@tf_provider_registry//:random_3",
         "@tf_provider_registry//:local_2",
