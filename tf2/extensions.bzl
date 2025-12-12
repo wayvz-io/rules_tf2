@@ -4,6 +4,7 @@ load("//tf2/providers/download:provider_download_repository.bzl", "provider_down
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
+load("//tf2/tools/download:sentinel.bzl", "download_sentinel")
 load("//tf2/tools/download:stacksplugin.bzl", "download_stacksplugin")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
@@ -478,6 +479,7 @@ def _tf_tools_impl(module_ctx):
     terraform_version = None
     tflint_version = None
     terraform_docs_version = None
+    sentinel_version = None
     stacksplugin_version = None
 
     # Collect plugin configurations
@@ -496,6 +498,8 @@ def _tf_tools_impl(module_ctx):
                 tflint_version = get_tool_version(versions_data, "tflint")
             if not terraform_docs_version:
                 terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
+            if not sentinel_version:
+                sentinel_version = get_tool_version(versions_data, "sentinel")
             if not stacksplugin_version:
                 stacksplugin_version = get_tool_version(versions_data, "stacksplugin")
 
@@ -534,6 +538,11 @@ def _tf_tools_impl(module_ctx):
     download_terraform_docs(
         name = "terraform_docs_tool",
         version = terraform_docs_version,
+    )
+
+    download_sentinel(
+        name = "sentinel_tool",
+        version = sentinel_version,
     )
 
     download_stacksplugin(

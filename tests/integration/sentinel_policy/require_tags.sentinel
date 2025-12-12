@@ -1,0 +1,26 @@
+# require_tags.sentinel
+# Policy: All AWS resources must have required tags
+
+import "tfplan/v2" as tfplan
+
+# Required tags that must be present
+required_tags = ["Environment", "Owner", "Project"]
+
+# Get all resources being created or updated
+allResources = filter tfplan.resource_changes as _, rc {
+	rc.mode is "managed" and
+		rc.type matches "aws_.*" and
+		(rc.change.actions contains "create" or rc.change.actions contains "update")
+}
+
+# Check for required tags
+resourcesWithMissingTags = filter allResources as _, rc {
+	not all required_tags as tag {
+		rc.change.after.tags contains tag
+	}
+}
+
+# Main rule
+main = rule {
+	length(resourcesWithMissingTags) is 0
+}

@@ -1,0 +1,49 @@
+load("//tf2:def.bzl", "tf_sentinel_fmt", "tf_sentinel_fmt_test", "tf_sentinel_test")
+
+# Example: Sentinel Policy Testing
+#
+# This example demonstrates how to use the tf_sentinel rules to test
+# Sentinel policies with user-provided mock data.
+#
+# The require_tags policy enforces that all AWS resources have required
+# tags: Environment, Owner, and Project.
+#
+# To run the tests:
+#   bazel test //examples/sentinel_policy:require_tags_test
+#
+# To check formatting:
+#   bazel test //examples/sentinel_policy:sentinel_format_test
+#
+# To fix formatting:
+#   bazel run //examples/sentinel_policy:sentinel_format
+
+# Test the require_tags policy
+tf_sentinel_test(
+    name = "require_tags_test",
+    srcs = ["require_tags.sentinel"],
+    tests = glob(["test/**/*.hcl"]) + glob(["mocks/*.sentinel"]),
+    visibility = ["//visibility:public"],
+)
+
+# Check that sentinel files are properly formatted
+tf_sentinel_fmt_test(
+    name = "sentinel_format_test",
+    srcs = glob(["*.sentinel"]),
+    visibility = ["//visibility:public"],
+)
+
+# Format sentinel files (run with 'bazel run')
+tf_sentinel_fmt(
+    name = "sentinel_format",
+    srcs = glob(["*.sentinel"]),
+    visibility = ["//visibility:public"],
+)
+
+# Test suite for all sentinel tests
+test_suite(
+    name = "sentinel_tests",
+    tests = [
+        ":require_tags_test",
+        ":sentinel_format_test",
+    ],
+)

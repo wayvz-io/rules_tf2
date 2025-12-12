@@ -1,0 +1,30 @@
+load("//tf2:def.bzl", "tf_sentinel_fmt_test", "tf_sentinel_test")
+
+# Integration test for Sentinel policy testing
+#
+# This demonstrates:
+# - A policy that enforces required tags on AWS resources
+# - Mock data representing compliant and non-compliant resources
+# - Test cases that verify pass/fail behavior
+
+tf_sentinel_test(
+    name = "require_tags_test",
+    srcs = ["require_tags.sentinel"],
+    tests = glob(["test/**/*.hcl"]) + glob(["mocks/*.sentinel"]),
+    size = "small",
+)
+
+tf_sentinel_fmt_test(
+    name = "format_test",
+    srcs = glob(["*.sentinel"]),
+    size = "small",
+)
+
+test_suite(
+    name = "sentinel_policy_tests",
+    tests = [
+        ":require_tags_test",
+        ":format_test",
+    ],
+    visibility = ["//tests/integration:__pkg__"],
+)

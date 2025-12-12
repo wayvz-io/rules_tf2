@@ -41,6 +41,7 @@
     - [tf_test](reference/rules/tf-test.md)
     - [tf_variables](reference/rules/tf-variables.md)
     - [tf_file_export](reference/rules/tf-file-export.md)
+    - [tf_sentinel](reference/rules/tf-sentinel.md)
   - [Cloud Integration](reference/cloud/README.md)
     - [tf_cloud_configuration](reference/cloud/tf-cloud-configuration.md)
   - [Providers](reference/providers/README.md)

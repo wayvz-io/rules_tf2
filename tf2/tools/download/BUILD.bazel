@@ -11,6 +11,7 @@ exports_files([
     "terraform_docs.bzl",
     "stacksplugin.bzl",
     "registry.bzl",
+    "sentinel.bzl",
 ])
 
 bzl_library(
@@ -45,4 +46,10 @@ bzl_library(
 bzl_library(
     name = "registry",
     srcs = ["registry.bzl"],
+)
+
+bzl_library(
+    name = "sentinel",
+    srcs = ["sentinel.bzl"],
+    deps = [":platform"],
 )

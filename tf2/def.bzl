@@ -40,6 +40,12 @@ load(
     "//tf2/tfcore:variables.bzl",
     _tf_variables = "tf_variables",
 )
+load(
+    "//tf2/sentinel:test.bzl",
+    _tf_sentinel_fmt = "tf_sentinel_fmt",
+    _tf_sentinel_fmt_test = "tf_sentinel_fmt_test",
+    _tf_sentinel_test = "tf_sentinel_test",
+)
 
 # CDKTF generation moved to repository rules - use @rules_tf2//tf2:cdktf_extensions.bzl
 # load(
@@ -61,6 +67,11 @@ tf_cloud_configuration = _tf_cloud_configuration
 tf_runner = _tf_runner
 tf_test = _tf_test
 tf_variables = _tf_variables
+
+# Sentinel rules
+tf_sentinel_test = _tf_sentinel_test
+tf_sentinel_fmt_test = _tf_sentinel_fmt_test
+tf_sentinel_fmt = _tf_sentinel_fmt
 
 # CDKTF generation - moved to repository rules
 # Use module extension @rules_tf2//tf2:cdktf_extensions.bzl instead

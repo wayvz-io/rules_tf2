@@ -45,6 +45,16 @@ alias(
 )
 
 alias(
+    name = "sentinel",
+    actual = "@sentinel_tool//:bin",
+)
+
+alias(
+    name = "sentinel_bin",
+    actual = "@sentinel_tool//:bin",
+)
+
+alias(
     name = "stacksplugin",
     actual = "@stacksplugin_tool//:bin",
 )
@@ -61,6 +71,7 @@ filegroup(
         "@terraform_tool//:bin",
         "@tflint_tool//:bin",
         "@terraform_docs_tool//:bin",
+        "@sentinel_tool//:bin",
         "@stacksplugin_tool//:bin",
     ],
 )
