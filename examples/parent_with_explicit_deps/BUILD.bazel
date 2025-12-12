@@ -4,11 +4,11 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # In this case, grandchild should be staged as a top-level module
 # and the child should reference ../grandchild instead of ./modules/nested_dependency_test
 tf_module(
-    name = "parent_with_explicit_deps",
+    name = "tf_module",
     srcs = glob(["*.tf"]) + ["README.md"],
     modules = [
-        "@rules_tf2//examples/child_with_nested_dep:child_with_nested_dep",
-        "@rules_tf2//examples/nested_dependency_test:grandchild",  # Explicit grandchild
+        "@rules_tf2//examples/child_with_nested_dep:tf_module",
+        "@rules_tf2//examples/nested_dependency_test:tf_module",  # Explicit grandchild
     ],
     providers = [
         "@tf_provider_registry//:null_3",

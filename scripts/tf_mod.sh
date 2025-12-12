@@ -34,6 +34,8 @@ TARGET_PREFIX=$(detect_target_prefix)
 
 # Default values
 VERBOSE=false
+FORCE_REGENERATE=false
+MAX_PARALLEL_JOBS=${TF_MOD_PARALLEL_JOBS:-4}
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -42,12 +44,21 @@ while [[ $# -gt 0 ]]; do
             VERBOSE=true
             shift
             ;;
+        --force|-f)
+            FORCE_REGENERATE=true
+            shift
+            ;;
         --help|-h)
             echo "Usage: $0 [options]"
             echo "Generate provider locks, update terraform.tf files, and regenerate documentation"
             echo "Options:"
-            echo "  --verbose    Show detailed output"
-            echo "  --help       Show this help message"
+            echo "  --verbose, -v  Show detailed output"
+            echo "  --force, -f    Force regeneration of all provider locks (skip delta detection)"
+            echo "  --help, -h     Show this help message"
+            echo ""
+            echo "Environment variables:"
+            echo "  TF_MOD_PARALLEL_JOBS  Number of parallel provider lock jobs (default: 4)"
+            echo "  TF_PLUGIN_CACHE_DIR   Terraform plugin cache directory"
             exit 0
             ;;
         *)
@@ -69,6 +80,159 @@ log_error() {
     echo -e "$1" >&2
 }
 
+# Function to validate lockfile and return status
+# Returns: VALID, MISSING, CORRUPT_JSON, or INVALID_SCHEMA
+validate_lockfile() {
+    local lockfile="$1"
+
+    # Check if file exists
+    if [ ! -f "$lockfile" ]; then
+        echo "MISSING"
+        return 0
+    fi
+
+    # Check if file is empty
+    if [ ! -s "$lockfile" ]; then
+        echo "CORRUPT_JSON"
+        return 0
+    fi
+
+    # Validate JSON and schema
+    python3 << PYTHON_VALIDATE
+import json
+import sys
+
+try:
+    with open('$lockfile', 'r') as f:
+        data = json.load(f)
+
+    # Validate schema: each key should be provider:version, each value should have h1 or zh
+    for key, value in data.items():
+        if ':' not in key:
+            print('INVALID_SCHEMA')
+            sys.exit(0)
+        if not isinstance(value, dict) or ('h1' not in value and 'zh' not in value):
+            print('INVALID_SCHEMA')
+            sys.exit(0)
+
+    print('VALID')
+except json.JSONDecodeError:
+    print('CORRUPT_JSON')
+except Exception as e:
+    print('CORRUPT_JSON')
+PYTHON_VALIDATE
+}
+
+# Function to detect which providers need lock regeneration
+# Outputs to stdout: provider:version pairs that need processing (one per line)
+# Outputs to a file: providers that should be removed from lockfile
+detect_provider_delta() {
+    local versions_file="$1"
+    local locks_file="$2"
+    local removed_file="$3"
+
+    python3 << PYTHON_DELTA
+import json
+import sys
+import os
+
+versions_file = '$versions_file'
+locks_file = '$locks_file'
+removed_file = '$removed_file'
+
+# Load versions.json - get all desired provider:version pairs
+with open(versions_file, 'r') as f:
+    versions_data = json.load(f)
+
+desired_providers = set()
+for provider, versions in versions_data.get('providers', {}).items():
+    for version in versions:
+        desired_providers.add(f"{provider}:{version}")
+
+# Load existing locks (or empty if file doesn't exist or is invalid)
+existing_locks = set()
+try:
+    if os.path.exists(locks_file):
+        with open(locks_file, 'r') as f:
+            locks_data = json.load(f)
+            existing_locks = set(locks_data.keys())
+except (json.JSONDecodeError, IOError):
+    pass
+
+# Find providers that need processing (in versions.json but not in locks)
+new_providers = desired_providers - existing_locks
+
+# Find providers to remove (in locks but not in versions.json)
+removed_providers = existing_locks - desired_providers
+
+# Output new providers to stdout
+for provider in sorted(new_providers):
+    print(provider)
+
+# Output removed providers to file
+with open(removed_file, 'w') as f:
+    for provider in sorted(removed_providers):
+        f.write(provider + '\n')
+PYTHON_DELTA
+}
+
+# Function to get existing locks that should be preserved
+# Returns JSON entries for providers that are NOT being regenerated and are still in versions.json
+get_preserved_locks_json() {
+    local locks_file="$1"
+    local versions_file="$2"
+    local providers_to_update="$3"  # newline-separated provider:version list
+
+    python3 << PYTHON_PRESERVE
+import json
+import sys
+import os
+
+locks_file = '$locks_file'
+versions_file = '$versions_file'
+providers_to_update = '''$providers_to_update'''
+
+# Parse providers being updated
+updating = set()
+for line in providers_to_update.strip().split('\n'):
+    if line:
+        updating.add(line)
+
+# Load existing locks
+existing_locks = {}
+try:
+    if os.path.exists(locks_file):
+        with open(locks_file, 'r') as f:
+            existing_locks = json.load(f)
+except (json.JSONDecodeError, IOError):
+    pass
+
+# Load versions.json to know which providers should exist
+desired_providers = set()
+with open(versions_file, 'r') as f:
+    versions_data = json.load(f)
+    for provider, versions in versions_data.get('providers', {}).items():
+        for version in versions:
+            desired_providers.add(f"{provider}:{version}")
+
+# Output preserved locks (not being updated AND still in versions.json)
+preserved = {}
+for key, value in existing_locks.items():
+    if key not in updating and key in desired_providers:
+        preserved[key] = value
+
+# Output as JSON (without outer braces for easier merging)
+first = True
+for key in sorted(preserved.keys()):
+    if not first:
+        print(',')
+    print(f'  "{key}": {json.dumps(preserved[key])}', end='')
+    first = False
+
+if preserved:
+    print()  # Final newline if we printed anything
+PYTHON_PRESERVE
+}
 
 # Function to generate lock for a single provider and return JSON
 generate_single_provider_lock_json() {
@@ -327,52 +491,247 @@ with open('$VERSIONS_FILE', 'r') as f:
         return 1
     fi
 
+    # Enable terraform plugin cache for faster provider downloads
+    export TF_PLUGIN_CACHE_DIR="${TF_PLUGIN_CACHE_DIR:-$HOME/.terraform.d/plugin-cache}"
+    mkdir -p "$TF_PLUGIN_CACHE_DIR"
+    log "Using terraform plugin cache: $TF_PLUGIN_CACHE_DIR"
 
     # Create base temporary directory
     BASE_TEMP_DIR=$(mktemp -d)
     trap "rm -rf $BASE_TEMP_DIR" EXIT
 
-    # Initialize JSON structure
-    echo "{" > "$BASE_TEMP_DIR/provider_locks.json"
-    local first_entry=true
+    # Validate existing lockfile
+    local lockfile_status
+    lockfile_status=$(validate_lockfile "$LOCKS_FILE")
+    log "Lockfile status: $lockfile_status"
 
-    # Process each provider version sequentially for reliability
+    local providers_to_process=""
+    local removed_file="$BASE_TEMP_DIR/removed_providers.txt"
+    touch "$removed_file"
+    local total_provider_count=$(echo "$providers" | wc -l)
+
+    # Determine which providers need processing
+    if [ "$FORCE_REGENERATE" = true ]; then
+        echo -e "${YELLOW}Force mode: regenerating all $total_provider_count provider locks${NC}"
+        providers_to_process="$providers"
+    elif [ "$lockfile_status" = "VALID" ]; then
+        # Delta detection: only process changed providers
+        providers_to_process=$(detect_provider_delta "$VERSIONS_FILE" "$LOCKS_FILE" "$removed_file")
+    else
+        # Invalid/missing lockfile: regenerate all
+        case "$lockfile_status" in
+            "MISSING")
+                echo "No existing lockfile found - generating all locks"
+                ;;
+            "CORRUPT_JSON"|"INVALID_SCHEMA")
+                echo -e "${YELLOW}Warning: Existing lockfile is corrupt or invalid - regenerating all locks${NC}"
+                ;;
+        esac
+        providers_to_process="$providers"
+    fi
+
+    # Check if removed providers exist
+    local removed_providers=""
+    if [ -s "$removed_file" ]; then
+        removed_providers=$(cat "$removed_file")
+        local removed_count=$(echo "$removed_providers" | wc -l)
+        echo "Removing $removed_count obsolete provider locks"
+    fi
+
+    # Check if there's anything to do
+    if [ -z "$providers_to_process" ] && [ -z "$removed_providers" ]; then
+        echo -e "${GREEN}✓ All provider locks are up to date - nothing to do${NC}"
+        return 0
+    fi
+
+    local update_count=0
+    if [ -n "$providers_to_process" ]; then
+        update_count=$(echo "$providers_to_process" | wc -l)
+    fi
+
+    if [ "$update_count" -gt 0 ]; then
+        if [ "$FORCE_REGENERATE" != true ] && [ "$lockfile_status" = "VALID" ]; then
+            echo "Delta detected: $update_count of $total_provider_count providers need lock updates"
+        fi
+    fi
+
+    # Create results directory for parallel processing
+    local results_dir="$BASE_TEMP_DIR/results"
+    mkdir -p "$results_dir"
+
+    # Process providers in parallel
     local success_count=0
     local failure_count=0
     local failed_providers=()
     local current_count=0
-    local total_count=$(echo "$providers" | wc -l)
+    local job_pids=()
 
-    echo "Processing:"
+    if [ "$update_count" -gt 0 ]; then
+        echo ""
+        echo "Processing $update_count providers (max $MAX_PARALLEL_JOBS parallel jobs):"
 
-    while IFS=':' read -r provider version; do
-        [ -z "$provider" ] && continue
+        while IFS=':' read -r provider version; do
+            [ -z "$provider" ] && continue
 
-        current_count=$((current_count + 1))
+            current_count=$((current_count + 1))
+            local safe_name=$(echo "${provider}_${version}" | tr '/' '_')
+            local provider_temp_dir="$BASE_TEMP_DIR/work_$safe_name"
+            local result_file="$results_dir/${safe_name}.json"
+            local status_file="$results_dir/${safe_name}.status"
+            mkdir -p "$provider_temp_dir"
 
-        # Create temporary directory for this provider
-        local provider_temp_dir="$BASE_TEMP_DIR/provider_$(echo "$provider" | tr '/' '_')_$version"
-        mkdir -p "$provider_temp_dir"
+            echo "  $current_count/$update_count | Starting $provider:$version"
 
-        echo "  $current_count/$total_count | $provider:$version"
+            # Run in background with exported environment variables
+            (
+                export PROVIDER="$provider"
+                export VERSION="$version"
+                export TERRAFORM_CMD="$TERRAFORM_CMD"
+                export TF_PLUGIN_CACHE_DIR="$TF_PLUGIN_CACHE_DIR"
 
-        # Generate lock for this individual provider
-        if generate_single_provider_lock_json "$provider" "$version" "$provider_temp_dir" "$BASE_TEMP_DIR/provider_locks.json" "$first_entry"; then
-            success_count=$((success_count + 1))
+                if generate_single_provider_lock_json "$provider" "$version" "$provider_temp_dir" "/dev/null" "true"; then
+                    # Extract hashes to result file
+                    if [ -f "$provider_temp_dir/.terraform.lock.hcl" ]; then
+                        cd "$provider_temp_dir"
+                        python3 - << 'PYTHON_EXTRACT' > "$result_file"
+import re
+import json
+import sys
+import os
+
+provider = os.environ.get('PROVIDER', '')
+version = os.environ.get('VERSION', '')
+
+with open('.terraform.lock.hcl', 'r') as f:
+    content = f.read()
+
+hashes_match = re.search(r'hashes\s*=\s*\[(.*?)\]', content, re.DOTALL)
+if hashes_match:
+    hashes_text = hashes_match.group(1)
+    hash_lines = re.findall(r'"([^"]+)"', hashes_text)
+    h1_hashes = [h[3:] for h in hash_lines if h.startswith('h1:')]
+    zh_hashes = [h[3:] for h in hash_lines if h.startswith('zh:')]
+    result = {}
+    if h1_hashes:
+        result['h1'] = h1_hashes
+    if zh_hashes:
+        result['zh'] = zh_hashes
+    provider_key = f"{provider}:{version}"
+    print(json.dumps({provider_key: result}))
+else:
+    print('{}')
+PYTHON_EXTRACT
+                        echo "SUCCESS" > "$status_file"
+                    else
+                        echo "NO_LOCKFILE" > "$status_file"
+                    fi
+                else
+                    echo "FAILED" > "$status_file"
+                fi
+            ) &
+
+            job_pids+=($!)
+
+            # Limit concurrent jobs
+            if [ ${#job_pids[@]} -ge $MAX_PARALLEL_JOBS ]; then
+                # Wait for oldest job to complete
+                wait "${job_pids[0]}" 2>/dev/null || true
+                job_pids=("${job_pids[@]:1}")
+            fi
+        done <<< "$providers_to_process"
+
+        # Wait for all remaining jobs
+        for pid in "${job_pids[@]}"; do
+            wait "$pid" 2>/dev/null || true
+        done
+
+        echo ""
+    fi
+
+    # Collect results and build final JSON
+    echo "Merging provider locks..."
+
+    # Start building the new lockfile
+    echo "{" > "$BASE_TEMP_DIR/provider_locks.json.tmp"
+    local first_entry=true
+
+    # First, add preserved locks (existing locks not being regenerated)
+    if [ "$FORCE_REGENERATE" != true ] && [ "$lockfile_status" = "VALID" ]; then
+        local preserved_json
+        preserved_json=$(get_preserved_locks_json "$LOCKS_FILE" "$VERSIONS_FILE" "$providers_to_process")
+        if [ -n "$preserved_json" ]; then
+            echo "$preserved_json" >> "$BASE_TEMP_DIR/provider_locks.json.tmp"
             first_entry=false
+        fi
+    fi
+
+    # Add newly generated locks
+    shopt -s nullglob
+    for status_file in "$results_dir"/*.status; do
+        [ -f "$status_file" ] || continue
+
+        local base_name=$(basename "$status_file" .status)
+        local json_file="$results_dir/${base_name}.json"
+        local status=$(cat "$status_file")
+
+        if [ "$status" = "SUCCESS" ] && [ -f "$json_file" ]; then
+            local content=$(cat "$json_file")
+
+            # Skip empty results
+            if [ "$content" = "{}" ]; then
+                failure_count=$((failure_count + 1))
+                failed_providers+=("$base_name (empty result)")
+                continue
+            fi
+
+            # Extract inner content and add to output
+            local inner_content=$(echo "$content" | python3 -c "
+import json
+import sys
+data = json.load(sys.stdin)
+for key, value in data.items():
+    print(f'  \"{key}\": {json.dumps(value)}')
+")
+
+            if [ -n "$inner_content" ]; then
+                if [ "$first_entry" = false ]; then
+                    echo "," >> "$BASE_TEMP_DIR/provider_locks.json.tmp"
+                fi
+                echo "$inner_content" >> "$BASE_TEMP_DIR/provider_locks.json.tmp"
+                first_entry=false
+                success_count=$((success_count + 1))
+            fi
         else
             failure_count=$((failure_count + 1))
-            failed_providers+=("$provider:$version")
+            failed_providers+=("$base_name ($status)")
         fi
-    done <<< "$providers"
+    done
 
     # Close JSON structure
-    echo "}" >> "$BASE_TEMP_DIR/provider_locks.json"
+    echo "" >> "$BASE_TEMP_DIR/provider_locks.json.tmp"
+    echo "}" >> "$BASE_TEMP_DIR/provider_locks.json.tmp"
+
+    # Validate the generated JSON before writing
+    if ! python3 -c "import json; json.load(open('$BASE_TEMP_DIR/provider_locks.json.tmp'))" 2>/dev/null; then
+        log_error "${RED}Error: Generated lockfile is invalid JSON${NC}"
+        return 1
+    fi
 
     echo ""
     echo "Lock generation summary:"
-    echo "  ✓ Successful: $success_count providers"
-    echo "  ⚠ Failed: $failure_count providers"
+    if [ "$update_count" -gt 0 ]; then
+        echo "  ✓ Newly generated: $success_count providers"
+        echo "  ⚠ Failed: $failure_count providers"
+    fi
+    if [ -n "$removed_providers" ]; then
+        echo "  ✓ Removed: $(echo "$removed_providers" | wc -l) obsolete providers"
+    fi
+    if [ "$FORCE_REGENERATE" != true ] && [ "$lockfile_status" = "VALID" ]; then
+        local preserved_count=$((total_provider_count - update_count))
+        if [ "$preserved_count" -gt 0 ]; then
+            echo "  ✓ Preserved: $preserved_count existing providers"
+        fi
+    fi
 
     if [ $failure_count -gt 0 ]; then
         echo ""
@@ -382,15 +741,10 @@ with open('$VERSIONS_FILE', 'r') as f:
         done
     fi
 
-    if [ $success_count -gt 0 ]; then
-        # Copy provider locks to final location
-        cp "$BASE_TEMP_DIR/provider_locks.json" "$LOCKS_FILE"
-        echo -e "${GREEN}✓ Provider locks JSON generated successfully${NC}"
-        echo "Locks file location: $LOCKS_FILE"
-    else
-        log_error "${RED}Error: No providers were successfully processed${NC}"
-        return 1
-    fi
+    # Atomic write: move temp file to final location
+    mv "$BASE_TEMP_DIR/provider_locks.json.tmp" "$LOCKS_FILE"
+    echo -e "${GREEN}✓ Provider locks JSON updated successfully${NC}"
+    echo "Locks file location: $LOCKS_FILE"
 }
 
 # Find workspace root

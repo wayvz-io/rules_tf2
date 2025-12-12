@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "tflint_ruleset_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/wayvz-io/rules_tf2/go/tflint_ruleset",
+    visibility = ["//visibility:private"],
+    deps = [
+        "//go/tflint_ruleset/rules",
+        "//go/tflint_ruleset/terraform",
+        "@com_github_terraform_linters_tflint_plugin_sdk//plugin",
+        "@com_github_terraform_linters_tflint_plugin_sdk//tflint",
+    ],
+)
+
+go_binary(
+    name = "tflint-ruleset-tf2",
+    embed = [":tflint_ruleset_lib"],
+    visibility = ["//visibility:public"],
+)

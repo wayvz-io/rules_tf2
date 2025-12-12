@@ -4,12 +4,12 @@
     "hashicorp/null": ["3.2.4"],
     "hashicorp/local": ["2.6.1"],
     "hashicorp/archive": ["2.7.1"],
-    "hashicorp/aws": ["5.100.0","6.25.0"],
-    "hashicorp/azurerm": ["4.55.0"],
+    "hashicorp/aws": ["5.100.0","6.26.0"],
+    "hashicorp/azurerm": ["4.56.0"],
     "hashicorp/google": ["6.50.0"]
   },
   "tools": {
-    "terraform": "1.14.1",
+    "terraform": "1.14.2",
     "tflint": "0.60.0",
     "terraform-docs": "0.20.0",
     "opa": "1.4.2",

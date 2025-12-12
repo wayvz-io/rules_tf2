@@ -9,22 +9,22 @@ load("//tf2:def.bzl", "tf_sentinel_fmt_test", "tf_sentinel_test")
 
 tf_sentinel_test(
     name = "require_tags_test",
+    size = "small",
     srcs = ["require_tags.sentinel"],
     tests = glob(["test/**/*.hcl"]) + glob(["mocks/*.sentinel"]),
-    size = "small",
 )
 
 tf_sentinel_fmt_test(
     name = "format_test",
-    srcs = glob(["*.sentinel"]),
     size = "small",
+    srcs = glob(["*.sentinel"]),
 )
 
 test_suite(
     name = "sentinel_policy_tests",
     tests = [
-        ":require_tags_test",
         ":format_test",
+        ":require_tags_test",
     ],
     visibility = ["//tests/integration:__pkg__"],
 )

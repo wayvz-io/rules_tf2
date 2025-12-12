@@ -1,9 +1,22 @@
 """Public exports for tf2 module"""
 
+load("@gazelle//:def.bzl", "gazelle")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# gazelle:build_file_name BUILD.bazel
+# Exclude tflint test fixtures (raw .tf files used via glob, not tf_module)
+# gazelle:exclude tests/unit/tflint_plugins
+# gazelle:exclude tests/unit/sources
+# gazelle:exclude go/hcl_tool/test/fixtures
+
 exports_files(["MODULE.bazel"])
+
+# Gazelle for updating BUILD files with terraform, go, and bzl extensions
+gazelle(
+    name = "gazelle",
+    gazelle = "//tf2/gazelle:gazelle-terraform",
+)
 
 # Clean, user-friendly aliases for external repositories
 # Usage from other repos: bazel run @rules_tf2//:mod
@@ -82,6 +95,7 @@ sh_test(
             "**/BUILD.bazel",
             "**/BUILD",
         ],
+        allow_empty = True,
         exclude = ["BUILD.bazel"],
     ) + [
         "BUILD.bazel",

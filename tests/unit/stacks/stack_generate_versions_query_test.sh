@@ -17,8 +17,8 @@ fi
 
 # Find the script in the expected runfiles location
 SCRIPT_PATHS=(
-    "$RUNFILES/_main/tests/integration/sample_tf_stack/sample_tf_stack_generate_versions_generate.sh"
-    "$RUNFILES/rules_tf2/tests/integration/sample_tf_stack/sample_tf_stack_generate_versions_generate.sh"
+    "$RUNFILES/_main/tests/integration/sample_tf_stack/tf_stack_generate_versions_generate.sh"
+    "$RUNFILES/rules_tf2/tests/integration/sample_tf_stack/tf_stack_generate_versions_generate.sh"
 )
 
 FOUND=""

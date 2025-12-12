@@ -7,11 +7,6 @@ package(default_visibility = ["//visibility:public"])
 exports_files(["oci_push.bzl"])
 
 bzl_library(
-    name = "config",
-    srcs = ["config.bzl"],
-)
-
-bzl_library(
     name = "oci_push",
     srcs = ["oci_push.bzl"],
     deps = [
@@ -19,4 +14,9 @@ bzl_library(
         "//tf2/internal:docs_collection",
         "//tf2/providers/core:info",
     ],
+)
+
+bzl_library(
+    name = "config",
+    srcs = ["config.bzl"],
 )

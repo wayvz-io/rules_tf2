@@ -14,7 +14,7 @@ else
 fi
 
 # Get paths to test files and tools
-TFLINT="$RUNFILES/_main~tf_tools~tflint_tool/tflint"
+TFLINT="$RUNFILES/+tf_tools+tflint_tool/tflint"
 TF2_PLUGIN="$RUNFILES/_main/go/tflint_ruleset/tflint-ruleset-tf2_/tflint-ruleset-tf2"
 WRONG_VERSION="$RUNFILES/_main/tests/unit/tflint_plugins/tf2/versions/wrong_version.tf"
 TFLINT_CONFIG="$RUNFILES/_main/tests/unit/tflint_plugins/tf2/versions/.tflint.hcl"

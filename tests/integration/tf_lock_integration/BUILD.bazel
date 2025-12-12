@@ -3,7 +3,7 @@
 load("//tf2:def.bzl", "tf_module")
 
 tf_module(
-    name = "test_stack",
+    name = "tf_module",
     srcs = glob(["*.tf"]),
     providers = [
         "@tf_provider_registry//:null_3",

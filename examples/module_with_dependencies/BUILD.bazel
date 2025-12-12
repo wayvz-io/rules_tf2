@@ -18,11 +18,11 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # This demonstrates that even though the parent doesn't use random or time,
 # they MUST be in the lockfile because the child module needs them.
 tf_module(
-    name = "module_with_dependencies",
+    name = "tf_module",
     srcs = glob(["*.tf"]) + ["README.md"],
     # Declare module dependencies“
     modules = [
-        "@rules_tf2//examples/basic_module",  # This brings in aws_5, random_3, and null_3
+        "@rules_tf2//examples/basic_module:tf_module",  # This brings in aws_5, random_3, and null_3
     ],
     # Providers this module directly requires
     # NOTE: We ONLY declare providers we directly use.
@@ -31,8 +31,6 @@ tf_module(
     # because basic_module needs them.
     providers = [
         "@tf_provider_registry//:aws_5",  # AWS provider v5.x (same as child)
-        # random_3 - NOT HERE but will be in lockfile (inherited from child)
-        # null_3 - NOT HERE but will be in lockfile (inherited from child)
     ],
     visibility = ["//visibility:public"],
 )

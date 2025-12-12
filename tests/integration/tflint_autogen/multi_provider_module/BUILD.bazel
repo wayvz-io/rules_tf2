@@ -2,7 +2,7 @@ load("//tf2:def.bzl", "tf_module")
 
 # Multi-provider module test for TFLint auto-generation
 tf_module(
-    name = "multi_provider_module",
+    name = "tf_module",
     testonly = True,
     srcs = glob(["*.tf"]),
     providers = [

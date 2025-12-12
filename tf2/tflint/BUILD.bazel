@@ -4,11 +4,6 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 package(default_visibility = ["//tf2:__subpackages__"])
 
 bzl_library(
-    name = "defaults",
-    srcs = ["defaults.bzl"],
-)
-
-bzl_library(
     name = "config",
     srcs = ["config.bzl"],
     deps = [
@@ -42,4 +37,9 @@ bzl_library(
     deps = [
         "//tf2/tools/runners:shell_utils",
     ],
+)
+
+bzl_library(
+    name = "defaults",
+    srcs = ["defaults.bzl"],
 )

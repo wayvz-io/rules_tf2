@@ -1,0 +1,14 @@
+# Integration tests for tf2 Terraform rules
+# These test complete module lifecycles with real Terraform configurations
+
+test_suite(
+    name = "all_integration_tests",
+    tests = [
+        "//tests/integration/another_module:tf_module_validate_test",
+        "//tests/integration/module_with_deps:tf_module_validate_test",
+        "//tests/integration/simple_module:tf_module_validate_test",
+        "//tests/integration/simple_stack:tf_module_validate_test",
+        "//tests/integration/stack_with_modules:tf_module_validate_test",
+    ],
+    visibility = ["//visibility:public"],
+)

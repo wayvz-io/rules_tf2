@@ -10,8 +10,7 @@ load("//tf2/tools/download:stacksplugin.bzl", "download_stacksplugin")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
 load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
-# CDKTF support is disabled - not yet functional
-# load("//tf2/cdktf:cdktf_repository_gazelle.bzl", "cdktf_bindings_repository_gazelle")
+
 
 def _parse_lock_file_to_json(content):
     """Parse terraform.lock.hcl content into JSON structure.
@@ -366,66 +365,6 @@ tf_providers = module_extension(
     },
 )
 
-def _cdktf_providers_impl(module_ctx):
-    """Implementation of cdktf_providers module extension"""
-
-    # Collect all CDKTF generation requests from modules
-    all_cdktf_providers = {}
-
-    for mod in module_ctx.modules:
-        for generate in mod.tags.generate:
-            provider = generate.provider
-            version = generate.version
-            language = generate.language or "go"
-
-            # Extract provider name and major version for repository naming
-            provider_name = provider.split("/")[-1]  # e.g., "aws" from "hashicorp/aws"
-            major_version = version.split(".")[0]  # e.g., "6" from "6.2.0"
-
-            # Create repository name like "cdktf_aws_6"
-            repo_name = "cdktf_{}_{}_go".format(provider_name, major_version)
-
-            # CDKTF support is disabled - not yet functional
-            # cdktf_bindings_repository_gazelle(
-            #     name = repo_name,
-            #     provider_name = provider_name,
-            #     provider_source = provider,
-            #     provider_version = version,
-            # )
-            pass  # Placeholder until CDKTF is fully implemented
-
-            # Store for potential future use
-            all_cdktf_providers[repo_name] = {
-                "provider": provider,
-                "version": version,
-                "language": language,
-            }
-
-# Tag class for CDKTF generation configuration
-_generate = tag_class(
-    attrs = {
-        "provider": attr.string(
-            doc = "Provider source (e.g., 'hashicorp/aws')",
-            mandatory = True,
-        ),
-        "version": attr.string(
-            doc = "Provider version (e.g., '6.2.0')",
-            mandatory = True,
-        ),
-        "language": attr.string(
-            doc = "Target language for generation",
-            default = "go",
-            values = ["typescript", "python", "java", "csharp", "go"],
-        ),
-    },
-)
-
-cdktf_providers = module_extension(
-    implementation = _cdktf_providers_impl,
-    tag_classes = {
-        "generate": _generate,
-    },
-)
 
 def _tfc_config_impl(module_ctx):
     """Implementation of tfc_config module extension"""

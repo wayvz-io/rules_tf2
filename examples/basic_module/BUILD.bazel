@@ -16,7 +16,7 @@ load("@rules_tf2//tf2:def.bzl", "tf_module", "tf_test")
 # these provider requirements. The final terraform.lock.hcl will contain ALL
 # providers from the entire dependency tree.
 tf_module(
-    name = "basic_module",
+    name = "tf_module",
     # Explicit sources (will be mandatory in future version)
     srcs = glob(["*.tf"]) + ["README.md"],
     # Providers this module requires directly
@@ -31,9 +31,9 @@ tf_module(
 # Example: Standalone tf_test with explicit module reference
 # This demonstrates the new explicit testing pattern
 tf_test(
-    name = "example_standalone_test",
+    name = "tf_test",
     size = "small",
-    module = ":basic_module",  # Reference to the tf_module being tested
+    module = ":tf_module",  # Reference to the tf_module being tested
     tags = ["manual"],  # Manual for demonstration purposes
     test_files = ["example_test.tftest.hcl"],  # Explicit test files
 )

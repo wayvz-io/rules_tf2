@@ -96,41 +96,41 @@ def tflint_autogen_integration_test_suite(name):
     # Test AWS module
     test_aws_module_generates_config_test(
         name = name + "_aws_config_test",
-        target_under_test = "//tests/integration/tflint_autogen/aws_module:aws_module",
+        target_under_test = "//tests/integration/tflint_autogen/aws_module:tf_module",
         size = "small",
     )
 
     # Test Random module
     test_random_module_generates_config_test(
         name = name + "_random_config_test",
-        target_under_test = "//tests/integration/tflint_autogen/random_module:random_module",
+        target_under_test = "//tests/integration/tflint_autogen/random_module:tf_module",
         size = "small",
     )
 
     # Test multi-provider module
     test_multi_provider_generates_config_test(
         name = name + "_multi_provider_config_test",
-        target_under_test = "//tests/integration/tflint_autogen/multi_provider_module:multi_provider_module",
+        target_under_test = "//tests/integration/tflint_autogen/multi_provider_module:tf_module",
         size = "small",
     )
 
     # Test explicit config doesn't auto-generate
     test_explicit_config_no_autogen_test(
         name = name + "_explicit_config_test",
-        target_under_test = "//tests/integration/tflint_autogen/explicit_config_module:explicit_config_module",
+        target_under_test = "//tests/integration/tflint_autogen/explicit_config_module:tf_module",
         size = "small",
     )
 
     # Test lint test targets exist
     test_lint_test_target_exists_test(
         name = name + "_aws_lint_test_exists",
-        target_under_test = "//tests/integration/tflint_autogen/aws_module:aws_module",
+        target_under_test = "//tests/integration/tflint_autogen/aws_module:tf_module",
         size = "small",
     )
 
     test_lint_test_target_exists_test(
         name = name + "_random_lint_test_exists",
-        target_under_test = "//tests/integration/tflint_autogen/random_module:random_module",
+        target_under_test = "//tests/integration/tflint_autogen/random_module:tf_module",
         size = "small",
     )
 

@@ -7,7 +7,6 @@ Bazel rules for managing Terraform infrastructure. These rules have been extract
 ## Status
 
 - **Alpha** - Core functionality works but APIs may change
-- **CDK support** - Coming in the future
 - **OCI publishing** - Overdue for a rewrite
 - **Policy testing** - Sentinel/OPA support for testing workflows coming soon
 
@@ -24,7 +23,6 @@ Bazel rules for managing Terraform infrastructure. These rules have been extract
 
 ```
 tf2/
-├── cdktf/             # CDKTF support (future)
 ├── internal/          # Internal utilities
 ├── macros/            # Public API macros
 ├── module/            # Module implementations

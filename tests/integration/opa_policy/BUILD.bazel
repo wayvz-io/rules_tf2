@@ -9,14 +9,14 @@ load("//tf2:def.bzl", "tf_opa_fmt_test", "tf_opa_test")
 
 tf_opa_test(
     name = "authz_test",
-    srcs = glob(["*.rego"]),
     size = "small",
+    srcs = glob(["*.rego"]),
 )
 
 tf_opa_fmt_test(
     name = "format_test",
-    srcs = glob(["*.rego"]),
     size = "small",
+    srcs = glob(["*.rego"]),
 )
 
 test_suite(

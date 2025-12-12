@@ -1,7 +1,11 @@
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+# gazelle:exclude testdata
+# gazelle:ignore
+
 # Go library for the Terraform Gazelle extension
+# keep
 go_library(
     name = "terraform",
     srcs = ["terraform.go"],
@@ -18,6 +22,7 @@ go_library(
 )
 
 # Unit tests for the Terraform Gazelle extension
+# keep
 go_test(
     name = "terraform_test",
     size = "small",
@@ -32,16 +37,19 @@ go_test(
 )
 
 # Custom gazelle binary that includes the Terraform language extension
+# keep
 gazelle_binary(
     name = "gazelle-terraform",
     languages = [
         "@gazelle//language/go:go_default_library",
+        "@bazel_skylib_gazelle_plugin//bzl:bzl",
         ":terraform",
     ],
     visibility = ["//visibility:public"],
 )
 
 # Gazelle rule for updating BUILD files
+# keep
 gazelle(
     name = "gazelle",
     gazelle = ":gazelle-terraform",

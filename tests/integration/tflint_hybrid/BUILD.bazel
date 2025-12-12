@@ -3,7 +3,7 @@ load("//tf2/tflint:validate.bzl", "tf_tflint_negative_test")
 
 # Define a test module that will use the new hybrid tflint validation
 tf_module(
-    name = "tflint_hybrid_test",
+    name = "tf_module",
     srcs = glob(["*.tf"]),
     providers = [
         "@tf_provider_registry//:aws_6",
@@ -17,6 +17,6 @@ tf_module(
 tf_tflint_negative_test(
     name = "tflint_hybrid_negative_test",
     size = "small",
-    srcs = [":tflint_hybrid_test"],
-    provider_configurations = ":tflint_hybrid_test_provider_config",
+    srcs = [":tf_module"],
+    provider_configurations = ":tf_module_provider_config",
 )

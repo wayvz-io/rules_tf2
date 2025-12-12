@@ -16,15 +16,15 @@ load("//tf2:def.bzl", "tf_opa_fmt", "tf_opa_fmt_test", "tf_opa_test")
 # Test the policy with OPA's built-in test framework
 tf_opa_test(
     name = "require_tags_test",
-    srcs = glob(["*.rego"]),
     size = "small",
+    srcs = glob(["*.rego"]),
 )
 
 # Check that Rego files are properly formatted
 tf_opa_fmt_test(
     name = "format_test",
-    srcs = glob(["*.rego"]),
     size = "small",
+    srcs = glob(["*.rego"]),
 )
 
 # Auto-format Rego files

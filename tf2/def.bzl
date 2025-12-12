@@ -53,13 +53,6 @@ load(
     _tf_opa_test = "tf_opa_test",
 )
 
-# CDKTF generation moved to repository rules - use @rules_tf2//tf2:cdktf_extensions.bzl
-# load(
-#     "//tf2/core/rules:cdktf_generate.bzl",
-#     _cdktf_generate = "cdktf_generate",
-#     _cdktf_go_library = "cdktf_go_library",
-# )
-
 # Provider management
 provider_mirror = _provider_mirror
 
@@ -83,8 +76,3 @@ tf_sentinel_fmt = _tf_sentinel_fmt
 tf_opa_test = _tf_opa_test
 tf_opa_fmt_test = _tf_opa_fmt_test
 tf_opa_fmt = _tf_opa_fmt
-
-# CDKTF generation - moved to repository rules
-# Use module extension @rules_tf2//tf2:cdktf_extensions.bzl instead
-# cdktf_generate = _cdktf_generate
-# cdktf_go_library = _cdktf_go_library
