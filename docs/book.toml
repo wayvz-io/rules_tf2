@@ -1,0 +1,8 @@
+[book]
+title = "rules_tf2"
+authors = ["rules_tf2 Contributors"]
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"

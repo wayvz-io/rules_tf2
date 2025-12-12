@@ -9,6 +9,7 @@ bzl_library(
     deps = [
         "//tf2/internal:organization",
         "//tf2/internal:sources_validation",
+        "//tf2/providers/module:module_provider_mirror",
         "//tf2/tfcore:deps",
         "//tf2/tfcore:export",
         "//tf2/tfcore:module",

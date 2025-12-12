@@ -9,6 +9,7 @@ bzl_library(
     srcs = ["terraform_providers.bzl"],
     deps = [
         "//tf2/providers/core:info",
+        "//tf2/providers/download:provider_http_files",
         "//tf2/providers/registry:provider_metadata",
     ],
 )
@@ -24,4 +25,9 @@ bzl_library(
     deps = [
         "//tf2/tools/runners:shell_utils",
     ],
+)
+
+bzl_library(
+    name = "versions",
+    srcs = ["versions.bzl"],
 )

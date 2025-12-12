@@ -1,6 +1,7 @@
 """Non-module dependencies configuration for rules_tf2."""
 
 load("@rules_nixpkgs_cc//:cc.bzl", "nixpkgs_cc_configure")
+load("@rules_nixpkgs_core//:nixpkgs.bzl", "nixpkgs_package")
 load("@rules_nixpkgs_java//:java.bzl", "nixpkgs_java_configure")
 
 def _non_module_deps_impl(_):
@@ -28,6 +29,13 @@ def _non_module_deps_impl(_):
         register = False,
         toolchain_name = "nixpkgs_java_jdk",
         toolchain_version = "23",
+    )
+
+    # mdbook for documentation generation
+    nixpkgs_package(
+        name = "nixpkgs_mdbook",
+        attribute_path = "mdbook",
+        repository = "@nixpkgs",
     )
 
 non_module_deps = module_extension(

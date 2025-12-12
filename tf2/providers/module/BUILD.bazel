@@ -9,5 +9,6 @@ bzl_library(
     srcs = ["module_provider_mirror.bzl"],
     deps = [
         "//tf2/providers/registry:filesystem_mirror",
+        "@tf_provider_registry//:provider_locks",
     ],
 )

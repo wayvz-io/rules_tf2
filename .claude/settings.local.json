@@ -65,7 +65,13 @@
       "Bash(git -C /home/rorychatterton/repos/wayvz/tflint-rules-tf2 status)",
       "Bash(./bazel-bin/tests/unit/tflint_plugins/aws/aws_plugin_test_lint.sh.sh:*)",
       "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2 diff --stat tf2/internal/file_ops.bzl tf2/tfcore/tf_runner.bzl tf2/tfcore/test.bzl)",
-      "Bash(git branch:*)"
+      "Bash(git branch:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:registry.bazel.build)",
+      "Bash(tar:*)",
+      "WebFetch(domain:diataxis.fr)",
+      "Bash(git -C /home/rorychatterton/repos/wayvz/rules_tf2_docs show 150a1e4 --stat)",
+      "Bash(killall:*)"
     ],
     "deny": [],
     "ask": [

@@ -32,7 +32,9 @@ bzl_library(
     srcs = ["extensions.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        "//tf2/providers/download:provider_download_repository",
         "//tf2/providers/repository:terraform_providers",
+        "//tf2/providers/repository:versions",
         "//tf2/tools/download:registry",
         "//tf2/tools/download:terraform",
         "//tf2/tools/download:terraform_docs",
@@ -47,4 +49,120 @@ stardoc(
     input = "def.bzl",
     tags = ["manual"],  # Manual due to Java toolchain complexity
     deps = [":def"],
+)
+
+# Per-subsystem documentation for modular docs
+
+# Rules documentation
+stardoc(
+    name = "tf_module_docs",
+    out = "docs/tf_module.md",
+    input = "//tf2/macros:tf_module.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/macros:tf_module"],
+)
+
+stardoc(
+    name = "tf_runner_docs",
+    out = "docs/tf_runner.md",
+    input = "//tf2/tfcore:runner.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/tfcore:runner"],
+)
+
+stardoc(
+    name = "tf_test_docs",
+    out = "docs/tf_test.md",
+    input = "//tf2/tfcore:test.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/tfcore:test"],
+)
+
+stardoc(
+    name = "tf_variables_docs",
+    out = "docs/tf_variables.md",
+    input = "//tf2/tfcore:variables.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/tfcore:variables"],
+)
+
+stardoc(
+    name = "tf_file_export_docs",
+    out = "docs/tf_file_export.md",
+    input = "//tf2/tfcore:export.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/tfcore:export"],
+)
+
+# Cloud documentation
+stardoc(
+    name = "tf_cloud_docs",
+    out = "docs/tf_cloud.md",
+    input = "//tf2/tfcloud:runner.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/tfcloud:runner"],
+)
+
+# Provider documentation
+stardoc(
+    name = "provider_mirror_docs",
+    out = "docs/provider_mirror.md",
+    input = "//tf2/providers/registry:provider_mirror.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/providers/registry:provider_mirror"],
+)
+
+# Publishing documentation
+stardoc(
+    name = "tf_publish_docs",
+    out = "docs/tf_publish.md",
+    input = "//tf2/publish/registry:registry_publish.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/publish/registry:registry_publish"],
+)
+
+stardoc(
+    name = "tf_oci_docs",
+    out = "docs/tf_oci.md",
+    input = "//tf2/publish/oci:oci_push.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/publish/oci:oci_push"],
+)
+
+# Extensions documentation
+stardoc(
+    name = "extensions_docs",
+    out = "docs/extensions.md",
+    input = "extensions.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = [":extensions"],
+)
+
+# Filegroup for all documentation
+filegroup(
+    name = "all_docs",
+    srcs = [
+        ":tf_module_docs",
+        ":tf_runner_docs",
+        ":tf_test_docs",
+        ":tf_variables_docs",
+        ":tf_file_export_docs",
+        ":tf_cloud_docs",
+        ":provider_mirror_docs",
+        ":tf_publish_docs",
+        ":tf_oci_docs",
+        ":extensions_docs",
+    ],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
 )
