@@ -20,8 +20,7 @@ Core Bazel rules for Terraform modules:
 
 Terraform Cloud and Enterprise integration:
 
-- [tf_cloud_configuration](cloud/tf-cloud-configuration.md) - Create TFC runner targets
-- [tf_cloud_workspace](cloud/tf-cloud-workspace.md) - Backward compatibility alias
+- [tf_cloud_workspace](cloud/tf-cloud-workspace.md) - Create TFC runner targets
 
 ### [Providers](providers/README.md)
 
@@ -33,8 +32,8 @@ Provider management:
 
 Module publishing:
 
-- [tf_module_publish](publishing/tf-module-publish.md) - Publish to Terraform Registry
-- [tf_module_push_oci](publishing/tf-module-push-oci.md) - Push to OCI registries
+- [tf_publish_registry](publishing/tf-publish-registry.md) - Publish to Terraform Registry
+- [tf_publish_oci](publishing/tf-publish-oci.md) - Push to OCI registries
 
 ### [Module Extensions](extensions/README.md)
 

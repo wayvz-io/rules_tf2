@@ -6,15 +6,15 @@ Module publishing to registries.
 
 | Rule | Description |
 |------|-------------|
-| [tf_module_publish](tf-module-publish.md) | Publish to Terraform Registry (HCP/TFE) |
-| [tf_module_push_oci](tf-module-push-oci.md) | Push to OCI registries |
+| [tf_publish_registry](tf-publish-registry.md) | Publish to Terraform Registry (HCP/TFE) |
+| [tf_publish_oci](tf-publish-oci.md) | Push to OCI registries |
 
 ## Terraform Registry
 
 Publish modules to HCP Terraform or Terraform Enterprise:
 
 ```starlark
-tf_module_publish(
+tf_publish_registry(
     name = "publish",
     module = ":my_module",
     organization = "my-org",
@@ -31,11 +31,10 @@ bazel run //:publish
 Push modules to OCI-compatible registries (GitHub Container Registry, etc.):
 
 ```starlark
-tf_module_push_oci(
+tf_publish_oci(
     name = "push_oci",
-    srcs = [":my_module"],
-    image = "ghcr.io/my-org/my-module",
-    registry = "ghcr.io",
+    module = ":my_module",
+    stack_name = "my-module",
 )
 ```
 

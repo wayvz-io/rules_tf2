@@ -14,13 +14,13 @@ OCI registries (GitHub Container Registry, AWS ECR, Azure ACR) provide:
 
 Modules are packaged as OCI artifacts using ORAS (OCI Registry As Storage). This is the same mechanism Helm charts and Flux use for non-container artifacts.
 
-## tf_module_push_oci
+## tf_publish_oci
 
 ```starlark
-tf_module_push_oci(
+tf_publish_oci(
     name = "push_oci",
     module = ":my_module",
-    repository = "ghcr.io/my-org/terraform-modules/vpc",
+    stack_name = "vpc",
 )
 ```
 
@@ -65,4 +65,4 @@ Requires Terraform 1.5+ for OCI source support.
 
 ## See Also
 
-- [tf_module_push_oci Reference](../../reference/publishing/tf-module-push-oci.md)
+- [tf_publish_oci Reference](../../reference/publishing/tf-publish-oci.md)
