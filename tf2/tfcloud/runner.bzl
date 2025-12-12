@@ -119,5 +119,3 @@ def tf_cloud_configuration(
             **filtered_kwargs
         )
 
-# Alias for backwards compatibility
-tf_cloud_workspace = tf_cloud_configuration

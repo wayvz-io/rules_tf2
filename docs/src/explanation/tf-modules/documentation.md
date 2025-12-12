@@ -1,26 +1,24 @@
-# About Documentation
+# Documentation
 
-## Overview
-
-rules_tf2 uses terraform-docs to generate and validate module documentation. Each `tf_module` gets:
+Each `tf_module` generates documentation targets using terraform-docs:
 
 - `*_doc_test` - Verifies README.md matches terraform-docs output
 - `*_generate_docs` - Regenerates README.md
 
 ## What terraform-docs Generates
 
-terraform-docs extracts documentation from your Terraform files:
+terraform-docs extracts from your Terraform files:
 
-- Module description (from header comment or `description` in `main.tf`)
+- Module description (from header comment or `description` in main.tf)
 - Input variables (names, types, defaults, descriptions)
 - Output values (names, descriptions)
 - Required providers
 
 This is rendered into your README.md.
 
-## The doc_test
+## doc_test
 
-`*_doc_test` compares your current README.md against what terraform-docs would generate. If they differ, the test fails—your documentation is stale.
+`*_doc_test` compares your README.md against what terraform-docs would generate. If they differ, the test fails.
 
 This catches:
 - New variables added without updating docs
@@ -29,7 +27,7 @@ This catches:
 
 ## Regenerating Documentation
 
-When the test fails, regenerate your README:
+When the test fails, regenerate:
 
 ```bash
 bazel run //path/to:my_module_generate_docs
@@ -44,14 +42,31 @@ Provide a custom `.terraform-docs.yml` to control output format:
 ```starlark
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "README.md",
+        "variables.tf",
+    ],
     tfdoc_config = ".terraform-docs.yml",
 )
 ```
 
 Without a config file, terraform-docs uses its defaults.
 
-## See Also
+## Including README in srcs
 
-- [Linting](linting.md) - TFLint checks
-- [Validation](validation.md) - terraform validate
+The README.md must be in `srcs` for the doc test to work:
+
+```starlark
+tf_module(
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "README.md",
+        "variables.tf",
+    ],
+)
+```
+
+If README.md isn't listed, the doc test can't compare against it.
