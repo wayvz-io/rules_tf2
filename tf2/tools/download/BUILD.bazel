@@ -12,6 +12,7 @@ exports_files([
     "stacksplugin.bzl",
     "registry.bzl",
     "sentinel.bzl",
+    "opa.bzl",
 ])
 
 bzl_library(
@@ -51,5 +52,11 @@ bzl_library(
 bzl_library(
     name = "sentinel",
     srcs = ["sentinel.bzl"],
+    deps = [":platform"],
+)
+
+bzl_library(
+    name = "opa",
+    srcs = ["opa.bzl"],
     deps = [":platform"],
 )

@@ -1,0 +1,34 @@
+load("//tf2:def.bzl", "tf_opa_fmt", "tf_opa_fmt_test", "tf_opa_test")
+
+# Example: OPA Policy Testing with Bazel
+#
+# This example demonstrates how to use tf_opa_test to validate
+# Terraform plans against OPA policies.
+#
+# The policy enforces that all taggable AWS resources include
+# required tags: Environment, Owner, and Project.
+#
+# Usage:
+#   bazel test //examples/opa_policy:require_tags_test
+#   bazel test //examples/opa_policy:format_test
+#   bazel run //examples/opa_policy:format    # Auto-fix formatting
+
+# Test the policy with OPA's built-in test framework
+tf_opa_test(
+    name = "require_tags_test",
+    srcs = glob(["*.rego"]),
+    size = "small",
+)
+
+# Check that Rego files are properly formatted
+tf_opa_fmt_test(
+    name = "format_test",
+    srcs = glob(["*.rego"]),
+    size = "small",
+)
+
+# Auto-format Rego files
+tf_opa_fmt(
+    name = "format",
+    srcs = glob(["*.rego"]),
+)

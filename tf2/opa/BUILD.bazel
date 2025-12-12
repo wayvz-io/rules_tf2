@@ -1,0 +1,15 @@
+"""OPA policy testing rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files(["test.bzl"])
+
+bzl_library(
+    name = "test",
+    srcs = ["test.bzl"],
+    deps = [
+        "//tf2/tools/runners:opa",
+    ],
+)

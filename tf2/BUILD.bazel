@@ -35,6 +35,7 @@ bzl_library(
         "//tf2/providers/download:provider_download_repository",
         "//tf2/providers/repository:terraform_providers",
         "//tf2/providers/repository:versions",
+        "//tf2/tools/download:opa",
         "//tf2/tools/download:registry",
         "//tf2/tools/download:sentinel",
         "//tf2/tools/download:stacksplugin",

@@ -9,6 +9,7 @@ Public functions:
 - get_terraform_docs_path(ctx): Get path to terraform-docs binary
 - get_sentinel_path(ctx): Get path to sentinel binary
 - get_stacksplugin_path(ctx): Get path to stacksplugin binary
+- get_opa_path(ctx): Get path to opa binary
 - get_tflint_plugin_path(ctx, plugin_name): Get path to TFLint plugin binary
 """
 
@@ -34,6 +35,10 @@ _TOOL_CONFIGS = {
     "stacksplugin": {
         "binary_name": "tfstacks",
         "repo_name": "stacksplugin_tool",
+    },
+    "opa": {
+        "binary_name": "opa",
+        "repo_name": "opa_tool",
     },
 }
 
@@ -123,6 +128,10 @@ def get_stacksplugin_path(ctx):
     """Get the path to the stacksplugin (tfstacks) binary."""
     return get_tool_path(ctx, "stacksplugin")
 
+def get_opa_path(ctx):
+    """Get the path to the opa binary."""
+    return get_tool_path(ctx, "opa")
+
 def get_tflint_plugin_path(ctx, plugin_name):
     """Get the runfiles path to a TFLint plugin binary.
 
@@ -159,6 +168,7 @@ TOOLS_ATTR = {
             "@tf_tool_registry//:terraform_docs_bin",
             "@tf_tool_registry//:sentinel_bin",
             "@tf_tool_registry//:stacksplugin_bin",
+            "@tf_tool_registry//:opa_bin",
             "@tflint_plugin_registry//:aws",
             "@tflint_plugin_registry//:azurerm",
             "@tflint_plugin_registry//:google",

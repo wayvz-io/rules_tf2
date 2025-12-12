@@ -9,6 +9,7 @@ exports_files([
     "tflint.bzl",
     "tfdoc.bzl",
     "sentinel.bzl",
+    "opa.bzl",
     "tool_paths.bzl",
 ])
 
@@ -40,6 +41,14 @@ bzl_library(
 bzl_library(
     name = "sentinel",
     srcs = ["sentinel.bzl"],
+    deps = [
+        ":tool_paths",
+    ],
+)
+
+bzl_library(
+    name = "opa",
+    srcs = ["opa.bzl"],
     deps = [
         ":tool_paths",
     ],

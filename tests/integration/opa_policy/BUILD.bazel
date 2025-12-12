@@ -1,0 +1,29 @@
+load("//tf2:def.bzl", "tf_opa_fmt_test", "tf_opa_test")
+
+# Integration test for OPA policy testing
+#
+# This demonstrates:
+# - A policy that enforces authorization rules
+# - Test cases written as Rego rules prefixed with test_
+# - Verifying both allow and deny behaviors
+
+tf_opa_test(
+    name = "authz_test",
+    srcs = glob(["*.rego"]),
+    size = "small",
+)
+
+tf_opa_fmt_test(
+    name = "format_test",
+    srcs = glob(["*.rego"]),
+    size = "small",
+)
+
+test_suite(
+    name = "opa_policy_tests",
+    tests = [
+        ":authz_test",
+        ":format_test",
+    ],
+    visibility = ["//tests/integration:__pkg__"],
+)
