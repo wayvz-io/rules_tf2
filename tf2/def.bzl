@@ -19,7 +19,6 @@ load(
 load(
     "//tf2/tfcloud:runner.bzl",
     _tf_cloud_configuration = "tf_cloud_configuration",
-    _tf_cloud_workspace = "tf_cloud_workspace",
 )
 load(
     "//tf2/tfcore:export.bzl",
@@ -54,7 +53,6 @@ tf_module_push_oci = _tf_module_push_oci
 tf_module_publish = _tf_module_publish
 tf_file_export = _tf_file_export
 tf_cloud_configuration = _tf_cloud_configuration
-tf_cloud_workspace = _tf_cloud_workspace
 tf_runner = _tf_runner
 tf_test = _tf_test
 tf_variables = _tf_variables

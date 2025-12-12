@@ -10,50 +10,45 @@
 
 - [Guides Overview](guides/README.md)
 
-# Reference
-
-- [Reference Overview](reference/README.md)
-- [Rules](reference/rules/README.md)
-  - [tf_module](reference/rules/tf-module.md)
-  - [tf_runner](reference/rules/tf-runner.md)
-  - [tf_test](reference/rules/tf-test.md)
-  - [tf_variables](reference/rules/tf-variables.md)
-  - [tf_file_export](reference/rules/tf-file-export.md)
-- [Cloud Integration](reference/cloud/README.md)
-  - [tf_cloud_configuration](reference/cloud/tf-cloud-configuration.md)
-  - [tf_cloud_workspace](reference/cloud/tf-cloud-workspace.md)
-- [Providers](reference/providers/README.md)
-  - [provider_mirror](reference/providers/provider-mirror.md)
-- [Publishing](reference/publishing/README.md)
-  - [tf_module_publish](reference/publishing/tf-module-publish.md)
-  - [tf_module_push_oci](reference/publishing/tf-module-push-oci.md)
-- [Module Extensions](reference/extensions/README.md)
-  - [tf_providers](reference/extensions/tf-providers.md)
-  - [tf_tools](reference/extensions/tf-tools.md)
-
 # Explanation
 
-- [Overview](explanation/README.md)
-
-## Overview
-
 - [Architecture](explanation/architecture.md)
+- [Versioning](explanation/versioning/README.md)
+  - [Providers](explanation/versioning/providers.md)
+  - [Tools](explanation/versioning/tools.md)
+  - [TFLint Rulesets](explanation/versioning/tflint-rulesets.md)
+  - [External Modules](explanation/versioning/external-modules.md)
+  - [Auto Updates](explanation/versioning/auto-updates.md)
+  - [Gazelle](explanation/versioning/gazelle.md)
+- [Terraform Modules](explanation/tf-modules/README.md)
+  - [Module Structure](explanation/tf-modules/structure.md)
+  - [Linting](explanation/tf-modules/linting.md)
+  - [Testing](explanation/tf-modules/testing.md)
+  - [Documentation](explanation/tf-modules/documentation.md)
+  - [Module Registry](explanation/tf-modules/module-registry.md)
+  - [OCI Registry](explanation/tf-modules/oci-registry.md)
+- [Sentinel](explanation/sentinel.md)
+- [OPA](explanation/opa.md)
+- [Terraform Stacks](explanation/terraform-stacks.md)
 
-## Configuration
+# Reference
 
-- [Setup](explanation/setup.md)
-- [Providers](explanation/providers.md)
-
-## Modules
-
-- [Module Structure](explanation/modules.md)
-
-## Testing
-
-- [Validation](explanation/validation.md)
-- [Linting](explanation/linting.md)
-- [Documentation](explanation/documentation.md)
-
-## Output
-
-- [Publishing](explanation/publishing.md)
+- [Starlark API]()
+  - [Rules](reference/rules/README.md)
+    - [tf_module](reference/rules/tf-module.md)
+    - [tf_runner](reference/rules/tf-runner.md)
+    - [tf_test](reference/rules/tf-test.md)
+    - [tf_variables](reference/rules/tf-variables.md)
+    - [tf_file_export](reference/rules/tf-file-export.md)
+  - [Cloud Integration](reference/cloud/README.md)
+    - [tf_cloud_configuration](reference/cloud/tf-cloud-configuration.md)
+  - [Providers](reference/providers/README.md)
+    - [provider_mirror](reference/providers/provider-mirror.md)
+  - [Publishing](reference/publishing/README.md)
+    - [tf_module_publish](reference/publishing/tf-module-publish.md)
+    - [tf_module_push_oci](reference/publishing/tf-module-push-oci.md)
+  - [Module Extensions](reference/extensions/README.md)
+- [Gazelle]()
+  - [Gazelle Extension](reference/gazelle/README.md)
+- [TFLint Plugin]()
+  - [tflint-ruleset-tf2](reference/tflint/README.md)

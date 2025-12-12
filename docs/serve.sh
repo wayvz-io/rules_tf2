@@ -75,7 +75,7 @@ if [[ -z "$MDBOOK" ]]; then
 fi
 
 echo "Starting mdbook server..."
-echo "Documentation will be available at: http://localhost:3000"
+echo "Documentation will be available at: http://$(hostname):3000"
 echo "Press Ctrl+C to stop"
 echo ""
 

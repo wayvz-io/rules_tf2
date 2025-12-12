@@ -1,17 +1,15 @@
-# About Linting
+# Linting
 
-## Overview
-
-rules_tf2 generates TFLint and formatting targets for each `tf_module`:
+Each `tf_module` generates linting targets:
 
 - `*_lint_test` - TFLint static analysis
 - `*_tflint_fix` - Auto-fix TFLint issues (where supported)
-- `*_format_test` - `terraform fmt` check
+- `*_format_test` - terraform fmt check
 - `*_format` - Auto-fix formatting
 
 ## TFLint Configuration
 
-rules_tf2 generates `.tflint.hcl` files automatically by merging rule sets together. Each layer can override rules from previous layers:
+rules_tf2 generates `.tflint.hcl` files by merging rule layers:
 
 1. **Base rules** - Always applied
 2. **Provider rules** - Added based on declared providers
@@ -20,15 +18,9 @@ rules_tf2 generates `.tflint.hcl` files automatically by merging rule sets toget
 
 ### How Merging Works
 
-Rules are merged, not replaced. If base rules enable `terraform_documented_variables` and a tagged override disables it, the final config has it disabled. Manual overrides always take precedence.
+Rules are merged, not replaced. If base rules enable `terraform_documented_variables` and a tagged override disables it, the final config has it disabled.
 
-This means you don't need to redefine everything—just override what you want to change.
-
-### Base Rules
-
-Base Terraform rules (naming, documentation, deprecation warnings, etc.) are applied to every module.
-
-See `tf2/tflint/defaults.bzl` for the current list.
+Override what you need—don't redefine everything.
 
 ### Provider-Specific Rules
 
@@ -50,6 +42,14 @@ Tags apply preset rule changes:
 - `consumer_module` - Enables strict documentation rules
 - `test_module` - Disables documentation and naming rules
 
+```starlark
+tf_module(
+    name = "my_module",
+    srcs = ["main.tf", "variables.tf"],
+    tags = ["standalone_module"],
+)
+```
+
 ### Manual Overrides
 
 Override specific rules:
@@ -57,7 +57,7 @@ Override specific rules:
 ```starlark
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]),
+    srcs = ["main.tf", "variables.tf"],
     rule_overrides = {
         "terraform_naming_convention.enabled": "false",
     },
@@ -69,16 +69,19 @@ Or provide your own `.tflint.hcl`:
 ```starlark
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]),
+    srcs = ["main.tf", "variables.tf"],
     tflint_config = ".tflint.hcl",
 )
 ```
 
 ## The tf2 Plugin
 
-rules_tf2 includes `tflint-ruleset-tf2` with enhanced rules, including a better `terraform_required_providers` with allowlists and autofix.
+rules_tf2 includes `tflint-ruleset-tf2` with enhanced rules. See [Reference: tflint-ruleset-tf2](../../reference/tflint/README.md) for available rules.
 
-## See Also
+## Formatting
 
-- [Validation](validation.md) - terraform validate
-- [Architecture](architecture.md)
+`*_format_test` checks `terraform fmt` compliance. `*_format` fixes issues in place:
+
+```bash
+bazel run //path/to:my_module_format
+```
