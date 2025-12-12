@@ -12,10 +12,10 @@ The published bundle includes:
 
 Only Bazel-exposed files are included. No stray files, no build artifacts.
 
-## tf_module_publish
+## tf_publish_registry
 
 ```starlark
-tf_module_publish(
+tf_publish_registry(
     name = "publish",
     module = ":my_module",
     organization = "my-org",
@@ -45,4 +45,4 @@ Module versions typically come from git tags or CI build numbers. The publish ru
 
 ## See Also
 
-- [tf_module_publish Reference](../../reference/publishing/tf-module-publish.md)
+- [tf_publish_registry Reference](../../reference/publishing/tf-publish-registry.md)

@@ -439,8 +439,6 @@ def _tfc_config_impl(module_ctx):
                 tfc_config["organization"] = config.organization
             if config.tfe_host:
                 tfc_config["tfe_host"] = config.tfe_host
-            if hasattr(config, "default_auto_apply"):
-                tfc_config["default_auto_apply"] = config.default_auto_apply
 
     # Note: In a real implementation, we would store this config somewhere
     # that the rules can access it. For now, rules will need to pass
@@ -458,10 +456,6 @@ _tfc_configure = tag_class(
         "tfe_host": attr.string(
             doc = "Terraform Enterprise hostname (defaults to app.terraform.io)",
             mandatory = False,
-        ),
-        "default_auto_apply": attr.bool(
-            doc = "Default auto-apply setting for workspaces",
-            default = False,
         ),
     },
 )

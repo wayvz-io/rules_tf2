@@ -38,7 +38,7 @@ All user-facing rules/macros:
 - `tf_module` - Main macro for Terraform modules with auto-generated tests
 - `tf_runner` - Run arbitrary terraform commands
 - `tf_test` - Explicit test targets
-- `tf_cloud_workspace`, `tf_cloud_configuration` - Terraform Cloud integration
+- `tf_cloud_workspace` - Terraform Cloud integration
 - `provider_mirror` - Custom provider management
 
 ### Core Directories

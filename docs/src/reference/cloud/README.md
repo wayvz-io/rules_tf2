@@ -6,15 +6,14 @@ Terraform Cloud and Terraform Enterprise integration.
 
 | Rule | Description |
 |------|-------------|
-| [tf_cloud_configuration](tf-cloud-configuration.md) | Create multiple TFC runner targets |
-| [tf_cloud_workspace](tf-cloud-workspace.md) | Backward compatibility alias |
+| [tf_cloud_workspace](tf-cloud-workspace.md) | Create multiple TFC runner targets |
 
-## tf_cloud_configuration
+## tf_cloud_workspace
 
 Creates runner targets pre-configured for Terraform Cloud workspaces:
 
 ```starlark
-tf_cloud_configuration(
+tf_cloud_workspace(
     name = "prod",
     module = ":my_module",
     workspace_name = "my-workspace-prod",

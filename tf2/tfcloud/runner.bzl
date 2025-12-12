@@ -2,7 +2,7 @@
 
 load("//tf2/tfcore:tf_runner.bzl", "tf_runner")
 
-def tf_cloud_configuration(
+def tf_cloud_workspace(
         name,
         module,
         workspace_name,
@@ -10,8 +10,6 @@ def tf_cloud_configuration(
         organization = None,
         tfe_host = None,
         auto_backend = True,
-        _auto_apply = False,  # Ignored, kept for backward compatibility
-        _enable_local_validation = True,  # Ignored, kept for backward compatibility
         **kwargs):
     """Creates Terraform Cloud runner targets for plan and apply operations.
 
@@ -23,18 +21,12 @@ def tf_cloud_configuration(
         organization: Terraform Cloud organization (defaults to "Wayvz" if not set)
         tfe_host: Terraform Enterprise hostname (optional, defaults to app.terraform.io)
         auto_backend: Automatically generate backend configuration (default True)
-        _auto_apply: Ignored, kept for backward compatibility
-        _enable_local_validation: Ignored, kept for backward compatibility
         **kwargs: Additional attributes passed to all rules
     """
 
     # Default organization if not provided
     if not organization:
         organization = "Wayvz"
-
-    # Filter out kwargs that tf_runner doesn't accept
-    # Remove auto_apply and enable_local_validation as they're handled differently now
-    filtered_kwargs = {k: v for k, v in kwargs.items() if k not in ["auto_apply", "enable_local_validation"]}
 
     # Main runner target - can run any terraform command
     if auto_backend:
@@ -46,7 +38,7 @@ def tf_cloud_configuration(
             backend_organization = organization,
             backend_workspace = workspace_name,
             tfe_host = tfe_host or "app.terraform.io",
-            **filtered_kwargs
+            **kwargs
         )
     else:
         tf_runner(
@@ -54,7 +46,7 @@ def tf_cloud_configuration(
             stack = module,
             variables = variables,
             backend_type = "",
-            **filtered_kwargs
+            **kwargs
         )
 
     # Local validation target (no backend)
@@ -66,7 +58,7 @@ def tf_cloud_configuration(
         default_command = "validate",
         default_plan_args = "",  # No args needed for validation
         init_args = "-backend=false",  # Disable backend for init
-        **filtered_kwargs
+        **kwargs
     )
 
     # Plan target (speculative plan equivalent)
@@ -81,7 +73,7 @@ def tf_cloud_configuration(
             tfe_host = tfe_host or "app.terraform.io",
             default_command = "plan",
             default_plan_args = "",
-            **filtered_kwargs
+            **kwargs
         )
     else:
         tf_runner(
@@ -91,7 +83,7 @@ def tf_cloud_configuration(
             backend_type = "",
             default_command = "plan",
             default_plan_args = "",
-            **filtered_kwargs
+            **kwargs
         )
 
     # Apply target
@@ -106,7 +98,7 @@ def tf_cloud_configuration(
             tfe_host = tfe_host or "app.terraform.io",
             default_command = "apply",
             default_apply_args = "-auto-approve",
-            **filtered_kwargs
+            **kwargs
         )
     else:
         tf_runner(
@@ -116,6 +108,6 @@ def tf_cloud_configuration(
             backend_type = "",
             default_command = "apply",
             default_apply_args = "-auto-approve",
-            **filtered_kwargs
+            **kwargs
         )
 

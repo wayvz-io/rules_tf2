@@ -394,7 +394,7 @@ echo "Successfully pushed Terraform stack to $IMAGE"
         ),
     ]
 
-tf_module_push_oci = rule(
+tf_publish_oci = rule(
     implementation = _tf_module_push_oci_impl,
     attrs = {
         "module": attr.label(
@@ -435,19 +435,19 @@ tf_module_push_oci = rule(
     },
     executable = True,
     doc = """Push Terraform stacks to OCI registry.
-    
-    This rule takes a tf_stack target and pushes it to an OCI registry using the 
+
+    This rule takes a tf_stack target and pushes it to an OCI registry using the
     media types expected by Flux's tf-controller.
-    
+
     Example:
         tf_stack(
             name = "hub",
             ...
         )
-        
-        tf_module_push_oci(
+
+        tf_publish_oci(
             name = "hub_push",
-            stack = ":hub",
+            module = ":hub",
             stack_name = "aws/hub",
         )
     """,
