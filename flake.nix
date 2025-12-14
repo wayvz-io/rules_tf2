@@ -41,7 +41,7 @@
 
             packages = [
               # Bazel 7
-              bazel_7
+              pkgs-unstable.bazel_8
               bazel-buildtools
               bazel-gazelle
               bazel-watcher
@@ -61,9 +61,6 @@
               go-outline
               gopkgs
 
-              # Keep CDKTF CLI since it's not replaced by our tool system
-              pkgs-unstable.nodePackages_latest.cdktf-cli
-
               # Development tools
               git
               gnupg
@@ -78,7 +75,7 @@
               # Terraform providers are distributed as pre-compiled binaries
               # that expect standard FHS library locations
               patchelf
-              
+
               # Standard libraries that providers might need
               stdenv.cc.cc.lib  # Provides libstdc++.so.6 and other C++ libs
               zlib              # Common compression library
@@ -92,10 +89,10 @@
               # Enable Bazel tab completion
               if [ -n "$BASH" ]; then
                 # For Bash shell
-                source ${bazel_7}/share/bash-completion/completions/bazel.bash
+                source ${bazel_8}/share/bash-completion/completions/bazel.bash
               elif [ -n "$ZSH_VERSION" ]; then
                 # For Zsh shell - use native Zsh completion
-                fpath=(${bazel_7}/share/zsh/site-functions $fpath)
+                fpath=(${bazel_8}/share/zsh/site-functions $fpath)
                 autoload -U compinit && compinit
                 # Force reload of bazel completion
                 autoload -U _bazel

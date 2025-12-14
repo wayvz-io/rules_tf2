@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "rules",
+    srcs = [
+        "terraform_file_organization.go",
+        "terraform_required_providers.go",
+    ],
+    importpath = "github.com/wayvz-io/rules_tf2/go/tflint_ruleset/rules",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/tflint_ruleset/terraform",
+        "@com_github_hashicorp_go_version//:go-version",
+        "@com_github_hashicorp_hcl_v2//:hcl",
+        "@com_github_hashicorp_terraform_registry_address//:terraform-registry-address",
+        "@com_github_terraform_linters_tflint_plugin_sdk//hclext",
+        "@com_github_terraform_linters_tflint_plugin_sdk//terraform",
+        "@com_github_terraform_linters_tflint_plugin_sdk//tflint",
+        "@com_github_zclconf_go_cty//cty",
+    ],
+)

@@ -15,16 +15,16 @@ bzl_library(
 )
 
 bzl_library(
-    name = "lock_file_generator",
-    srcs = ["lock_file_generator.bzl"],
-)
-
-bzl_library(
     name = "regenerate_all",
     srcs = ["regenerate_all.bzl"],
     deps = [
         "//tf2/tools/runners:shell_utils",
     ],
+)
+
+bzl_library(
+    name = "lock_file_generator",
+    srcs = ["lock_file_generator.bzl"],
 )
 
 bzl_library(

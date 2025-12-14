@@ -24,3 +24,20 @@ bzl_library(
         "//tf2/tflint:validate",
     ],
 )
+
+bzl_library(
+    name = "tf_stack",
+    srcs = ["tf_stack.bzl"],
+    deps = [
+        "//tf2/internal:sources_validation",
+        "//tf2/providers/module:module_provider_mirror",
+        "//tf2/tfcore/versions",
+        "//tf2/tfcore/versions:lockfile",
+        "//tf2/tfstack:deps",
+        "//tf2/tfstack:export",
+        "//tf2/tfstack:format",
+        "//tf2/tfstack:generate_versions",
+        "//tf2/tfstack:stack",
+        "//tf2/tfstack:validate",
+    ],
+)

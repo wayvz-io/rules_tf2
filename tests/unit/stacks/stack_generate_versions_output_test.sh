@@ -16,8 +16,8 @@ fi
 
 # Find the generate_versions script in runfiles
 SCRIPT_PATHS=(
-    "$RUNFILES/_main/tests/integration/sample_tf_stack/sample_tf_stack_generate_versions_generate.sh"
-    "$RUNFILES/rules_tf2/tests/integration/sample_tf_stack/sample_tf_stack_generate_versions_generate.sh"
+    "$RUNFILES/_main/tests/integration/sample_tf_stack/tf_stack_generate_versions_generate.sh"
+    "$RUNFILES/rules_tf2/tests/integration/sample_tf_stack/tf_stack_generate_versions_generate.sh"
 )
 
 SCRIPT=""
@@ -40,7 +40,7 @@ OUTPUT=$("$SCRIPT" 2>&1)
 ERRORS=0
 
 # Check for stack name
-if echo "$OUTPUT" | grep -q "Stack: sample_tf_stack"; then
+if echo "$OUTPUT" | grep -q "Stack: tf_stack"; then
     echo "✓ Output contains stack name"
 else
     echo "✗ Missing stack name in output"

@@ -74,7 +74,8 @@ def _is_external_repository(ctx):
     """
     if hasattr(ctx.attr, "_tools") and ctx.files._tools:
         for tool_file in ctx.files._tools:
-            if "rules_tf2~~tf_tools~" in tool_file.short_path:
+            # Check for external repository patterns (both old and new bzlmod naming)
+            if "rules_tf2~~tf_tools~" in tool_file.short_path or "rules_tf2++tf_tools+" in tool_file.short_path:
                 return True
     return False
 
@@ -100,11 +101,11 @@ def get_tool_path(ctx, tool_name):
 
     # Determine repository prefix based on context
     if _is_external_repository(ctx):
-        # External repository - tools are under rules_tf2~~ prefix (bzlmod module extension)
-        repo_path = "rules_tf2~~tf_tools~{}".format(repo_name)
+        # External repository - tools are under rules_tf2++ prefix (new bzlmod naming)
+        repo_path = "rules_tf2++tf_tools+{}".format(repo_name)
     else:
-        # Main repository - tools are under _main~ prefix
-        repo_path = "_main~tf_tools~{}".format(repo_name)
+        # Main repository - tools are under + prefix (new bzlmod naming)
+        repo_path = "+tf_tools+{}".format(repo_name)
 
     return "$RUNFILES/{}/{}".format(repo_path, binary_name)
 
@@ -151,11 +152,11 @@ def get_tflint_plugin_path(ctx, plugin_name):
 
     # Determine repository prefix based on context
     if _is_external_repository(ctx):
-        # External repository - plugins are under rules_tf2~~ prefix
-        repo_path = "rules_tf2~~tf_tools~{}".format(repo_name)
+        # External repository - plugins are under rules_tf2++ prefix (new bzlmod naming)
+        repo_path = "rules_tf2++tf_tools+{}".format(repo_name)
     else:
-        # Main repository - plugins are under _main~ prefix
-        repo_path = "_main~tf_tools~{}".format(repo_name)
+        # Main repository - plugins are under + prefix (new bzlmod naming)
+        repo_path = "+tf_tools+{}".format(repo_name)
 
     return "$RUNFILES/{}/{}".format(repo_path, binary_name)
 

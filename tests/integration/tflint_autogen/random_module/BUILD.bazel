@@ -1,10 +1,10 @@
 load("//tf2:def.bzl", "tf_module")
 
-# Module with explicit TFLint config (should not auto-generate)
+# Random provider module test for TFLint auto-generation
 tf_module(
-    name = "explicit_config_module",
+    name = "tf_module",
     testonly = True,
     srcs = glob(["*.tf"]),
-    providers = ["@tf_provider_registry//:aws_5"],
+    providers = ["@tf_provider_registry//:random_3"],
     visibility = ["//tests/integration/tflint_autogen:__pkg__"],
 )

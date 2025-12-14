@@ -16,11 +16,6 @@ exports_files([
 ])
 
 bzl_library(
-    name = "platform",
-    srcs = ["platform.bzl"],
-)
-
-bzl_library(
     name = "terraform",
     srcs = ["terraform.bzl"],
     deps = [":platform"],
@@ -45,11 +40,6 @@ bzl_library(
 )
 
 bzl_library(
-    name = "registry",
-    srcs = ["registry.bzl"],
-)
-
-bzl_library(
     name = "sentinel",
     srcs = ["sentinel.bzl"],
     deps = [":platform"],
@@ -59,4 +49,14 @@ bzl_library(
     name = "opa",
     srcs = ["opa.bzl"],
     deps = [":platform"],
+)
+
+bzl_library(
+    name = "platform",
+    srcs = ["platform.bzl"],
+)
+
+bzl_library(
+    name = "registry",
+    srcs = ["registry.bzl"],
 )

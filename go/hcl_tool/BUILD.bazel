@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "hcl_tool_lib",
+    srcs = ["main.go"],
+    importpath = "github.com/wayvz-io/rules_tf2/go/hcl_tool",
+    visibility = ["//visibility:private"],
+    deps = ["//go/hcl_tool/cmd"],
+)
+
+go_binary(
+    name = "hcl_tool",
+    embed = [":hcl_tool_lib"],
+    visibility = ["//visibility:public"],
+)

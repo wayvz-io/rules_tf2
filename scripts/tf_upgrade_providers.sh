@@ -258,11 +258,31 @@ update_tools() {
     # terraform-docs
     if [ -n "$latest_tfdocs" ] && [ "$latest_tfdocs" != "$current_tfdocs" ]; then
         echo -e "${GREEN}✓${NC} terraform-docs: ${YELLOW}$current_tfdocs${NC} → ${GREEN}$latest_tfdocs${NC}" >&2
-        echo "    \"terraform-docs\": \"$latest_tfdocs\"" >> "$tmp_file"
+        echo "    \"terraform-docs\": \"$latest_tfdocs\"," >> "$tmp_file"
         updates_made=true
     else
         echo -e "${BLUE}✓${NC} terraform-docs: ${current_tfdocs:-$latest_tfdocs} (already latest)" >&2
-        echo "    \"terraform-docs\": \"${current_tfdocs:-$latest_tfdocs}\"" >> "$tmp_file"
+        echo "    \"terraform-docs\": \"${current_tfdocs:-$latest_tfdocs}\"," >> "$tmp_file"
+    fi
+
+    # Preserve any additional tools that exist in versions.json (opa, sentinel, stacksplugin, etc.)
+    # Use Python for reliable JSON parsing to avoid grep ambiguity issues
+    local extra_tools=$(python3 -c "
+import json
+core_tools = {'terraform', 'tflint', 'terraform-docs'}
+d = json.load(open('$versions_file'))
+tools = d.get('tools', {})
+extras = [(k, v) for k, v in sorted(tools.items()) if k not in core_tools]
+for i, (k, v) in enumerate(extras):
+    comma = ',' if i < len(extras) - 1 else ''
+    print(f'    \"{k}\": \"{v}\"{comma}')
+" 2>/dev/null || echo "")
+
+    if [ -n "$extra_tools" ]; then
+        echo "$extra_tools" >> "$tmp_file"
+    else
+        # Remove trailing comma from terraform-docs line if no extra tools
+        sed -i '$ s/,$//' "$tmp_file"
     fi
 
     echo '  },' >> "$tmp_file"
@@ -286,8 +306,8 @@ update_tflint_plugins() {
 
     local first=true
     for plugin in "${plugins[@]}"; do
-        # Read current version
-        local current_version=$(grep -o "\"$plugin\": *\"[^\"]*\"" "$versions_file" | sed "s/\"$plugin\": *\"\(.*\)\"/\1/" || echo "")
+        # Read current version from tflint_plugins section specifically (use Python for reliable JSON parsing)
+        local current_version=$(python3 -c "import json; d=json.load(open('$versions_file')); print(d.get('tflint_plugins', {}).get('$plugin', ''))" 2>/dev/null || echo "")
 
         # Get latest version from GitHub
         local latest_version=$(get_latest_github_release "terraform-linters" "tflint-ruleset-$plugin")

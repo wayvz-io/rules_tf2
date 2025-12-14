@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "cmd",
+    srcs = [
+        "extract_module_lock.go",
+        "parse_lock.go",
+        "read_versions.go",
+        "reorganize.go",
+        "root.go",
+        "validate_versions.go",
+        "write_versions.go",
+    ],
+    importpath = "github.com/wayvz-io/rules_tf2/go/hcl_tool/cmd",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//go/hcl_tool/pkg/hcl",
+        "//go/hcl_tool/pkg/terraform",
+        "@com_github_spf13_cobra//:cobra",
+    ],
+)

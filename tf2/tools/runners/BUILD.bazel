@@ -55,11 +55,11 @@ bzl_library(
 )
 
 bzl_library(
-    name = "tool_paths",
-    srcs = ["tool_paths.bzl"],
+    name = "shell_utils",
+    srcs = ["shell_utils.bzl"],
 )
 
 bzl_library(
-    name = "shell_utils",
-    srcs = ["shell_utils.bzl"],
+    name = "tool_paths",
+    srcs = ["tool_paths.bzl"],
 )

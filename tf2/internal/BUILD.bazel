@@ -4,11 +4,6 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 package(default_visibility = ["//tf2:__subpackages__"])
 
 bzl_library(
-    name = "file_ops",
-    srcs = ["file_ops.bzl"],
-)
-
-bzl_library(
     name = "staging",
     srcs = ["staging.bzl"],
     deps = [
@@ -38,4 +33,9 @@ bzl_library(
     deps = [
         "//tf2/providers/core:info",
     ],
+)
+
+bzl_library(
+    name = "file_ops",
+    srcs = ["file_ops.bzl"],
 )
