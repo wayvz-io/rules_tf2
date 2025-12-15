@@ -541,7 +541,10 @@ if [ "$DRY_RUN" = false ]; then
         echo "Updated: $VERSIONS_FILE"
         echo ""
         if [ "$UPDATE_PROVIDERS" = true ]; then
-            echo -e "${YELLOW}Note: Run 'bazel run ${TARGET_PREFIX}:tf-mod' to regenerate locks and terraform.tf files${NC}"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo -e "  1. Run 'bazel build //...' to generate provider hashes"
+            echo -e "  2. Run 'bazel run ${TARGET_PREFIX}:regenerate' to update terraform.tf configs"
         fi
     else
         rm "$TMP_FILE"
