@@ -1,0 +1,11 @@
+load("@rules_tf2//tf2:def.bzl", "tf_module")
+
+package(default_visibility = ["//visibility:public"])
+
+tf_module(
+    name = "tf_module",
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+    ],
+)
