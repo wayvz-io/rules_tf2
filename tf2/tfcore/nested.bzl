@@ -81,10 +81,32 @@ def _process_external_module_files(_, module, module_name):
     files_to_copy = []
     module_info = module[TfExternalModuleInfo]
 
+    # Get the repository name from the module label to compute relative paths
+    # External modules come from repositories like @tf_module_label_null_0
+    repo_name = module.label.workspace_name
+
     for src_file in module_info.files.to_list():
-        # External modules have simpler structure - just copy all files
-        # preserving their relative paths
-        dest_path = paths.join("modules", module_name, src_file.basename)
+        # Compute relative path within the external module
+        # File paths look like: external/<repo_name>/path/to/file.tf
+        # or for short_path: ../<repo_name>/path/to/file.tf
+        src_path = src_file.path
+
+        # Find the repository root in the path and extract relative path
+        relative_path = src_file.basename  # Default fallback
+
+        # Try to extract relative path from full path
+        # Pattern: .../external/<repo_name>/<relative_path>
+        if repo_name and repo_name in src_path:
+            idx = src_path.find(repo_name)
+            if idx != -1:
+                # Skip past repo_name and the following /
+                after_repo = src_path[idx + len(repo_name):]
+                if after_repo.startswith("/"):
+                    relative_path = after_repo[1:]
+                elif after_repo == "":
+                    relative_path = src_file.basename
+
+        dest_path = paths.join("modules", module_name, relative_path)
         files_to_copy.append((src_file, dest_path))
 
     return files_to_copy
@@ -146,6 +168,18 @@ def process_nested_modules(ctx, parent_srcs, modules):
         - all_files: List of all files (parent + processed modules)
         - module_mappings: Dict of source path rewrites
     """
+
+    # Validate that all modules provide either TfModuleInfo or TfExternalModuleInfo
+    for module in modules:
+        if TfModuleInfo not in module and TfExternalModuleInfo not in module:
+            fail(
+                "Invalid module target: {}\n".format(module.label) +
+                "Targets in 'modules' must be either:\n" +
+                "  - A tf_module target (provides TfModuleInfo)\n" +
+                "  - An external module from @tf_module_registry (provides TfExternalModuleInfo)\n" +
+                "Got a target that provides neither.",
+            )
+
     all_files = []
     module_mappings = {}
 

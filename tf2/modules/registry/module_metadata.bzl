@@ -69,20 +69,9 @@ def _module_metadata_impl(ctx):
         # For git, keep original source
         source_url = source
 
-    # Generate alias from source and version
-    if source_type == "registry":
-        # vpc_aws_5 for terraform-aws-modules/vpc/aws:5.0.0
-        major_version = version.split(".")[0]
-        alias = "{}_{}".format(name, provider_name + "_" + major_version if provider_name else major_version)
-    elif source_type == "private":
-        major_version = version.split(".")[0]
-        alias = "{}_{}_{}".format(namespace, name, major_version)
-    else:
-        # For git: owner_repo_ref
-        sanitized_version = version.replace(".", "_").replace("-", "_")
-        if sanitized_version.startswith("v"):
-            sanitized_version = sanitized_version[1:]
-        alias = "{}_{}".format(name.replace("-", "_"), sanitized_version)
+    # Note: The alias is determined by ctx.label.name, which is set by the
+    # tf_modules extension when creating these targets. The extension applies
+    # the aliasing scheme (e.g., vpc_aws_5 for registry, owner_repo_v1_0_0 for git).
 
     return [
         TfExternalModuleInfo(

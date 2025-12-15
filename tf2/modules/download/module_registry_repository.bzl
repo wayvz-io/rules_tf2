@@ -86,16 +86,29 @@ def _module_registry_repository_impl(repository_ctx):
     # The Terraform Registry returns 204 No Content with X-Terraform-Get header
     # We need to use curl with GET request and capture headers (HEAD returns 405)
 
-    curl_args = ["curl", "-s", "-D", "-", "-o", "/dev/null", api_url]
+    curl_args = [
+        "curl",
+        "-s",  # Silent mode
+        "-D", "-",  # Dump headers to stdout
+        "-o", "/dev/null",  # Discard body
+        "--connect-timeout", "30",  # Connection timeout in seconds
+        "--max-time", "60",  # Total operation timeout in seconds
+        "-f",  # Fail on HTTP errors (4xx, 5xx)
+        api_url,
+    ]
 
     # Add auth header for private registries
     if source_type == "private":
         tfe_token = repository_ctx.os.environ.get("TFE_TOKEN", "")
         if not tfe_token:
-            fail("TFE_TOKEN environment variable is required for private registry modules")
+            fail(
+                "TFE_TOKEN environment variable is required for private registry modules.\n" +
+                "Set it with: export TFE_TOKEN=<your-token>\n" +
+                "Module: {}:{}".format(source, version),
+            )
         curl_args.extend(["-H", "Authorization: Bearer " + tfe_token])
 
-    result = repository_ctx.execute(curl_args, quiet = True)
+    result = repository_ctx.execute(curl_args, quiet = True, timeout = 120)
 
     download_url = None
 
@@ -111,7 +124,19 @@ def _module_registry_repository_impl(repository_ctx):
                 download_url = line.split(":", 1)[1].strip()
 
     if not download_url:
-        fail("Could not determine download URL for module {}:{}. Registry API did not return X-Terraform-Get header. Response: {}".format(source, version, result.stdout))
+        error_msg = "Could not determine download URL for module {}:{}\n".format(source, version)
+        if result.return_code != 0:
+            error_msg += "Registry API request failed (exit code {}).\n".format(result.return_code)
+            if "curl: (28)" in result.stderr:
+                error_msg += "Connection timed out. Check your network connection.\n"
+            elif "curl: (22)" in result.stderr:
+                error_msg += "HTTP error returned. The module or version may not exist.\n"
+            error_msg += "stderr: {}\n".format(result.stderr)
+        else:
+            error_msg += "Registry API did not return X-Terraform-Get header.\n"
+        error_msg += "API URL: {}\n".format(api_url)
+        error_msg += "Response headers:\n{}\n".format(result.stdout[:500] if len(result.stdout) > 500 else result.stdout)
+        fail(error_msg)
 
     # Transform git-style URLs to downloadable archive URLs
     # git::https://github.com/owner/repo?ref=abc123 -> https://github.com/owner/repo/archive/abc123.tar.gz

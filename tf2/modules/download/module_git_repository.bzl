@@ -60,39 +60,65 @@ def _module_git_repository_impl(repository_ctx):
 
     is_commit = _is_commit_hash(ref)
 
+    # Git operations timeout (5 minutes should be enough for most modules)
+    git_timeout = 300
+
     if is_commit:
         # For commit hashes, we need to clone and checkout
         # First, do a shallow clone
         result = repository_ctx.execute(
             ["git", "clone", "--depth", "1", git_url, "."],
             quiet = False,
+            timeout = git_timeout,
         )
         if result.return_code != 0:
-            fail("Failed to clone {}: {}".format(git_url, result.stderr))
+            fail(
+                "Failed to clone {}\n".format(git_url) +
+                "Exit code: {}\n".format(result.return_code) +
+                "stderr: {}\n".format(result.stderr) +
+                "Check that the repository exists and is accessible.",
+            )
 
         # Fetch the specific commit
         result = repository_ctx.execute(
             ["git", "fetch", "--depth", "1", "origin", ref],
             quiet = False,
+            timeout = git_timeout,
         )
         if result.return_code != 0:
-            fail("Failed to fetch commit {}: {}".format(ref, result.stderr))
+            fail(
+                "Failed to fetch commit {} from {}\n".format(ref, git_url) +
+                "Exit code: {}\n".format(result.return_code) +
+                "stderr: {}\n".format(result.stderr) +
+                "Check that the commit hash exists in the repository.",
+            )
 
         # Checkout the commit
         result = repository_ctx.execute(
             ["git", "checkout", ref],
             quiet = False,
+            timeout = 60,
         )
         if result.return_code != 0:
-            fail("Failed to checkout commit {}: {}".format(ref, result.stderr))
+            fail(
+                "Failed to checkout commit {}\n".format(ref) +
+                "Exit code: {}\n".format(result.return_code) +
+                "stderr: {}".format(result.stderr),
+            )
     else:
         # For tags, use --branch which works for both tags and branches
         result = repository_ctx.execute(
             ["git", "clone", "--depth", "1", "--branch", ref, git_url, "."],
             quiet = False,
+            timeout = git_timeout,
         )
         if result.return_code != 0:
-            fail("Failed to clone {} at {}: {}".format(git_url, ref, result.stderr))
+            fail(
+                "Failed to clone {} at ref '{}'\n".format(git_url, ref) +
+                "Exit code: {}\n".format(result.return_code) +
+                "stderr: {}\n".format(result.stderr) +
+                "Check that the tag/branch '{}' exists in the repository.".format(ref),
+            )
 
     # If subdirectory is specified, we need to move those files to root
     if subdirectory:
