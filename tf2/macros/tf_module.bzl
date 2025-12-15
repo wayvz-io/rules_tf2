@@ -27,28 +27,27 @@ def _extract_provider_aliases(providers):
     aliases = []
     for provider in providers:
         # Handle both @tf_provider_registry:alias and @tf_provider_registry//:alias formats
-        if ":" in provider:
-            alias = provider.split(":")[-1]
+        if ":" in str(provider):
+            alias = str(provider).split(":")[-1]
             aliases.append(alias)
     return aliases
 
-def tf_module(
-        name = "tf_module",
-        srcs = None,
-        deps = None,
-        modules = None,
-        providers = None,
-        tflint_config = None,
-        tfdoc_config = None,
-        skip_validation = None,
-        terraform_version = None,
-        visibility = None,
-        testonly = None,
-        tags = None,
-        **kwargs):
-    """Creates a Terraform module with associated build and test targets.
+def _tf_module_impl(
+        name,
+        visibility,
+        srcs,
+        deps,
+        modules,
+        providers,
+        tflint_config,
+        tfdoc_config,
+        skip_validation,
+        terraform_version,
+        testonly,
+        tags):
+    """Implementation of tf_module symbolic macro.
 
-    This macro creates multiple targets:
+    Creates a Terraform module with associated build and test targets:
     - name: The main module target
     - name_deps: Module dependencies target (if deps specified)
     - name_validate_test: Validation test (if not skip_validation)
@@ -59,33 +58,23 @@ def tf_module(
     - name_generate_versions: Generate terraform.tf versions
     - name_generate_docs: Generate README.md
     - name_no_lockfile_test: Test that no committed lockfile exists
-
-    Args:
-        name: Name of the module (defaults to "tf_module" - recommended to omit)
-        srcs: Source files (explicit list required)
-        deps: Dependencies on other tf_module targets
-        modules: Nested modules in this module (for complex deployments)
-        providers: List of provider_mirror targets
-        tflint_config: TFLint configuration file
-        tfdoc_config: terraform-docs configuration file
-        skip_validation: Skip terraform validate test (for template modules)
-        terraform_version: Terraform version constraint
-        visibility: Visibility of the module
-        testonly: Whether this is a test-only module
-        tags: Tags to apply to test targets
-        **kwargs: Additional arguments passed to the underlying rule
     """
 
-    # Validate srcs attribute is provided (mandatory)
-    if srcs == None:
-        fail("tf_module '{}' requires explicit srcs attribute. ".format(name) +
-             "Please add: srcs = glob([\"*.tf\"]) + [\"README.md\"]")
+    # Normalize None values to empty lists for iteration
+    actual_deps = deps if deps else []
+    actual_modules = modules if modules else []
+    actual_providers = providers if providers else []
+    actual_tags = tags if tags else []
+
+    # Require providers list (unless modules are specified that can provide them)
+    if not actual_providers and not actual_modules:
+        fail("providers attribute is required for tf_module (unless modules are specified that provide them)")
 
     # Create the dependencies filegroup
-    if deps:
+    if actual_deps:
         tf_module_deps(
             name = name + "_deps",
-            deps = deps,
+            deps = actual_deps,
             visibility = visibility,
             testonly = testonly,
         )
@@ -99,7 +88,7 @@ def tf_module(
     # This prevents doc edits from triggering full module rebuilds
 
     # Extract documentation files
-    doc_files = [f for f in srcs if f.endswith("README.md") or f.endswith(".tfdoc.yaml") or f.endswith(".terraform-docs.yml")]
+    doc_files = [f for f in srcs if str(f).endswith("README.md") or str(f).endswith(".tfdoc.yaml") or str(f).endswith(".terraform-docs.yml")]
 
     # Extract terraform source files (everything except docs)
     tf_source_files = [f for f in srcs if f not in doc_files]
@@ -118,17 +107,13 @@ def tf_module(
             visibility = visibility,
         )
 
-    # Require providers list (unless modules are specified that can provide them)
-    if not providers and not modules:
-        fail("providers attribute is required for tf_module (unless modules are specified that provide them)")
-
     # Generate versions configuration from providers
     # Include nested modules to collect their providers
     tf_generate_versions_from_mirrors(
         name = name + "_provider_config",
-        providers = providers,
-        modules = modules,  # Pass modules to collect their providers
-        terraform_version = terraform_version or "1.13.2",  # Use configured version from tf_tools
+        providers = actual_providers,
+        modules = actual_modules,  # Pass modules to collect their providers
+        terraform_version = terraform_version if terraform_version else "1.13.2",
         visibility = visibility,
         testonly = testonly,
     )
@@ -136,31 +121,29 @@ def tf_module(
 
     # Generate lockfile for module - used by all terraform operations
     generated_lock_name = name + "_generated_lock"
-    if not native.existing_rule(generated_lock_name):
-        tf_generate_lockfile_for_validation(
-            name = generated_lock_name,
-            provider_locks = "@tf_provider_registry//:provider_locks.json",
-            versions_json = actual_provider_configurations,
-            visibility = visibility,
-            testonly = testonly,
-        )
+    tf_generate_lockfile_for_validation(
+        name = generated_lock_name,
+        provider_locks = "@tf_provider_registry//:provider_locks.json",
+        versions_json = actual_provider_configurations,
+        visibility = visibility,
+        testonly = testonly,
+    )
 
     # Create the main module rule
     tf_module_rule(
         name = name,
-        srcs = srcs + module_deps,
-        deps = deps or [],
-        modules = modules or [],
+        srcs = list(srcs) + module_deps,
+        deps = actual_deps,
+        modules = actual_modules,
         provider_configurations = actual_provider_configurations,
         tflint_config = tflint_config,
         lock_file = ":" + generated_lock_name,
         visibility = visibility,
         testonly = testonly,
-        **kwargs
     )
 
     # Create format test and formatter (only for .tf files)
-    tf_srcs = [src for src in srcs if src.endswith(".tf")]
+    tf_srcs = [src for src in srcs if str(src).endswith(".tf")]
     if tf_srcs:
         tf_format_test(
             name = name + "_format_test",
@@ -168,7 +151,7 @@ def tf_module(
             visibility = visibility,
             testonly = True,
             size = "small",
-            tags = tags,
+            tags = actual_tags if actual_tags else None,
         )
 
         tf_format(
@@ -177,9 +160,10 @@ def tf_module(
             visibility = visibility,
         )
 
-    # Create doc test if README.md exists
+    # Create doc test if README.md exists in srcs
     # Note: terraform-docs needs both .tf files and README.md to validate
-    if "README.md" in native.glob(["README.md"], allow_empty = True):
+    has_readme = any([str(f).endswith("README.md") for f in srcs])
+    if has_readme:
         tf_doc_test(
             name = name + "_doc_test",
             srcs = srcs,
@@ -187,7 +171,7 @@ def tf_module(
             visibility = visibility,
             testonly = True,
             size = "small",
-            tags = tags,
+            tags = actual_tags if actual_tags else None,
         )
 
         tf_generate_docs(
@@ -204,7 +188,7 @@ def tf_module(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     # Create module dependency test (always runs)
@@ -215,27 +199,26 @@ def tf_module(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
-    # Create versions check test and generator if provider configurations are specified
-    if actual_provider_configurations:
-        tf_versions_check_test(
-            name = name + "_versions_check_test",
-            srcs = srcs,
-            provider_configurations = actual_provider_configurations,
-            visibility = visibility,
-            testonly = True,
-            size = "small",
-            tags = tags,
-        )
+    # Create versions check test and generator
+    tf_versions_check_test(
+        name = name + "_versions_check_test",
+        srcs = srcs,
+        provider_configurations = actual_provider_configurations,
+        visibility = visibility,
+        testonly = True,
+        size = "small",
+        tags = actual_tags if actual_tags else None,
+    )
 
-        tf_generate_versions(
-            name = name + "_generate_versions",
-            provider_configurations = actual_provider_configurations,
-            visibility = visibility,
-            testonly = testonly,
-        )
+    tf_generate_versions(
+        name = name + "_generate_versions",
+        provider_configurations = actual_provider_configurations,
+        visibility = visibility,
+        testonly = testonly,
+    )
 
     # Create organization check test and reorganize target
     tf_organization_check_test(
@@ -244,7 +227,7 @@ def tf_module(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     tf_reorganize(
@@ -258,36 +241,36 @@ def tf_module(
         srcs = srcs,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     # Use appropriate source files for validation:
     # - Modules with nested modules: use processed output (stages nested modules)
     # - Simple modules: use direct sources for ibazel file watching
-    if modules:
+    if actual_modules:
         tflint_srcs = [":" + name + "_processed"]
     else:
         tflint_srcs = [":" + name + "_sources"]
     tf_tflint_validate_test(
         name = name + "_tflint_validate_test",
         srcs = tflint_srcs,
-        provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
+        provider_configurations = actual_provider_configurations,
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     # Create tflint fix target
     tf_tflint_fix(
         name = name + "_tflint_fix",
-        provider_configurations = actual_provider_configurations if actual_provider_configurations else None,
+        provider_configurations = actual_provider_configurations,
         visibility = visibility,
         testonly = testonly,
     )
 
     # Create processed filegroup for modules with nested modules
-    if modules:
+    if actual_modules:
         native.filegroup(
             name = name + "_processed",
             srcs = [":" + name],
@@ -307,7 +290,7 @@ def tf_module(
         # Create per-module provider mirror with only the needed providers
         # This ensures each module only caches the providers it actually uses
         provider_mirror_name = name + "_provider_mirror"
-        provider_aliases = _extract_provider_aliases(providers or [])
+        provider_aliases = _extract_provider_aliases(actual_providers)
 
         # Also collect provider aliases from nested modules if any
         # (Their providers are already included via tf_generate_versions_from_mirrors)
@@ -324,7 +307,7 @@ def tf_module(
             # This shouldn't happen with properly configured modules
             provider_registry = "@tf_provider_registry//:unpacked_providers"
 
-        validate_srcs = [":" + name + "_processed"] if modules else [":" + name + "_sources"]
+        validate_srcs = [":" + name + "_processed"] if actual_modules else [":" + name + "_sources"]
 
         tf_validate_test(
             name = name + "_validate_test",
@@ -334,7 +317,7 @@ def tf_module(
             visibility = visibility,
             testonly = True,
             size = "small",
-            tags = tags,
+            tags = actual_tags if actual_tags else None,
         )
 
     # Create test to ensure no committed lockfile exists
@@ -344,5 +327,71 @@ def tf_module(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
+
+tf_module = macro(
+    doc = """Creates a Terraform module with comprehensive test suite.
+
+    This macro creates multiple targets:
+    - name: The main module target
+    - name_deps: Module dependencies target (if deps specified)
+    - name_validate_test: Validation test (if not skip_validation)
+    - name_format_test: Format checking test
+    - name_doc_test: Documentation validation test (if README.md exists)
+    - name_lint_test: Linting test
+    - name_versions_check_test: Provider versions validation test
+    - name_generate_versions: Generate terraform.tf versions
+    - name_generate_docs: Generate README.md
+    - name_no_lockfile_test: Test that no committed lockfile exists
+    """,
+    implementation = _tf_module_impl,
+    attrs = {
+        "srcs": attr.label_list(
+            mandatory = True,
+            allow_files = True,
+            configurable = False,
+            doc = "Source files (.tf files and README.md). Use glob([\"*.tf\"]) + [\"README.md\"]",
+        ),
+        "deps": attr.label_list(
+            configurable = False,
+            doc = "Dependencies on other tf_module targets",
+        ),
+        "modules": attr.label_list(
+            configurable = False,
+            doc = "Nested modules in this module (for complex deployments)",
+        ),
+        "providers": attr.label_list(
+            configurable = False,
+            doc = "List of provider_mirror targets like @tf_provider_registry//:aws_6",
+        ),
+        "tflint_config": attr.label(
+            allow_single_file = True,
+            configurable = False,
+            doc = "TFLint configuration file",
+        ),
+        "tfdoc_config": attr.label(
+            allow_single_file = True,
+            configurable = False,
+            doc = "terraform-docs configuration file",
+        ),
+        "skip_validation": attr.bool(
+            default = False,
+            configurable = False,
+            doc = "Skip terraform validate test (for template modules)",
+        ),
+        "terraform_version": attr.string(
+            configurable = False,
+            doc = "Terraform version constraint (defaults to 1.13.2)",
+        ),
+        "testonly": attr.bool(
+            default = False,
+            configurable = False,
+            doc = "Whether this is a test-only module",
+        ),
+        "tags": attr.string_list(
+            configurable = False,
+            doc = "Tags to apply to test targets",
+        ),
+    },
+)

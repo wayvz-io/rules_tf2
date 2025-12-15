@@ -11,36 +11,20 @@ load("//tf2/tfstack:generate_versions.bzl", "tf_stack_generate_versions")
 load("//tf2/tfstack:stack.bzl", "tf_stack_rule")
 load("//tf2/tfstack:validate.bzl", "tf_stack_validate_test")
 
-def _extract_provider_aliases(modules):
-    """Extract provider alias names from modules.
+def _tf_stack_impl(
+        name,
+        visibility,
+        srcs,
+        modules,
+        providers,
+        tflint_config,
+        skip_validation,
+        terraform_version,
+        testonly,
+        tags):
+    """Implementation of tf_stack symbolic macro.
 
-    Args:
-        modules: List of tf_module labels
-
-    Returns:
-        List of provider alias names
-    """
-
-    # Provider aliases will be extracted from modules at analysis time
-    # For now, return an empty list - the tf_generate_versions_from_mirrors
-    # rule will handle provider aggregation
-    return []
-
-def tf_stack(
-        name = "tf_stack",
-        srcs = None,
-        modules = None,
-        providers = None,
-        tflint_config = None,
-        skip_validation = None,
-        terraform_version = None,
-        visibility = None,
-        testonly = None,
-        tags = None,
-        **kwargs):
-    """Creates a Terraform Stack with associated build and test targets.
-
-    This macro creates multiple targets:
+    Creates a Terraform Stack with associated build and test targets:
     - name: The main stack target
     - name_srcs: Filegroup of all sources
     - name_format_test: Format checking test for HCL files
@@ -49,25 +33,12 @@ def tf_stack(
     - name_deps_test: Component dependency validation test
     - name_untracked_files_test: Test that no untracked files exist
     - name_file_export: Export stack to a directory
-
-    Args:
-        name: Name of the stack (defaults to "tf_stack")
-        srcs: Source files (.tfcomponent.hcl, .tfdeploy.hcl, and data files)
-        modules: List of tf_module targets referenced by components
-        providers: Additional provider_mirror targets (optional)
-        tflint_config: TFLint configuration file (for template modules)
-        skip_validation: Skip terraform stacks validate test
-        terraform_version: Terraform version constraint
-        visibility: Visibility of the stack
-        testonly: Whether this is a test-only stack
-        tags: Tags to apply to test targets
-        **kwargs: Additional arguments passed to the underlying rule
     """
 
-    # Validate srcs attribute is provided
-    if srcs == None:
-        fail("tf_stack '{}' requires explicit srcs attribute. ".format(name) +
-             "Please add: srcs = glob([\"*.tfcomponent.hcl\", \"*.tfdeploy.hcl\"])")
+    # Normalize None values to empty lists for iteration
+    actual_modules = modules if modules else []
+    actual_providers = providers if providers else []
+    actual_tags = tags if tags else []
 
     # Create filegroup for sources
     native.filegroup(
@@ -80,9 +51,9 @@ def tf_stack(
     # This aggregates providers from all referenced tf_modules
     tf_generate_versions_from_mirrors(
         name = name + "_provider_config",
-        providers = providers or [],
-        modules = modules or [],
-        terraform_version = terraform_version or "1.14.1",
+        providers = actual_providers,
+        modules = actual_modules,
+        terraform_version = terraform_version if terraform_version else "1.14.1",
         visibility = visibility,
         testonly = testonly,
     )
@@ -90,25 +61,23 @@ def tf_stack(
 
     # Generate lockfile for the stack
     generated_lock_name = name + "_generated_lock"
-    if not native.existing_rule(generated_lock_name):
-        tf_generate_lockfile_for_validation(
-            name = generated_lock_name,
-            provider_locks = "@tf_provider_registry//:provider_locks.json",
-            versions_json = actual_provider_configurations,
-            visibility = visibility,
-            testonly = testonly,
-        )
+    tf_generate_lockfile_for_validation(
+        name = generated_lock_name,
+        provider_locks = "@tf_provider_registry//:provider_locks.json",
+        versions_json = actual_provider_configurations,
+        visibility = visibility,
+        testonly = testonly,
+    )
 
     # Create the main stack rule
     tf_stack_rule(
         name = name,
         srcs = srcs,
-        modules = modules or [],
+        modules = actual_modules,
         lock_file = ":" + generated_lock_name,
-        terraform_version = terraform_version or "1.14.1",
+        terraform_version = terraform_version if terraform_version else "1.14.1",
         visibility = visibility,
         testonly = testonly,
-        **kwargs
     )
 
     # Create format test and formatter for HCL files
@@ -118,7 +87,7 @@ def tf_stack(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     tf_stack_format(
@@ -134,7 +103,7 @@ def tf_stack(
         visibility = visibility,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     # Validate all files in the stack directory are explicitly tracked in srcs
@@ -143,7 +112,7 @@ def tf_stack(
         srcs = srcs,
         testonly = True,
         size = "small",
-        tags = tags,
+        tags = actual_tags if actual_tags else None,
     )
 
     # Create validation test (unless skip_validation is True)
@@ -154,7 +123,7 @@ def tf_stack(
         # Collect provider aliases from modules
         # For now, we'll rely on the modules to provide their providers
         # and use the global registry as fallback
-        if modules:
+        if actual_modules:
             tf_module_provider_mirror(
                 name = provider_mirror_name,
                 providers = [],  # Will be populated from modules
@@ -172,7 +141,7 @@ def tf_stack(
             visibility = visibility,
             testonly = True,
             size = "medium",  # Stack validation may take longer
-            tags = tags,
+            tags = actual_tags if actual_tags else None,
         )
 
     # Create file export target
@@ -192,3 +161,58 @@ def tf_stack(
         visibility = visibility,
         testonly = testonly,
     )
+
+tf_stack = macro(
+    doc = """Creates a Terraform Stack with comprehensive test suite.
+
+    This macro creates multiple targets:
+    - name: The main stack target
+    - name_srcs: Filegroup of all sources
+    - name_format_test: Format checking test for HCL files
+    - name_format: Format fixer for HCL files
+    - name_validate_test: Stack validation test (terraform stacks validate)
+    - name_deps_test: Component dependency validation test
+    - name_untracked_files_test: Test that no untracked files exist
+    - name_file_export: Export stack to a directory
+    """,
+    implementation = _tf_stack_impl,
+    attrs = {
+        "srcs": attr.label_list(
+            mandatory = True,
+            allow_files = True,
+            configurable = False,
+            doc = "Source files (.tfcomponent.hcl, .tfdeploy.hcl, and data files)",
+        ),
+        "modules": attr.label_list(
+            configurable = False,
+            doc = "List of tf_module targets referenced by components",
+        ),
+        "providers": attr.label_list(
+            configurable = False,
+            doc = "Additional provider_mirror targets (optional)",
+        ),
+        "tflint_config": attr.label(
+            allow_single_file = True,
+            configurable = False,
+            doc = "TFLint configuration file (for template modules)",
+        ),
+        "skip_validation": attr.bool(
+            default = False,
+            configurable = False,
+            doc = "Skip terraform stacks validate test",
+        ),
+        "terraform_version": attr.string(
+            configurable = False,
+            doc = "Terraform version constraint (defaults to 1.14.1)",
+        ),
+        "testonly": attr.bool(
+            default = False,
+            configurable = False,
+            doc = "Whether this is a test-only stack",
+        ),
+        "tags": attr.string_list(
+            configurable = False,
+            doc = "Tags to apply to test targets",
+        ),
+    },
+)

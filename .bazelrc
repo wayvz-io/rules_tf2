@@ -1,7 +1,6 @@
 # Bazel configuration for rules_tf2
 
-# Use the Bazel 7 compatibility flag
-build --enable_bzlmod
+build --enable_workspace=false
 
 # Enable isolated extension usages for conditional nixpkgs setup
 build --experimental_isolated_extension_usages
@@ -44,7 +43,7 @@ build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
 # Remote Build Execution (RBE) Configuration
-# Using Tailscale endpoint for secure connectivity to Buildbarn cluster
+# Forcing IPV4 due to lack of internal ipv6
 startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
 build:rbe --remote_executor=grpc://sandpit-bb-api.tail2a574c.ts.net:8980
 build:rbe --remote_instance_name=default
