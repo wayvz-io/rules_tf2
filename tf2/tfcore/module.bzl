@@ -69,8 +69,7 @@ tf_module_rule = rule(
             providers = [TfModuleInfo],
         ),
         "modules": attr.label_list(
-            doc = "Nested modules in this module (for complex deployments)",
-            providers = [TfModuleInfo],
+            doc = "Nested modules: local tf_module targets or external modules from @tf_module_registry",
         ),
         "provider_configurations": attr.label(
             doc = "Provider configurations with version constraints",

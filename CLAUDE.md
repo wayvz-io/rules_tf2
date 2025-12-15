@@ -58,11 +58,20 @@ All user-facing rules/macros:
 ## Key Concepts
 
 ### tf_module Macro
-Creates a Terraform module with comprehensive test suite:
+Creates a Terraform module with comprehensive test suite.
+
+**Important**: Always use explicit `srcs` - never use `glob()`. List all `.tf` files explicitly.
+
 ```starlark
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]) + ["README.md"],  # Required
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+        "README.md",
+    ],
     providers = ["@tf_provider_registry//:aws_6"],
 )
 ```
@@ -114,3 +123,74 @@ Tool paths are resolved at runtime to handle both root module and external depen
 
 ### TFLint Plugins
 Configured per-provider in versions.json: aws, azurerm, google, opa, plus a built-in `tf2` plugin at `//go/tflint_ruleset:tflint-ruleset-tf2`.
+
+### External Module Management
+
+External Terraform modules from Git repositories and the Terraform Module Registry can be configured in versions.json and referenced via `@tf_module_registry`.
+
+#### versions.json Schema for Modules
+```json
+{
+  "modules": {
+    "registry": {
+      "registry.terraform.io": {
+        "terraform-aws-modules/vpc/aws": ["5.0.0", "5.1.0"]
+      },
+      "app.terraform.io": {
+        "my-org/my-module/aws": ["1.0.0"]
+      }
+    },
+    "git": {
+      "github.com/terraform-aws-modules/terraform-aws-s3-bucket": ["v4.0.0"],
+      "git::https://github.com/example/repo.git": ["abc1234"]
+    }
+  }
+}
+```
+
+- **registry**: Terraform Registry modules namespaced by hostname
+  - `registry.terraform.io`: Public registry (`namespace/name/provider`)
+  - `app.terraform.io` or custom hostname: Private registry using `TFE_TOKEN`
+- **git**: Git repos with tags or short commit hashes
+  - GitHub shorthand: `github.com/owner/repo`
+  - Full git URL: `git::https://github.com/owner/repo.git`
+
+#### Module Aliasing
+External modules are aliased similar to providers:
+- Registry: `terraform-aws-modules/vpc/aws:5.0.0` -> `vpc_aws_5`
+- Git: `github.com/hashicorp/consul:v0.11.0` -> `hashicorp_consul_0_11_0`
+- Private: `my-org/mod/aws:1.0.0` -> `mod_aws_1`
+
+Reference as: `@tf_module_registry//:vpc_aws_5`
+
+#### Module Extension (MODULE.bazel)
+```starlark
+# External modules
+tf_modules = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_modules")
+tf_modules.download(
+    versions_file = "path/to/versions.json",
+)
+use_repo(tf_modules, "tf_module_registry")
+```
+
+#### Using External Modules in tf_module
+
+**Important**: Always use explicit `srcs` - never use `glob()`. List all `.tf` files explicitly.
+
+```starlark
+tf_module(
+    name = "my_deployment",
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+        "README.md",
+    ],
+    providers = ["@tf_provider_registry//:aws_6"],
+    modules = [
+        "//my/local/module:tf_module",          # Local module
+        "@tf_module_registry//:vpc_aws_5",      # External module
+    ],
+)
+```

@@ -1,6 +1,7 @@
 """Nested module processing - copying and path rewriting"""
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("//tf2/modules/core:info.bzl", "TfExternalModuleInfo")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 def _process_module_files(_, module, module_name, skip_nested_modules = None):
@@ -66,6 +67,50 @@ def _process_module_files(_, module, module_name, skip_nested_modules = None):
 
     return files_to_copy
 
+def _process_external_module_files(_, module, module_name):
+    """Process an external module's files for inclusion in a parent module.
+
+    Args:
+        _: Unused rule context (kept for API compatibility)
+        module: Module target with TfExternalModuleInfo
+        module_name: Name for the module directory
+
+    Returns:
+        List of (src_file, dest_path) tuples
+    """
+    files_to_copy = []
+    module_info = module[TfExternalModuleInfo]
+
+    # Get the repository name from the module label to compute relative paths
+    # External modules come from repositories like @tf_module_label_null_0
+    repo_name = module.label.workspace_name
+
+    for src_file in module_info.files.to_list():
+        # Compute relative path within the external module
+        # File paths look like: external/<repo_name>/path/to/file.tf
+        # or for short_path: ../<repo_name>/path/to/file.tf
+        src_path = src_file.path
+
+        # Find the repository root in the path and extract relative path
+        relative_path = src_file.basename  # Default fallback
+
+        # Try to extract relative path from full path
+        # Pattern: .../external/<repo_name>/<relative_path>
+        if repo_name and repo_name in src_path:
+            idx = src_path.find(repo_name)
+            if idx != -1:
+                # Skip past repo_name and the following /
+                after_repo = src_path[idx + len(repo_name):]
+                if after_repo.startswith("/"):
+                    relative_path = after_repo[1:]
+                elif after_repo == "":
+                    relative_path = src_file.basename
+
+        dest_path = paths.join("modules", module_name, relative_path)
+        files_to_copy.append((src_file, dest_path))
+
+    return files_to_copy
+
 def _rewrite_terraform_file(ctx, src_file, dest_path, module_mappings):
     """Rewrite a Terraform file to update module source paths.
 
@@ -123,6 +168,18 @@ def process_nested_modules(ctx, parent_srcs, modules):
         - all_files: List of all files (parent + processed modules)
         - module_mappings: Dict of source path rewrites
     """
+
+    # Validate that all modules provide either TfModuleInfo or TfExternalModuleInfo
+    for module in modules:
+        if TfModuleInfo not in module and TfExternalModuleInfo not in module:
+            fail(
+                "Invalid module target: {}\n".format(module.label) +
+                "Targets in 'modules' must be either:\n" +
+                "  - A tf_module target (provides TfModuleInfo)\n" +
+                "  - An external module from @tf_module_registry (provides TfExternalModuleInfo)\n" +
+                "Got a target that provides neither.",
+            )
+
     all_files = []
     module_mappings = {}
 
@@ -137,6 +194,14 @@ def process_nested_modules(ctx, parent_srcs, modules):
     # First pass: identify all top-level modules
     current_package = ctx.label.package
     for module in modules:
+        # Skip modules that don't have module info providers
+        if TfModuleInfo not in module and TfExternalModuleInfo not in module:
+            continue
+
+        # Skip external modules in this pass - they don't have nested modules
+        if TfExternalModuleInfo in module:
+            continue
+
         if TfModuleInfo not in module:
             continue
 
@@ -176,8 +241,65 @@ def process_nested_modules(ctx, parent_srcs, modules):
     # We'll build a mapping that handles ANY path to a module and rewrites it to ./modules/<module_name>
     module_names = []
     module_name_to_label = {}  # Track which module uses each name
+
+    # First, process external modules (they're simpler)
+    for _, module in enumerate(modules):
+        if TfExternalModuleInfo in module:
+            module_info = module[TfExternalModuleInfo]
+            module_name = module_info.alias
+
+            # Validate name doesn't conflict
+            if module_name in module_name_to_label:
+                fail(
+                    "Module name conflict: '%s' used by both %s and %s" %
+                    (module_name, module_name_to_label[module_name], str(module.label)),
+                )
+
+            module_name_to_label[module_name] = str(module.label)
+            module_names.append(module_name)
+
+            # Create mapping for the external module
+            # Map the source URL to ./modules/<alias>
+            new_source = "./modules/" + module_name
+            module_mappings[module_info.source_url] = new_source
+
+            # Also map common reference patterns
+            # For registry modules: terraform-aws-modules/vpc/aws -> ./modules/vpc_aws_5
+            if module_info.source_type == "registry":
+                # Map with version constraint
+                versioned_source = "{}//{}".format(module_info.source_url, module_info.version)
+                module_mappings[versioned_source] = new_source
+
+            # Process external module files
+            module_files = _process_external_module_files(ctx, module, module_name)
+            for src_file, dest_path in module_files:
+                if dest_path in processed_dest_paths:
+                    continue
+                processed_dest_paths[dest_path] = True
+
+                # External module files are already complete - just copy them
+                if src_file.basename.endswith(".tf"):
+                    output = ctx.actions.declare_file(dest_path)
+                    ctx.actions.symlink(
+                        output = output,
+                        target_file = src_file,
+                    )
+                    all_files.append(output)
+                else:
+                    output = ctx.actions.declare_file(dest_path)
+                    ctx.actions.symlink(
+                        output = output,
+                        target_file = src_file,
+                    )
+                    all_files.append(output)
+
+    # Now process local tf_module dependencies
     for _, module in enumerate(modules):
         if TfModuleInfo not in module:
+            continue
+
+        # Skip external modules - they were already processed above
+        if TfExternalModuleInfo in module:
             continue
 
         # Use a unique module directory name to avoid conflicts

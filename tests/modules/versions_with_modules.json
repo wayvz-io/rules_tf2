@@ -1,0 +1,27 @@
+{
+  "providers": {
+    "hashicorp/random": ["3.7.2"],
+    "hashicorp/null": ["3.2.4"]
+  },
+  "tools": {
+    "terraform": "1.14.2",
+    "tflint": "0.60.0",
+    "terraform-docs": "0.20.0",
+    "opa": "1.4.2",
+    "sentinel": "0.40.0",
+    "stacksplugin": "1.1.1"
+  },
+  "tflint_plugins": {
+    "aws": "0.44.0"
+  },
+  "modules": {
+    "registry": {
+      "registry.terraform.io": {
+        "cloudposse/label/null": ["0.25.0"]
+      }
+    },
+    "git": {
+      "github.com/cloudposse/terraform-null-label": ["0.25.0"]
+    }
+  }
+}

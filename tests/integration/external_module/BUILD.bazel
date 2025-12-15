@@ -1,0 +1,23 @@
+load("//tf2:def.bzl", "tf_module")
+
+# Integration test for external module support
+# This validates that modules from @tf_module_registry work end-to-end
+tf_module(
+    name = "tf_module",
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
+    modules = [
+        "@tf_module_registry//:label_null_0",
+    ],
+    providers = [
+        "@tf_provider_registry//:null_3",
+    ],
+    tfdoc_config = "//tests/fixtures:tfdoc-config",
+    tflint_config = "//tests/fixtures:tflint-config-modules",
+    visibility = ["//visibility:public"],
+)

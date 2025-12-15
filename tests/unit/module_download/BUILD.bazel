@@ -1,0 +1,5 @@
+load("@bazel_skylib//lib:unittest.bzl", "unittest")
+load(":alias_test.bzl", "alias_test_suite")
+
+# Unit tests for module alias generation
+alias_test_suite(name = "alias_tests")

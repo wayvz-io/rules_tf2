@@ -32,6 +32,9 @@ bzl_library(
     srcs = ["extensions.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        "//tf2/modules/download:module_git_repository",
+        "//tf2/modules/download:module_registry_repository",
+        "//tf2/modules/repository:terraform_modules",
         "//tf2/providers/download:provider_download_repository",
         "//tf2/providers/repository:hcl_parser",
         "//tf2/providers/repository:terraform_providers",

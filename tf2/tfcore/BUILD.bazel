@@ -77,6 +77,7 @@ bzl_library(
     name = "nested",
     srcs = ["nested.bzl"],
     deps = [
+        "//tf2/modules/core:info",
         "//tf2/providers/core:info",
         "@bazel_skylib//lib:paths",
     ],
