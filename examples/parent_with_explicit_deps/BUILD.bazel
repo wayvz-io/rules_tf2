@@ -5,7 +5,13 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # and the child should reference ../grandchild instead of ./modules/nested_dependency_test
 tf_module(
     name = "tf_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     modules = [
         "@rules_tf2//examples/child_with_nested_dep:tf_module",
         "@rules_tf2//examples/nested_dependency_test:tf_module",  # Explicit grandchild

@@ -58,9 +58,9 @@ def _tf_stack_format_test_impl(ctx):
     script_content.extend([
         "",
         "cd $STAGING_DIR",
-        'if ! {terraform_bin} stacks fmt -check . > /dev/null 2>&1; then'.format(terraform_bin = terraform_bin),
+        "if ! {terraform_bin} stacks fmt -check . > /dev/null 2>&1; then".format(terraform_bin = terraform_bin),
         '    echo "ERROR: Stack HCL files are not properly formatted"',
-        '    {terraform_bin} stacks fmt -diff .'.format(terraform_bin = terraform_bin),
+        "    {terraform_bin} stacks fmt -diff .".format(terraform_bin = terraform_bin),
         "    FAILED=1",
         "fi",
     ])

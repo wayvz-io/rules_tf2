@@ -45,6 +45,7 @@ def _tf_stack_impl(ctx):
             deploy_files.append(src_file)
         elif src_file.path.endswith(".json"):
             data_files.append(src_file)
+
         # Other files are just passed through
 
     # Aggregate providers from all referenced modules

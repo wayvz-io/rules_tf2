@@ -38,6 +38,7 @@ def _parse_provider_from_label(label):
     Returns:
         Dict with name, version, platform, namespace, or None if parsing fails
     """
+
     # First, try to parse from the repository name (works when alias is resolved)
     # Repository names look like: _main~tf_providers~tf_provider_NAME_VERSION_PLATFORM
     repo_name = label.workspace_name
@@ -100,6 +101,7 @@ def _filesystem_mirror_impl(ctx):
 
     Uses symlinks instead of copies to minimize disk usage and improve build times.
     """
+
     # Collect all provider files and their target paths
     symlink_outputs = []
     provider_inputs = []

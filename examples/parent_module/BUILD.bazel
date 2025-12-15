@@ -5,7 +5,13 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 # The child's BUILD already declares grandchild as its dependency
 tf_module(
     name = "tf_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     modules = [
         "@rules_tf2//examples/child_with_nested_dep:tf_module",
         # NOTE: We do NOT declare grandchild here!

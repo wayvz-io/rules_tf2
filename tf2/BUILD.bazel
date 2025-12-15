@@ -33,6 +33,7 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "//tf2/providers/download:provider_download_repository",
+        "//tf2/providers/repository:hcl_parser",
         "//tf2/providers/repository:terraform_providers",
         "//tf2/providers/repository:versions",
         "//tf2/tools/download:opa",

@@ -79,6 +79,7 @@ def _test_standalone_module_overrides_impl(ctx):
 
     # Test that other base rules are preserved
     asserts.equals(env, True, merged["terraform_comment_syntax"]["enabled"])
+
     # terraform_required_providers is disabled (replaced by tf2 plugin version)
     asserts.equals(env, False, merged["terraform_required_providers"]["enabled"])
 
@@ -125,6 +126,7 @@ def _test_test_module_overrides_impl(ctx):
 
     # Test that base rules are preserved
     asserts.equals(env, True, final_merged["terraform_comment_syntax"]["enabled"])
+
     # terraform_required_providers is disabled in base (replaced by tf2 plugin version)
     asserts.equals(env, False, final_merged["terraform_required_providers"]["enabled"])
 

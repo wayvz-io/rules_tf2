@@ -49,19 +49,15 @@ while [[ $# -gt 0 ]]; do
             ;;
         --help|-h)
             echo "Usage: $0 [options]"
-            echo "Complete Terraform provider update workflow"
-            echo "This script:"
-            echo "  1. Updates provider versions (tf-upgrade-providers)"
-            echo "  2. Generates locks and updates terraform.tf files (tf-mod)"
+            echo "Update Terraform provider versions in versions.json"
+            echo ""
+            echo "After running this script, provider hashes will be automatically"
+            echo "generated on the next bazel build and stored in MODULE.bazel.lock."
             echo ""
             echo "Options:"
             echo "  --dry-run    Show what would be updated without making changes"
             echo "  --verbose    Show detailed output"
             echo "  --help       Show this help message"
-            echo ""
-            echo "Individual commands:"
-            echo "  bazel run ${TARGET_PREFIX}:tf-upgrade-providers  # Update versions only"
-            echo "  bazel run ${TARGET_PREFIX}:tf-mod                # Generate locks and terraform.tf files"
             exit 0
             ;;
         *)
@@ -88,8 +84,8 @@ fi
 
 cd "$WORKSPACE_ROOT"
 
-# Step 1: Update provider versions
-echo -e "${BLUE}Step 1: Checking for provider version updates...${NC}"
+# Update provider versions
+echo -e "${BLUE}Checking for provider version updates...${NC}"
 
 UPGRADE_ARGS=()
 if [ "$DRY_RUN" = true ]; then
@@ -99,30 +95,17 @@ if [ "$VERBOSE" = true ]; then
     UPGRADE_ARGS+=("--verbose")
 fi
 
-if ! bazel run ${TARGET_PREFIX}:tf-upgrade-providers -- "${UPGRADE_ARGS[@]}"; then
+if ! bazel run ${TARGET_PREFIX}scripts:tf_upgrade_providers -- "${UPGRADE_ARGS[@]}"; then
     echo -e "${RED}Error: Provider version update failed${NC}"
     exit 1
 fi
 
-# Step 2: Generate locks and update terraform.tf files (only if not dry-run)
-if [ "$DRY_RUN" = false ]; then
-    echo ""
-    echo -e "${BLUE}Step 2: Generating provider locks and updating terraform.tf files...${NC}"
-
-    MOD_ARGS=()
-    if [ "$VERBOSE" = true ]; then
-        MOD_ARGS+=("--verbose")
-    fi
-
-    if ! bazel run ${TARGET_PREFIX}:tf-mod -- "${MOD_ARGS[@]}"; then
-        echo -e "${RED}Error: Provider lock generation failed${NC}"
-        exit 1
-    fi
-else
-    echo ""
-    echo -e "${YELLOW}Dry run mode: Skipping lock generation${NC}"
-    echo "Run without --dry-run to apply changes and generate locks"
-fi
-
 echo ""
-echo -e "${GREEN}✓ Terraform provider update workflow complete${NC}"
+if [ "$DRY_RUN" = false ]; then
+    echo -e "${GREEN}✓ Provider versions updated${NC}"
+    echo ""
+    echo "Provider hashes will be automatically generated on the next bazel build."
+    echo "Run 'bazel build //...' to trigger hash generation and update MODULE.bazel.lock."
+else
+    echo -e "${YELLOW}Dry run complete. No changes made.${NC}"
+fi

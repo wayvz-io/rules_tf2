@@ -31,3 +31,17 @@ bzl_library(
     name = "versions",
     srcs = ["versions.bzl"],
 )
+
+bzl_library(
+    name = "hash_generator",
+    srcs = ["hash_generator.bzl"],
+    deps = [
+        ":hcl_parser",
+        "//tf2/tools/download:platform",
+    ],
+)
+
+bzl_library(
+    name = "hcl_parser",
+    srcs = ["hcl_parser.bzl"],
+)

@@ -18,7 +18,13 @@ load("@rules_tf2//tf2:def.bzl", "tf_module", "tf_test")
 tf_module(
     name = "tf_module",
     # Explicit sources (will be mandatory in future version)
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     # Providers this module requires directly
     providers = [
         "@tf_provider_registry//:aws_5",  # AWS provider v5.x

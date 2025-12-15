@@ -160,6 +160,7 @@ def _tf_tflint_validate_test_impl(ctx):
         if provider_info.providers:
             # Get provider names from the dict keys
             provider_names = list(provider_info.providers.keys())
+
             # Get full provider configurations for version validation
             provider_configs = provider_info.providers
 

@@ -4,7 +4,7 @@ rules_tf2 includes scripts to automate version updates.
 
 ## tf_upgrade_providers.sh
 
-Updates provider versions in `versions.json` and regenerates lock files.
+Updates provider versions in `versions.json`. Provider hashes are automatically generated on the next build.
 
 ```bash
 # Update all providers to latest
@@ -23,38 +23,42 @@ Updates provider versions in `versions.json` and regenerates lock files.
 The script:
 1. Queries the Terraform registry for latest provider versions
 2. Updates `versions.json`
-3. Downloads new providers and generates hashes
-4. Updates `provider_locks.json`
+
+Provider hashes are **automatically generated** on the next `bazel build` command and cached in `MODULE.bazel.lock`.
 
 Works in both the rules_tf2 workspace and external workspaces that depend on it.
 
-## tf_mod.sh
+## Automatic Hash Generation
 
-Module maintenance operations.
+Unlike previous versions that required manual lock file generation, rules_tf2 now automatically generates provider hashes when needed:
 
-```bash
-# Show help
-./scripts/tf_mod.sh --help
-```
-
-## generate_provider_locks.sh
-
-Regenerates `provider_locks.json` from current `versions.json`:
+1. Edit `versions.json` to add/update providers
+2. Run `bazel build //...`
+3. The extension detects missing hashes and generates them automatically
+4. Hashes are cached in `MODULE.bazel.lock` (via Bazel's `module_ctx.facts`)
+5. Subsequent builds use cached hashes (instant)
 
 ```bash
-./scripts/generate_provider_locks.sh
-```
+# Add a new provider
+vim versions.json
 
-Run this after manually editing provider versions.
+# Build triggers automatic hash generation
+bazel build //...
+# INFO: Generating hashes for hashicorp/newprovider:1.0.0 (this may take a while)
+
+# Commit both files
+git add versions.json MODULE.bazel.lock
+git commit -m "Add newprovider"
+```
 
 ## Update Workflow
 
 Typical workflow for updating versions:
 
-1. Run `tf_upgrade_providers.sh` to update versions and locks
-2. Run Gazelle to update BUILD files if module structure changed
+1. Run `tf_upgrade_providers.sh` to update versions
+2. Run `bazel build //...` to generate hashes for new versions
 3. Run `bazel test //...` to verify everything still works
-4. Commit changes to `versions.json` and `provider_locks.json`
+4. Commit changes to `versions.json` and `MODULE.bazel.lock`
 
 ## Gazelle for BUILD Files
 
@@ -65,3 +69,8 @@ bazel run //tf2/gazelle:gazelle -- path/to/modules
 ```
 
 See [Gazelle](gazelle.md) for BUILD file generation details.
+
+## Requirements
+
+- **Bazel 8.5+**: Required for automatic hash generation (`module_ctx.facts` support)
+- **Network access**: Required only when generating hashes for new providers

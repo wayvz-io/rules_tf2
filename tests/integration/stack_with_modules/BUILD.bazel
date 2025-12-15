@@ -3,7 +3,13 @@ load("//tf2:def.bzl", "tf_module")
 # Module that uses nested modules
 tf_module(
     name = "tf_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "README.md",
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+    ],
     modules = [
         "//tests/integration/simple_module:tf_module",
         "//tests/integration/another_module:tf_module",
