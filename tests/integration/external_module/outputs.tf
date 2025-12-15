@@ -3,6 +3,7 @@ output "label_id" {
   value       = module.label.id
 }
 
+
 output "label_tags" {
   description = "The generated tags from the external module"
   value       = module.label.tags

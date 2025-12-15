@@ -26,19 +26,16 @@ def _tf_versions_check_test_impl(ctx):
 config {
   call_module_type = "none"
   force = false
+  disabled_by_default = true
 }
 
 plugin "tf2" {
   enabled = true
 }
 
-# Enable only the required_providers rule, disable others
+# Enable only the required_providers rule
 rule "tf2_terraform_required_providers" {
   enabled = true
-}
-
-rule "tf2_terraform_file_organization" {
-  enabled = false
 }
 """
     ctx.actions.write(
@@ -398,8 +395,7 @@ tf_generate_versions_from_mirrors = rule(
             mandatory = True,
         ),
         "modules": attr.label_list(
-            doc = "List of tf_module targets to collect transitive providers from",
-            providers = [TfModuleInfo],
+            doc = "List of tf_module or external module targets (external modules are skipped for provider collection)",
             default = [],
         ),
         "terraform_version": attr.string(

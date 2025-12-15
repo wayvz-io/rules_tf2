@@ -10,7 +10,7 @@ It uses the `cloudposse/label/null` module to generate resource labels.
 
 | Name | Version |
 |------|---------|
-| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.0 |
+| <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.13.2 |
 | <a name="requirement_null"></a> [null](#requirement\_null) | 3.2.4 |
 
 ## Providers
@@ -23,7 +23,7 @@ It uses the `cloudposse/label/null` module to generate resource labels.
 
 | Name | Source | Version |
 |------|--------|---------|
-| <a name="module_label"></a> [label](#module\_label) | ./modules/label_null_0 | n/a |
+| <a name="module_label"></a> [label](#module\_label) | cloudposse/label/null | n/a |
 
 ## Resources
 

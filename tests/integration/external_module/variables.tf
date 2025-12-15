@@ -4,11 +4,13 @@ variable "namespace" {
   default     = "test"
 }
 
+
 variable "environment" {
   type        = string
   description = "Environment name"
   default     = "dev"
 }
+
 
 variable "name" {
   type        = string

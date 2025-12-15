@@ -20,6 +20,7 @@ def _tf_organization_check_test_impl(ctx):
 config {
   call_module_type = "none"
   force = false
+  disabled_by_default = true
 }
 
 plugin "tf2" {
@@ -183,6 +184,7 @@ def _tf_organization_negative_test_impl(ctx):
 config {
   call_module_type = "none"
   force = false
+  disabled_by_default = true
 }
 
 plugin "tf2" {

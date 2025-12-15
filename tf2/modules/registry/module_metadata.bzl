@@ -1,7 +1,11 @@
-"""Module metadata rule that provides information about external Terraform modules."""
+"""Module metadata rule that provides information about external Terraform modules.
+
+External modules are simple file providers - they don't go through the full
+tf_module test machinery (lint, validate, organization checks). They just
+provide files that get staged into ./modules/{alias}/.
+"""
 
 load("//tf2/modules/core:info.bzl", "TfExternalModuleInfo")
-load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 
 def _parse_source(source, source_type):
     """Parse source string into components based on type.
@@ -90,16 +94,6 @@ def _module_metadata_impl(ctx):
             source_url = source_url,
             alias = ctx.label.name,  # Use the target name as alias
             files = module_files,
-        ),
-        # Also provide TfModuleInfo for compatibility with tf_module's modules attribute
-        TfModuleInfo(
-            name = ctx.label.name,
-            srcs = module_files,
-            docs = depset(),  # External modules don't expose docs separately
-            deps = [],
-            modules = [],
-            provider_configurations = None,  # External modules don't have provider configs
-            lock_file = None,
         ),
         DefaultInfo(
             files = module_files,

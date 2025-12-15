@@ -49,3 +49,9 @@ rule "terraform_typed_variables" {
 rule "terraform_unused_declarations" {
   enabled = true
 }
+
+# Disabled because versions are managed by Bazel via versions.json
+# External modules don't need version in the module block
+rule "terraform_module_version" {
+  enabled = false
+}

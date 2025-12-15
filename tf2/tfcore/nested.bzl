@@ -264,6 +264,10 @@ def process_nested_modules(ctx, parent_srcs, modules):
         if TfModuleInfo not in module:
             continue
 
+        # Skip external modules - they were already processed above
+        if TfExternalModuleInfo in module:
+            continue
+
         # Use a unique module directory name to avoid conflicts
         # Derive from package path (last directory component) instead of target name
         # This ensures unique names even when targets are named "tf_module"
