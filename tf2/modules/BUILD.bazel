@@ -1,0 +1,15 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+bzl_library(
+    name = "modules",
+    srcs = [],
+    deps = [
+        "//tf2/modules/core:info",
+        "//tf2/modules/download:module_git_repository",
+        "//tf2/modules/download:module_registry_repository",
+        "//tf2/modules/registry:module_metadata",
+        "//tf2/modules/repository:terraform_modules",
+    ],
+)

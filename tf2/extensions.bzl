@@ -1,5 +1,8 @@
 """Module extensions for tf2"""
 
+load("//tf2/modules/download:module_git_repository.bzl", "module_git_repository")
+load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository")
+load("//tf2/modules/repository:terraform_modules.bzl", "terraform_modules")
 load("//tf2/providers/download:provider_download_repository.bzl", "provider_download_repository")
 load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_provider_key")
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
@@ -692,5 +695,209 @@ tf_tools = module_extension(
         "configure": _tools_configure,
         "tflint_plugin": _tflint_plugin,
         "from_versions_json": _versions_json_configure,
+    },
+)
+
+# =============================================================================
+# tf_modules extension - External Terraform module management
+# =============================================================================
+
+def _sanitize_ref(ref):
+    """Sanitize a git ref for use in repository names.
+
+    Args:
+        ref: Git ref (tag or commit hash)
+
+    Returns:
+        Sanitized string suitable for repository names
+    """
+    sanitized = ref.replace(".", "_").replace("-", "_").replace("/", "_")
+    if sanitized.startswith("v"):
+        sanitized = sanitized[1:]
+    return sanitized
+
+def _generate_module_alias(source, source_type, version):
+    """Generate an alias name for a module.
+
+    Args:
+        source: Module source string
+        source_type: One of 'registry', 'git', or 'private'
+        version: Module version or git ref
+
+    Returns:
+        Alias string (e.g., 'vpc_aws_5', 'hashicorp_consul_v0_11_0')
+    """
+    major_version = version.split(".")[0] if "." in version else _sanitize_ref(version)
+
+    if source_type == "registry":
+        # terraform-aws-modules/vpc/aws -> vpc_aws_5
+        parts = source.split("/")
+        if len(parts) == 3:
+            name, provider = parts[1], parts[2]
+            return "{}_{}_{}".format(name, provider, major_version)
+        return "{}_{}".format(parts[-1], major_version)
+
+    elif source_type == "private":
+        # app.terraform.io/my-org/my-module/aws -> my_module_aws_1
+        parts = source.split("/")
+        if len(parts) == 4:
+            name, provider = parts[2], parts[3]
+            return "{}_{}_{}".format(name.replace("-", "_"), provider, major_version)
+        return "{}".format(parts[-1].replace("-", "_"))
+
+    elif source_type == "git":
+        # github.com/owner/repo -> owner_repo_v1_0_0
+        if source.startswith("github.com/"):
+            parts = source.split("/")
+            owner, repo = parts[1], parts[2]
+            return "{}_{}_{}".format(
+                owner.replace("-", "_"),
+                repo.replace("-", "_").replace("terraform-", "").replace("terraform_", ""),
+                _sanitize_ref(version),
+            )
+        elif source.startswith("git::"):
+            # git::https://github.com/owner/repo.git -> owner_repo_ref
+            url = source[5:].replace(".git", "")
+            parts = url.split("/")
+            owner, repo = parts[-2], parts[-1]
+            return "{}_{}_{}".format(
+                owner.replace("-", "_"),
+                repo.replace("-", "_").replace("terraform-", "").replace("terraform_", ""),
+                _sanitize_ref(version),
+            )
+
+    fail("Cannot generate alias for source: {} (type: {})".format(source, source_type))
+
+def _generate_repo_name(source, source_type, version):
+    """Generate a repository name for a module download.
+
+    Args:
+        source: Module source string
+        source_type: One of 'registry', 'git', or 'private'
+        version: Module version or git ref
+
+    Returns:
+        Repository name string
+    """
+    alias = _generate_module_alias(source, source_type, version)
+    return "tf_module_{}".format(alias)
+
+def _tf_modules_impl(module_ctx):
+    """Implementation of tf_modules module extension.
+
+    This extension:
+    1. Reads versions.json to get required external modules
+    2. Creates module download repositories (git or registry)
+    3. Creates the tf_module_registry with aliases to downloaded modules
+    """
+    modules_config = {}  # source -> [versions]
+    aliases = {}  # alias -> [source, source_type, version]
+    module_repositories = {}  # alias -> {source, source_type, version, repo_name}
+
+    # Process module downloads from modules
+    for mod in module_ctx.modules:
+        if mod.is_root:  # Root module only
+            for download in mod.tags.download:
+                # Require explicit versions_file path
+                if not download.versions_file:
+                    fail("versions_file must be specified in tf_modules.download()")
+
+                versions_path = download.versions_file
+
+                # Read versions from the specified file
+                versions_file = Label("@@//:" + versions_path)
+                versions_content = module_ctx.read(versions_file)
+                versions_data = json.decode(versions_content)
+
+                # Process modules from versions.json
+                if "modules" in versions_data:
+                    modules_data = versions_data["modules"]
+
+                    # Process registry modules - namespaced by hostname
+                    # Schema: registry: { "hostname": { "ns/name/provider": ["versions"] } }
+                    for hostname, host_modules in modules_data.get("registry", {}).items():
+                        is_private = hostname != "registry.terraform.io"
+
+                        for source, versions in host_modules.items():
+                            # For private registries, prepend hostname to source
+                            full_source = "{}/{}".format(hostname, source) if is_private else source
+                            source_type = "private" if is_private else "registry"
+
+                            if full_source not in modules_config:
+                                modules_config[full_source] = []
+
+                            for version in versions:
+                                if version not in modules_config[full_source]:
+                                    modules_config[full_source].append(version)
+
+                                alias = _generate_module_alias(source, source_type, version)
+                                repo_name = _generate_repo_name(source, source_type, version)
+
+                                aliases[alias] = [full_source, source_type, version]
+                                module_repositories[alias] = {
+                                    "source": full_source,
+                                    "source_type": source_type,
+                                    "version": version,
+                                    "repo_name": repo_name,
+                                    "registry_host": hostname,
+                                }
+
+                                # Create registry download repository
+                                module_registry_repository(
+                                    name = repo_name,
+                                    source = full_source,
+                                    version = version,
+                                    source_type = source_type,
+                                    registry_host = hostname,
+                                )
+
+                    # Process git modules
+                    for source, refs in modules_data.get("git", {}).items():
+                        if source not in modules_config:
+                            modules_config[source] = []
+                        for ref in refs:
+                            if ref not in modules_config[source]:
+                                modules_config[source].append(ref)
+
+                            alias = _generate_module_alias(source, "git", ref)
+                            repo_name = _generate_repo_name(source, "git", ref)
+
+                            aliases[alias] = [source, "git", ref]
+                            module_repositories[alias] = {
+                                "source": source,
+                                "source_type": "git",
+                                "version": ref,
+                                "repo_name": repo_name,
+                            }
+
+                            # Create git download repository
+                            module_git_repository(
+                                name = repo_name,
+                                source = source,
+                                ref = ref,
+                            )
+
+    # Create the module registry
+    terraform_modules(
+        name = "tf_module_registry",
+        modules = modules_config,
+        aliases = aliases,
+        module_repositories_json = json.encode(module_repositories),
+    )
+
+# Tag class for module download configuration
+_module_download = tag_class(
+    attrs = {
+        "versions_file": attr.string(
+            doc = "Path to versions.json file containing modules configuration",
+            mandatory = True,
+        ),
+    },
+)
+
+tf_modules = module_extension(
+    implementation = _tf_modules_impl,
+    tag_classes = {
+        "download": _module_download,
     },
 )

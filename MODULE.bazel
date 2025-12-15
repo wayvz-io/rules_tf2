@@ -130,3 +130,10 @@ tf_tools.from_versions_json(
     versions_file = "tests/providers/versions.json",
 )
 use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
+
+# Module extension for external module management
+tf_modules = use_extension("//tf2:extensions.bzl", "tf_modules")
+tf_modules.download(
+    versions_file = "tests/modules/versions_with_modules.json",
+)
+use_repo(tf_modules, "tf_module_registry")
