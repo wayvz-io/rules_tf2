@@ -3,6 +3,7 @@ package terraform
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -43,14 +44,16 @@ type terraformLang struct {
 
 // terraformConfig holds configuration for the terraform extension.
 type terraformConfig struct {
-	enabled         bool
-	providerMapping map[string]string // Maps provider names to registry labels
+	enabled            bool
+	providerMapping    map[string]string // Maps provider names to registry labels
+	ignoreFileWarnings map[string]bool   // Filenames to ignore in warnings (dynamic paths by design)
 }
 
 func newTerraformConfig() *terraformConfig {
 	return &terraformConfig{
-		enabled:         true,
-		providerMapping: make(map[string]string),
+		enabled:            true,
+		providerMapping:    make(map[string]string),
+		ignoreFileWarnings: make(map[string]bool),
 	}
 }
 
@@ -98,21 +101,21 @@ func (l *terraformLang) Kinds() map[string]rule.KindInfo {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"srcs": true, "providers": true},
 			SubstituteAttrs: map[string]bool{"srcs": true}, // Replace globs with explicit file lists
-			MergeableAttrs:  map[string]bool{},
+			MergeableAttrs:  map[string]bool{"srcs": true}, // Allow gazelle to update srcs
 			ResolveAttrs:    map[string]bool{},
 		},
 		tfStackKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"srcs": true},
 			SubstituteAttrs: map[string]bool{"srcs": true}, // Replace globs with explicit file lists
-			MergeableAttrs:  map[string]bool{},
+			MergeableAttrs:  map[string]bool{"srcs": true}, // Allow gazelle to update srcs
 			ResolveAttrs:    map[string]bool{},
 		},
 		tfTestKind: {
 			MatchAny:        false,
 			NonEmptyAttrs:   map[string]bool{"test_files": true},
 			SubstituteAttrs: map[string]bool{"test_files": true}, // Replace globs with explicit file lists
-			MergeableAttrs:  map[string]bool{},
+			MergeableAttrs:  map[string]bool{"test_files": true}, // Allow gazelle to update test_files
 			ResolveAttrs:    map[string]bool{"module": true},
 		},
 	}
@@ -144,6 +147,7 @@ func (l *terraformLang) KnownDirectives() []string {
 	return []string{
 		"terraform_enabled",
 		"terraform_provider",
+		"terraform_ignore_file_warning",
 	}
 }
 
@@ -170,6 +174,12 @@ func (l *terraformLang) Configure(c *config.Config, rel string, f *rule.File) {
 				if len(parts) >= 2 {
 					cfg.providerMapping[parts[0]] = parts[1]
 				}
+			case "terraform_ignore_file_warning":
+				// Format: "filename.ext" - suppress warnings for files with dynamic paths
+				filename := strings.TrimSpace(d.Value)
+				if filename != "" {
+					cfg.ignoreFileWarnings[filename] = true
+				}
 			}
 		}
 	}
@@ -183,9 +193,6 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	if !cfg.enabled {
 		return language.GenerateResult{}
 	}
-
-	// Debug: Log which directory we're processing
-	// fmt.Fprintf(os.Stderr, "DEBUG: Processing %s, files: %v\n", args.Rel, args.RegularFiles)
 
 	// Categorize files
 	var tfFiles []string
@@ -227,6 +234,24 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	// Extract module references from .tf files
 	detectedModules := extractModulesFromTfFiles(args.Dir, tfFiles, args.Rel)
 
+	// Extract file references from .tf files (templatefile, file, etc.)
+	srcFileResult := extractFileReferencesFromTfFiles(args.Dir, tfFiles)
+
+	// Extract file references from test files
+	testFileResult := extractFileReferencesFromTestFiles(args.Dir, testFiles)
+
+	// Print warnings for files that need manual addition (filtered by ignore list)
+	for _, w := range srcFileResult.warnings {
+		if !cfg.ignoreFileWarnings[w] {
+			fmt.Fprintf(os.Stderr, "gazelle: %s: file %q referenced with dynamic path - add to srcs manually, or if this file only exists at runtime add to BUILD: # gazelle:terraform_ignore_file_warning %s\n", args.Rel, w, w)
+		}
+	}
+	for _, w := range testFileResult.warnings {
+		if !cfg.ignoreFileWarnings[w] {
+			fmt.Fprintf(os.Stderr, "gazelle: %s: file %q referenced with dynamic path - add to test_files manually, or if this file only exists at runtime add to BUILD: # gazelle:terraform_ignore_file_warning %s\n", args.Rel, w, w)
+		}
+	}
+
 	var rules []*rule.Rule
 	var imports []interface{}
 
@@ -247,7 +272,7 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 
 	// Generate tf_module rule if .tf files exist
 	if len(tfFiles) > 0 {
-		moduleRule := generateModuleRule(defaultModuleName, tfFiles, templateFiles, hasReadme, hasTerraformTf, args.Dir, cfg, existingModule, detectedModules)
+		moduleRule := generateModuleRule(defaultModuleName, tfFiles, templateFiles, srcFileResult.files, hasReadme, hasTerraformTf, args.Dir, cfg, existingModule, detectedModules)
 		rules = append(rules, moduleRule)
 		imports = append(imports, nil)
 	}
@@ -263,7 +288,7 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 	// Generate tf_test rule if test files exist
 	// Always generate explicit tf_test when .tftest.hcl files are present
 	if len(testFiles) > 0 {
-		testRule := generateTestRule(defaultTestName, defaultModuleName, testFiles, existingTest)
+		testRule := generateTestRule(defaultTestName, defaultModuleName, testFiles, testFileResult.files, existingTest)
 		rules = append(rules, testRule)
 		imports = append(imports, nil)
 	}
@@ -275,7 +300,7 @@ func (l *terraformLang) GenerateRules(args language.GenerateArgs) language.Gener
 }
 
 // generateModuleRule creates a tf_module rule.
-func generateModuleRule(name string, tfFiles []string, templateFiles []string, hasReadme, hasTerraformTf bool, dir string, cfg *terraformConfig, existing *rule.Rule, detectedModules []string) *rule.Rule {
+func generateModuleRule(name string, tfFiles []string, templateFiles []string, referencedFiles []string, hasReadme, hasTerraformTf bool, dir string, cfg *terraformConfig, existing *rule.Rule, detectedModules []string) *rule.Rule {
 	r := rule.NewRule(tfModuleKind, name)
 
 	// Build srcs list
@@ -284,12 +309,23 @@ func generateModuleRule(name string, tfFiles []string, templateFiles []string, h
 	sort.Strings(templateFiles)
 
 	// Build explicit source list with .tf files, templates, and README
-	srcs := make([]string, 0, len(tfFiles)+len(templateFiles)+1)
+	srcs := make([]string, 0, len(tfFiles)+len(templateFiles)+len(referencedFiles)+1)
 	srcs = append(srcs, tfFiles...)
 	srcs = append(srcs, templateFiles...)
+
+	// Add referenced files from file() and templatefile() calls (excluding Bazel labels)
+	for _, f := range referencedFiles {
+		if !isBazelLabel(f) {
+			srcs = append(srcs, f)
+		}
+	}
+
 	if hasReadme {
 		srcs = append(srcs, "README.md")
 	}
+
+	// Deduplicate and sort
+	srcs = deduplicateStrings(srcs)
 	sort.Strings(srcs)
 	r.SetAttr("srcs", srcs)
 
@@ -374,17 +410,25 @@ func mergeModules(detected []string, existing *rule.Rule) []string {
 }
 
 // generateTestRule creates a tf_test rule.
-func generateTestRule(testName, moduleName string, testFiles []string, existing *rule.Rule) *rule.Rule {
+func generateTestRule(testName, moduleName string, testFiles []string, referencedFiles []string, existing *rule.Rule) *rule.Rule {
 	r := rule.NewRule(tfTestKind, testName)
 
-	// Sort test files for deterministic output
-	sort.Strings(testFiles)
+	// Build test_files list - combine test files with referenced files
+	allTestFiles := make([]string, 0, len(testFiles)+len(referencedFiles))
+	allTestFiles = append(allTestFiles, testFiles...)
+
+	// Add all referenced files (including Bazel labels) to test_files
+	allTestFiles = append(allTestFiles, referencedFiles...)
+
+	// Deduplicate and sort
+	allTestFiles = deduplicateStrings(allTestFiles)
+	sort.Strings(allTestFiles)
 
 	// Set module reference
 	r.SetAttr("module", ":"+moduleName)
 
 	// Set test_files
-	r.SetAttr("test_files", testFiles)
+	r.SetAttr("test_files", allTestFiles)
 
 	// Preserve existing attributes
 	if existing != nil {
@@ -529,6 +573,209 @@ func extractProvidersFromTerraformTf(path string, cfg *terraformConfig) []string
 	}
 
 	return providers
+}
+
+// fileFuncRegex matches Terraform file-related function calls.
+// Captures the first string argument (the file path).
+var fileFuncRegex = regexp.MustCompile(`(?:templatefile|file|fileset|fileexists|filebase64|filesha256|filesha512|filemd5)\s*\(\s*"([^"]+)"`)
+
+// isBazelLabel returns true if the path is a Bazel label.
+func isBazelLabel(path string) bool {
+	return strings.HasPrefix(path, "//") || strings.HasPrefix(path, "@")
+}
+
+// normalizeFilePath processes a file path from a Terraform function call.
+// Strips ${path.module}/ prefix, returns Bazel labels as-is,
+// returns empty string for complex expressions with variables.
+func normalizeFilePath(path string) string {
+	// Bazel labels - return as-is
+	if isBazelLabel(path) {
+		return path
+	}
+
+	// Skip complex expressions containing variables like ${var.foo} or ${local.foo}
+	// But allow ${path.module}
+	if strings.Contains(path, "${") && !strings.HasPrefix(path, "${path.module}") {
+		return ""
+	}
+
+	// Strip ${path.module}/ prefix
+	path = strings.TrimPrefix(path, "${path.module}/")
+
+	// Skip if still contains interpolation (complex expression)
+	if strings.Contains(path, "${") {
+		return ""
+	}
+
+	// Skip absolute paths
+	if strings.HasPrefix(path, "/") {
+		return ""
+	}
+
+	return path
+}
+
+// extractFilenameFromComplexPath attempts to extract the filename from a complex path.
+// Returns the filename if found, empty string otherwise.
+// e.g., "${var.config_dir}/settings.json" -> "settings.json"
+func extractFilenameFromComplexPath(path string) string {
+	// Must contain interpolation to be complex
+	if !strings.Contains(path, "${") {
+		return ""
+	}
+
+	// Skip Bazel labels
+	if isBazelLabel(path) {
+		return ""
+	}
+
+	// Find the last path component after the last /
+	lastSlash := strings.LastIndex(path, "/")
+	if lastSlash == -1 {
+		return ""
+	}
+
+	filename := path[lastSlash+1:]
+
+	// Must not contain interpolation itself
+	if strings.Contains(filename, "${") {
+		return ""
+	}
+
+	// Must look like a filename (has an extension)
+	if !strings.Contains(filename, ".") {
+		return ""
+	}
+
+	return filename
+}
+
+// deduplicateStrings removes duplicate strings from a slice while preserving order.
+func deduplicateStrings(input []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(input))
+	for _, s := range input {
+		if !seen[s] {
+			seen[s] = true
+			result = append(result, s)
+		}
+	}
+	return result
+}
+
+// fileReferenceResult holds extracted file references and any warnings.
+type fileReferenceResult struct {
+	files    []string
+	warnings []string // Filenames from complex paths that may need manual addition
+}
+
+// extractFileReferencesFromContent extracts file paths from Terraform file function calls.
+// Returns normalized file paths (strips ${path.module}/ prefix, preserves Bazel labels).
+// Also returns warnings for complex paths where we detect a filename but can't resolve the full path.
+func extractFileReferencesFromContent(content string) fileReferenceResult {
+	var files []string
+	var warnings []string
+	seen := make(map[string]bool)
+	warnSeen := make(map[string]bool)
+
+	matches := fileFuncRegex.FindAllStringSubmatch(content, -1)
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		path := match[1]
+
+		// Normalize path
+		normalized := normalizeFilePath(path)
+		if normalized != "" {
+			if !seen[normalized] {
+				seen[normalized] = true
+				files = append(files, normalized)
+			}
+			continue
+		}
+
+		// Path couldn't be normalized - check if we can extract a filename for warning
+		filename := extractFilenameFromComplexPath(path)
+		if filename != "" && !warnSeen[filename] {
+			warnSeen[filename] = true
+			warnings = append(warnings, filename)
+		}
+	}
+
+	sort.Strings(files)
+	sort.Strings(warnings)
+	return fileReferenceResult{files: files, warnings: warnings}
+}
+
+// extractFileReferencesFromTfFiles extracts file references from .tf files.
+// Returns files that can be automatically added and warnings for files that need manual addition.
+func extractFileReferencesFromTfFiles(dir string, tfFiles []string) fileReferenceResult {
+	var allFiles []string
+	var allWarnings []string
+	seen := make(map[string]bool)
+	warnSeen := make(map[string]bool)
+
+	for _, tfFile := range tfFiles {
+		path := filepath.Join(dir, tfFile)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		result := extractFileReferencesFromContent(string(content))
+		for _, f := range result.files {
+			if !seen[f] {
+				seen[f] = true
+				allFiles = append(allFiles, f)
+			}
+		}
+		for _, w := range result.warnings {
+			if !warnSeen[w] {
+				warnSeen[w] = true
+				allWarnings = append(allWarnings, w)
+			}
+		}
+	}
+
+	sort.Strings(allFiles)
+	sort.Strings(allWarnings)
+	return fileReferenceResult{files: allFiles, warnings: allWarnings}
+}
+
+// extractFileReferencesFromTestFiles extracts file references from test files.
+// Returns files that can be automatically added and warnings for files that need manual addition.
+func extractFileReferencesFromTestFiles(dir string, testFiles []string) fileReferenceResult {
+	var allFiles []string
+	var allWarnings []string
+	seen := make(map[string]bool)
+	warnSeen := make(map[string]bool)
+
+	for _, testFile := range testFiles {
+		path := filepath.Join(dir, testFile)
+		content, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+
+		result := extractFileReferencesFromContent(string(content))
+		for _, f := range result.files {
+			if !seen[f] {
+				seen[f] = true
+				allFiles = append(allFiles, f)
+			}
+		}
+		for _, w := range result.warnings {
+			if !warnSeen[w] {
+				warnSeen[w] = true
+				allWarnings = append(allWarnings, w)
+			}
+		}
+	}
+
+	sort.Strings(allFiles)
+	sort.Strings(allWarnings)
+	return fileReferenceResult{files: allFiles, warnings: allWarnings}
 }
 
 // extractModulesFromTfFiles extracts relative module references from .tf files.
