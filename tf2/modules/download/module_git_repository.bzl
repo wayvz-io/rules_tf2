@@ -112,7 +112,9 @@ def _module_git_repository_impl(repository_ctx):
             fail("Failed to extract subdirectory {}: {}".format(subdirectory, result.stderr))
     else:
         # Clean up git metadata and unnecessary files
-        repository_ctx.execute(["rm", "-rf", ".git", ".github", ".gitignore"])
+        # - exports/ contains template files for copying (e.g., cloudposse context.tf)
+        # - docs/ contains documentation assets
+        repository_ctx.execute(["rm", "-rf", ".git", ".github", ".gitignore", "examples", "tests", "test", "exports", "docs"])
 
     # Find all .tf files for the module
     result = repository_ctx.execute(["find", ".", "-name", "*.tf", "-type", "f"])

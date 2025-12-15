@@ -176,8 +176,10 @@ def _module_registry_repository_impl(repository_ctx):
             rm -rf _temp_module
         """.format(subdir = subdir)])
 
-    # Clean up unnecessary files
-    repository_ctx.execute(["rm", "-rf", ".git", ".github", ".gitignore", "examples", "tests", "test"])
+    # Clean up unnecessary files and directories
+    # - exports/ contains template files for copying (e.g., cloudposse context.tf)
+    # - docs/ contains documentation assets
+    repository_ctx.execute(["rm", "-rf", ".git", ".github", ".gitignore", "examples", "tests", "test", "exports", "docs"])
 
     # Verify we have .tf files
     result = repository_ctx.execute(["find", ".", "-name", "*.tf", "-type", "f"])

@@ -7,5 +7,6 @@ bzl_library(
     srcs = ["module_metadata.bzl"],
     deps = [
         "//tf2/modules/core:info",
+        "//tf2/providers/core:info",
     ],
 )
