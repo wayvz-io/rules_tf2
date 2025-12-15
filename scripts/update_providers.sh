@@ -104,8 +104,9 @@ echo ""
 if [ "$DRY_RUN" = false ]; then
     echo -e "${GREEN}✓ Provider versions updated${NC}"
     echo ""
-    echo "Provider hashes will be automatically generated on the next bazel build."
-    echo "Run 'bazel build //...' to trigger hash generation and update MODULE.bazel.lock."
+    echo -e "${YELLOW}Next steps:${NC}"
+    echo -e "  1. Run 'bazel build //...' to generate provider hashes"
+    echo -e "  2. Run 'bazel run ${TARGET_PREFIX}:regenerate' to update terraform.tf configs"
 else
     echo -e "${YELLOW}Dry run complete. No changes made.${NC}"
 fi
