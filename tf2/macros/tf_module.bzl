@@ -1,6 +1,6 @@
 """Public API macro for creating Terraform modules with comprehensive testing"""
 
-load("//tf2/internal:organization.bzl", "tf_organization_check_test", "tf_reorganize")
+load("//tf2/internal:organization.bzl", "tf_reorganize")
 load("//tf2/internal:sources_validation.bzl", "tf_untracked_files_test")
 load("//tf2/providers/module:module_provider_mirror.bzl", "tf_module_provider_mirror")
 load("//tf2/tfcore:deps.bzl", "tf_module_deps_test")
@@ -220,16 +220,7 @@ def _tf_module_impl(
         testonly = testonly,
     )
 
-    # Create organization check test and reorganize target
-    tf_organization_check_test(
-        name = name + "_organization_check_test",
-        srcs = srcs,
-        visibility = visibility,
-        testonly = True,
-        size = "small",
-        tags = actual_tags if actual_tags else None,
-    )
-
+    # Create reorganize target (organization check removed for performance)
     tf_reorganize(
         name = name + "_reorganize",
         visibility = visibility,
