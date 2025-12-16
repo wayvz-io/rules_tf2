@@ -126,10 +126,11 @@ def _terraform_providers_impl(ctx):
                 provider_downloads[provider_source][version][platform] = target_name
 
                 # Create an alias that points to the provider repository
+                # Uses :all to include both binary (for running) and zip (for filesystem_mirror)
                 build_content.extend([
                     "alias(",
                     '    name = "{}",'.format(target_name),
-                    '    actual = "@{}//:files",'.format(repo_name),
+                    '    actual = "@{}//:all",'.format(repo_name),
                     ")",
                     "",
                 ])
@@ -165,15 +166,29 @@ def _terraform_providers_impl(ctx):
         "",
     ])
 
+    # Build mapping from repo names to provider sources for filesystem_mirror
+    # We need repo_name -> provider_source since aliases resolve to @repo//:all
+    repo_to_source = {}
+    for provider_source, versions in provider_repositories.items():
+        for version, platforms in versions.items():
+            for platform, repo_name in platforms.items():
+                repo_to_source[repo_name] = provider_source
+
     # Create a filesystem_mirror for each platform (even if empty)
     mirror_exists = {}
     for platform in ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]:
-        # Collect all downloads for this platform
+        # Collect all downloads for this platform and build provider_sources mapping
         platform_providers = []
+        provider_sources_dict = {}
         for source, versions in provider_downloads.items():
             for version, platforms in versions.items():
                 if platform in platforms:
-                    platform_providers.append('":{}",'.format(platforms[platform]))
+                    target_name = platforms[platform]
+                    platform_providers.append('":{}",'.format(target_name))
+                    # Get repo_name to use as key (since alias resolves to @repo//:all)
+                    repo_name = provider_repositories.get(source, {}).get(version, {}).get(platform, "")
+                    if repo_name:
+                        provider_sources_dict[repo_name] = source
 
         # Always create mirror, even if empty (for consistent target availability)
         build_content.extend([
@@ -185,6 +200,12 @@ def _terraform_providers_impl(ctx):
             build_content.append("        {}".format(provider_ref))
         build_content.extend([
             "    ],",
+            "    provider_sources = {",
+        ])
+        for target, src in provider_sources_dict.items():
+            build_content.append('        "{}": "{}",'.format(target, src))
+        build_content.extend([
+            "    },",
             ")",
             "",
         ])

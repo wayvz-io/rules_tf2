@@ -92,10 +92,11 @@ def _provider_download_repository_impl(repository_ctx):
     zh_hashes = [h.strip() for h in sha256.split(",") if h.strip()] if sha256 else []
 
     # Download the ZIP file first (to get its hash)
-    zip_file = "provider.zip"
+    # Keep the zip file for filesystem_mirror packed layout
+    zip_filename = "terraform-provider-{}_{}_{}_{}.zip".format(name, version, os_name, arch)
     download_result = repository_ctx.download(
         url = download_url,
-        output = zip_file,
+        output = zip_filename,
     )
 
     # Verify the hash if hashes were provided
@@ -111,17 +112,16 @@ def _provider_download_repository_impl(repository_ctx):
                 actual_hash,
             ))
 
-    # Extract the ZIP
+    # Extract the ZIP to get the binary for running Terraform
     repository_ctx.extract(
-        archive = zip_file,
+        archive = zip_filename,
     )
-
-    # Clean up the ZIP file
-    repository_ctx.delete(zip_file)
+    # Keep the zip file - it's needed for filesystem_mirror packed layout
 
     # The binary name pattern varies, so we look for files matching terraform-provider-*
     # Use find command to locate the binary (more reliable than ls with globs)
-    result = repository_ctx.execute(["find", ".", "-name", "terraform-provider-*", "-type", "f"])
+    # Exclude zip files since we keep those for the filesystem_mirror
+    result = repository_ctx.execute(["find", ".", "-name", "terraform-provider-*", "-type", "f", "!", "-name", "*.zip"])
 
     if result.return_code == 0 and result.stdout.strip():
         # Get the first matching file (strip ./ prefix if present)
@@ -136,10 +136,10 @@ def _provider_download_repository_impl(repository_ctx):
     if result.return_code != 0:
         fail("Failed to make provider binary executable: {}".format(result.stderr))
 
-    # Create BUILD file that exports the provider binary
+    # Create BUILD file that exports the provider binary, zip, and metadata
     build_content = '''package(default_visibility = ["//visibility:public"])
 
-exports_files(["{binary_name}"])
+exports_files(["{binary_name}", "{zip_filename}", "metadata.json"])
 
 # Alias for consistent access
 alias(
@@ -147,11 +147,30 @@ alias(
     actual = ":{binary_name}",
 )
 
+# Binary for running Terraform directly
 filegroup(
     name = "files",
     srcs = ["{binary_name}"],
 )
-'''.format(binary_name = binary_name)
+
+# ZIP file for filesystem_mirror packed layout
+filegroup(
+    name = "zip",
+    srcs = ["{zip_filename}"],
+)
+
+# Both binary and zip - used by filesystem_mirror
+filegroup(
+    name = "all",
+    srcs = ["{binary_name}", "{zip_filename}"],
+)
+
+# Metadata for filesystem_mirror to read provider source
+filegroup(
+    name = "metadata",
+    srcs = ["metadata.json"],
+)
+'''.format(binary_name = binary_name, zip_filename = zip_filename)
 
     repository_ctx.file("BUILD.bazel", build_content)
 

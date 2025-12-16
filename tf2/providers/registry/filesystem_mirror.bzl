@@ -2,26 +2,6 @@
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
 
-# Namespace mapping for provider names
-_NAMESPACE_MAPPING = {
-    "aws": "hashicorp",
-    "azurerm": "hashicorp",
-    "google": "hashicorp",
-    "null": "hashicorp",
-    "random": "hashicorp",
-    "local": "hashicorp",
-    "archive": "hashicorp",
-    "time": "hashicorp",
-    "tls": "hashicorp",
-    "helm": "hashicorp",
-    "kubernetes": "hashicorp",
-    "tfe": "hashicorp",
-    "panos": "paloaltonetworks",
-    "onepassword": "1password",
-    "flux": "fluxcd",
-    "cloudflare": "cloudflare",
-}
-
 # Known platform suffixes
 _PLATFORMS = ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]
 
@@ -36,7 +16,7 @@ def _parse_provider_from_label(label):
         label: Bazel label object
 
     Returns:
-        Dict with name, version, platform, namespace, or None if parsing fails
+        Dict with name, version, platform, or None if parsing fails
     """
 
     # First, try to parse from the repository name (works when alias is resolved)
@@ -83,14 +63,10 @@ def _parse_provider_from_label(label):
     if not name:
         return None
 
-    # Get namespace from mapping
-    namespace = _NAMESPACE_MAPPING.get(name, "unknown")
-
     return {
         "name": name,
         "version": version,
         "platform": platform,
-        "namespace": namespace,
     }
 
 def _filesystem_mirror_impl(ctx):
@@ -99,39 +75,75 @@ def _filesystem_mirror_impl(ctx):
     This rule aggregates individual provider downloads and creates a filesystem
     mirror structure that Terraform can use with the filesystem_mirror configuration.
 
-    Uses symlinks instead of copies to minimize disk usage and improve build times.
+    Uses the "packed" layout with zip files for checksum verification:
+        registry.terraform.io/
+            hashicorp/
+                aws/
+                    terraform-provider-aws_6.12.0_linux_amd64.zip
+
+    The packed layout uses zh: (zip hash) checksums from the lockfile, which
+    Terraform can verify directly against the zip files.
     """
 
-    # Collect all provider files and their target paths
+    # Collect all provider zip files and create symlinks
     symlink_outputs = []
-    provider_inputs = []
 
     # Process each provider dependency
     for provider_dep in ctx.attr.providers:
-        # Parse provider metadata from the label (handles aliases correctly)
-        metadata = _parse_provider_from_label(provider_dep.label)
-        if not metadata:
-            # Skip providers we can't parse - this shouldn't happen with valid download targets
+        label = provider_dep.label
+
+        # Extract repo_name from workspace_name
+        # Handles both formats:
+        #   - Older: "_main~tf_providers~tf_provider_aws_6_12_0_linux_arm64" (~ separator)
+        #   - Newer: "+tf_providers+tf_provider_aws_6_26_0_linux_arm64" (+ separator)
+        workspace = label.workspace_name
+        repo_name = None
+
+        # Try both separators
+        if "+" in workspace:
+            parts = workspace.split("+")
+        elif "~" in workspace:
+            parts = workspace.split("~")
+        else:
+            parts = []
+
+        for part in reversed(parts):
+            if part.startswith("tf_provider_"):
+                repo_name = part
+                break
+
+        # Get provider source from explicit attribute using repo_name as key
+        provider_source = None
+        if repo_name and repo_name in ctx.attr.provider_sources:
+            provider_source = ctx.attr.provider_sources[repo_name]
+        elif label.name in ctx.attr.provider_sources:
+            # Fallback to target name (for direct references without aliases)
+            provider_source = ctx.attr.provider_sources[label.name]
+
+        if provider_source:
+            namespace, provider_name = provider_source.split("/")
+        else:
+            # Without provider_sources, we can't determine namespace - skip
             continue
 
-        # Get the files from the provider download
+        # Get the files from the provider download - look for zip files
         for file in provider_dep.files.to_list():
-            provider_inputs.append(file)
+            # For packed layout, we only want zip files
+            if not file.basename.endswith(".zip"):
+                continue
 
-            # Build the target path in the mirror structure
-            target_path = "registry.terraform.io/{}/{}/{}/{}".format(
-                metadata["namespace"],
-                metadata["name"],
-                metadata["version"],
-                metadata["platform"],
+            # Build the target path in the packed mirror structure
+            # Structure: registry.terraform.io/namespace/name/terraform-provider-name_version_os_arch.zip
+            target_path = "registry.terraform.io/{}/{}".format(
+                namespace,
+                provider_name,
             )
 
             # Declare the symlink output file
-            # Use the original file's basename to preserve the binary name
             output_path = paths.join(ctx.label.name, target_path, file.basename)
             symlink_file = ctx.actions.declare_file(output_path)
 
-            # Create symlink to the original provider binary
+            # Create symlink to the provider zip
             ctx.actions.symlink(
                 output = symlink_file,
                 target_file = file,
@@ -161,6 +173,10 @@ filesystem_mirror = rule(
         "providers": attr.label_list(
             doc = "List of provider_download targets to include in the mirror",
             allow_files = True,
+        ),
+        "provider_sources": attr.string_dict(
+            doc = "Mapping of provider target names to their full provider source (e.g., 'download_okta_0_68_0_linux_arm64': 'okta/okta')",
+            default = {},
         ),
     },
     doc = """Creates a filesystem mirror for Terraform providers.

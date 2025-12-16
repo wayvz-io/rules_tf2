@@ -15,17 +15,40 @@ def _tf_stack_deps_test_impl(ctx):
     # Get component files
     component_files = stack_info.component_files.to_list()
 
+    # Build a mapping from module labels to their aliases (if any)
+    module_aliases = stack_info.module_aliases if stack_info.module_aliases else {}
+
     # Get declared module names (from modules attribute)
+    # If a module has an alias, use the alias name; otherwise derive from label
     declared_modules = []
     for module in stack_info.modules:
-        # Derive the module name the same way we do in nested.bzl
-        path_parts = module.label.package.split("/")
-        package_name = path_parts[-1] if path_parts else module.label.name
+        # Check if this module has an alias
+        # The module_aliases dict uses label strings in the format "//package:target"
+        # but str(label) may include repo prefix like "@@//..." or "@repo//..."
+        # Try multiple formats to find a match
+        label = module.label
+        label_str = str(label)
 
-        if module.label.name in ["tf_module", "module"]:
-            declared_modules.append(package_name)
-        else:
-            declared_modules.append(module.label.name)
+        # Normalize label to "//package:target" format
+        # str(label) for main repo: "@@//path:target" or "//path:target"
+        normalized_label = "//" + label.package + ":" + label.name
+
+        alias_found = False
+        for key in [label_str, normalized_label]:
+            if key in module_aliases:
+                declared_modules.append(module_aliases[key])
+                alias_found = True
+                break
+
+        if not alias_found:
+            # Derive the module name the same way we do in nested.bzl
+            path_parts = label.package.split("/")
+            package_name = path_parts[-1] if path_parts else label.name
+
+            if label.name in ["tf_module", "module"]:
+                declared_modules.append(package_name)
+            else:
+                declared_modules.append(label.name)
 
     # Create the test script
     script = ctx.actions.declare_file(ctx.label.name + "_test.sh")
