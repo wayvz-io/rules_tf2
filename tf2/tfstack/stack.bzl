@@ -63,6 +63,7 @@ def _tf_stack_impl(ctx):
             deploy_files = depset(deploy_files),
             data_files = depset(data_files),
             modules = ctx.attr.modules,
+            module_aliases = ctx.attr.module_aliases,
             provider_configurations = aggregated_providers,
             lock_file = lock_file,
             terraform_version = ctx.attr.terraform_version,
@@ -80,6 +81,10 @@ tf_stack_rule = rule(
         "modules": attr.label_list(
             providers = [TfModuleInfo],
             doc = "tf_module targets referenced by components (staged to ./components/)",
+        ),
+        "module_aliases": attr.string_dict(
+            default = {},
+            doc = "Dict mapping module label strings to custom component names (e.g., {'//path/to:module': 'custom_name'})",
         ),
         "lock_file": attr.label(
             allow_single_file = [".terraform.lock.hcl"],

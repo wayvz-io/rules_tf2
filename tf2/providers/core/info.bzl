@@ -50,6 +50,7 @@ TfStackInfo = provider(
         "deploy_files": "Deployment files (.tfdeploy.hcl)",
         "data_files": "Data files (JSON, etc.)",
         "modules": "Referenced tf_module targets",
+        "module_aliases": "Dict mapping module label strings to custom component names",
         "provider_configurations": "Aggregated provider configurations from modules",
         "lock_file": "Generated .terraform.lock.hcl",
         "terraform_version": "Required Terraform version",

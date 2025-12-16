@@ -16,6 +16,7 @@ def _tf_stack_impl(
         visibility,
         srcs,
         modules,
+        module_aliases,
         providers,
         tflint_config,
         skip_validation,
@@ -74,6 +75,7 @@ def _tf_stack_impl(
         name = name,
         srcs = srcs,
         modules = actual_modules,
+        module_aliases = module_aliases if module_aliases else {},
         lock_file = ":" + generated_lock_name,
         terraform_version = terraform_version if terraform_version else "1.14.1",
         visibility = visibility,
@@ -186,6 +188,10 @@ tf_stack = macro(
         "modules": attr.label_list(
             configurable = False,
             doc = "List of tf_module targets referenced by components",
+        ),
+        "module_aliases": attr.string_dict(
+            configurable = False,
+            doc = "Dict mapping module label strings to custom component names (e.g., {'//path/to:module': 'custom_name'})",
         ),
         "providers": attr.label_list(
             configurable = False,

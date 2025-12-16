@@ -1,8 +1,12 @@
 # Unit tests for Terraform Stack rules
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load(":module_aliases_test.bzl", "module_aliases_test_suite")
 
 package(default_visibility = ["//visibility:private"])
+
+# Unit tests for module_aliases functionality
+module_aliases_test_suite(name = "module_aliases_tests")
 
 # Test that tf_stack_generate_versions target is discovered by tf_regenerate_all query
 sh_test(

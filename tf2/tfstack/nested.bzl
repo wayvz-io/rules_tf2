@@ -43,15 +43,38 @@ def _process_module_files_for_stack(_, module, module_name):
 
     return files_to_copy
 
-def _derive_component_name(module_label):
+def derive_component_name(module_label, module_aliases):
     """Derive component directory name from module label.
 
     Args:
         module_label: Label of the module
+        module_aliases: Dict mapping module label strings to custom names
 
     Returns:
         String name for the component directory
     """
+
+    # Check for explicit alias first using str(label)
+    label_str = str(module_label)
+    if label_str in module_aliases:
+        return module_aliases[label_str]
+
+    # Also check without leading @@ for external repos
+    if label_str.startswith("@@"):
+        short_label = label_str[2:]
+        if short_label in module_aliases:
+            return module_aliases[short_label]
+
+    # Also check with single @ prefix
+    if label_str.startswith("@@"):
+        at_label = "@" + label_str[2:]
+        if at_label in module_aliases:
+            return module_aliases[at_label]
+
+    # Check using constructed //package:name format (supports various alias formats)
+    canonical_label = "//" + module_label.package + ":" + module_label.name
+    if canonical_label in module_aliases:
+        return module_aliases[canonical_label]
 
     # Use the package name (last directory component)
     path_parts = module_label.package.split("/")
@@ -105,7 +128,7 @@ def _rewrite_component_file(ctx, src_file, dest_path, module_mappings):
 
     return output_file
 
-def process_stack_modules(ctx, component_files, deploy_files, data_files, modules):
+def process_stack_modules(ctx, component_files, deploy_files, data_files, modules, module_aliases = {}):
     """Process all modules for a stack, copying files and rewriting paths to ./components/.
 
     Args:
@@ -114,6 +137,7 @@ def process_stack_modules(ctx, component_files, deploy_files, data_files, module
         deploy_files: List of .tfdeploy.hcl files
         data_files: List of data files (JSON, etc.)
         modules: List of tf_module dependencies
+        module_aliases: Dict mapping module label strings to custom component names
 
     Returns:
         Tuple of (all_files, module_mappings) where:
@@ -134,16 +158,23 @@ def process_stack_modules(ctx, component_files, deploy_files, data_files, module
         if TfModuleInfo not in module:
             continue
 
-        module_name = _derive_component_name(module.label)
+        module_name = derive_component_name(module.label, module_aliases)
 
         # Check for naming conflicts
         if module_name in module_name_to_label:
             existing_label = module_name_to_label[module_name]
             fail(
-                "Naming conflict: Two modules would be staged to 'components/%s/':\n" % module_name +
-                "  1. %s\n" % existing_label +
-                "  2. %s\n\n" % str(module.label) +
-                "Rename one of the modules to avoid the conflict.",
+                "Naming conflict: Two modules would be staged to 'components/{name}/':\n".format(name = module_name) +
+                "  1. {label1}\n".format(label1 = existing_label) +
+                "  2. {label2}\n\n".format(label2 = str(module.label)) +
+                "Use the 'module_aliases' attribute to give one or both modules a unique name:\n\n" +
+                "    tf_stack(\n" +
+                "        ...\n" +
+                "        module_aliases = {{\n" +
+                '            "{label1}": "{name}_1",\n'.format(label1 = existing_label, name = module_name) +
+                '            "{label2}": "{name}_2",\n'.format(label2 = str(module.label), name = module_name) +
+                "        }},\n" +
+                "    )",
             )
 
         module_name_to_label[module_name] = str(module.label)
@@ -180,7 +211,7 @@ def process_stack_modules(ctx, component_files, deploy_files, data_files, module
         if TfModuleInfo not in module:
             continue
 
-        module_name = _derive_component_name(module.label)
+        module_name = derive_component_name(module.label, module_aliases)
         module_files = _process_module_files_for_stack(ctx, module, module_name)
 
         for src_file, dest_path in module_files:
