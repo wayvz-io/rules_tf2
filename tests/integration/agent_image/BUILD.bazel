@@ -1,0 +1,79 @@
+# Integration tests for TFC agent image building
+# These tests are marked manual because they require Docker and are slow
+
+load("//tf2:def.bzl", "tfc_agent_image")
+
+# Test building a minimal agent image with a single provider
+# This verifies the full build pipeline works end-to-end
+tfc_agent_image(
+    name = "minimal_agent",
+    platforms = ["linux_amd64"],  # Single platform for faster testing
+    providers = [
+        "@tf_provider_registry//:random_3",
+    ],
+    tags = ["manual"],  # Slow test requiring Docker
+    visibility = ["//visibility:public"],
+)
+
+# Test building with multiple providers
+tfc_agent_image(
+    name = "multi_provider_agent",
+    platforms = ["linux_amd64"],
+    providers = [
+        "@tf_provider_registry//:random_3",
+        "@tf_provider_registry//:null_3",
+        "@tf_provider_registry//:local_2",
+    ],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
+
+# Test multi-arch build
+tfc_agent_image(
+    name = "multiarch_agent",
+    platforms = [
+        "linux_amd64",
+        "linux_arm64",
+    ],
+    providers = [
+        "@tf_provider_registry//:random_3",
+    ],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
+
+# Test with push configuration (doesn't actually push without running)
+tfc_agent_image(
+    name = "pushable_agent",
+    platforms = ["linux_amd64"],
+    providers = [
+        "@tf_provider_registry//:random_3",
+    ],
+    registry = "ghcr.io",
+    repository = "test-org/tfc-agent-test",
+    tag = "test",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
+
+# Test with module-based provider extraction
+# Uses providers from //tests/integration/simple_module (random_3, local_2, null_3)
+tfc_agent_image(
+    name = "module_based_agent",
+    module = "//tests/integration/simple_module:tf_module",
+    platforms = ["linux_amd64"],
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+)
+
+# Shell test to verify image structure (if we can load it)
+sh_test(
+    name = "verify_minimal_agent",
+    srcs = ["verify_image.sh"],
+    args = ["$(location :minimal_agent)"],
+    data = [":minimal_agent"],
+    tags = [
+        "docker",
+        "manual",
+    ],
+)

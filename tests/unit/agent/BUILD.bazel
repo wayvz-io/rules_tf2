@@ -1,0 +1,31 @@
+# Unit tests for TFC agent image building
+
+load(":terraformrc_test.bzl", "terraformrc_test_suite")
+
+# Individual test suites
+terraformrc_test_suite(name = "terraformrc_tests")
+
+# Version consistency test - ensures MODULE.bazel and versions.json match
+sh_test(
+    name = "tfc_agent_version_test",
+    size = "small",
+    srcs = ["tfc_agent_version_test.sh"],
+    args = [
+        "$(location //tests/providers:versions.json)",
+        "$(location //:MODULE.bazel)",
+    ],
+    data = [
+        "//:MODULE.bazel",
+        "//tests/providers:versions.json",
+    ],
+)
+
+# Combined test suite
+test_suite(
+    name = "agent_tests",
+    tests = [
+        ":terraformrc_tests",
+        ":tfc_agent_version_test",
+    ],
+    visibility = ["//tests/unit:__pkg__"],
+)

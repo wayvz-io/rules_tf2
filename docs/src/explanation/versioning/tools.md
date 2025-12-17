@@ -1,13 +1,14 @@
 # Tool Versioning
 
-The `tools` section of `versions.json` specifies versions for three binaries:
+The `tools` section of `versions.json` specifies versions for binaries:
 
 ```json
 {
   "tools": {
     "terraform": "1.7.0",
     "tflint": "0.50.0",
-    "terraform-docs": "0.17.0"
+    "terraform-docs": "0.17.0",
+    "tfc-agent": "1.17.0"
   }
 }
 ```
@@ -20,6 +21,7 @@ Downloads come from:
 - **Terraform**: `releases.hashicorp.com`
 - **TFLint**: GitHub releases (`terraform-linters/tflint`)
 - **terraform-docs**: GitHub releases (`terraform-docs/terraform-docs`)
+- **tfc-agent**: Docker Hub (`hashicorp/tfc-agent`) - via `tf_agent_base` extension
 
 ## Registry Aliases
 
@@ -50,3 +52,15 @@ Pin versions to ensure consistent builds across machines and CI:
 ```
 
 Without pinning, different team members might get different tool versions depending on when they last updated their cache.
+
+## TFC Agent
+
+The `tfc-agent` version is used by the `tf_agent_base` module extension to pull the Terraform Cloud agent Docker image. This is separate from `tf_tools` because it downloads an OCI image rather than a binary.
+
+```starlark
+tf_agent_base = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_agent_base")
+tf_agent_base.from_versions_json(versions_file = "path/to/versions.json")
+use_repo(tf_agent_base, "tfc_agent_base", "tfc_agent_base_linux_amd64", "tfc_agent_base_linux_arm64")
+```
+
+See [tfc_agent_image](../../reference/cloud/tfc-agent-image.md) for building custom agent images.

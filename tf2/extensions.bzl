@@ -1,5 +1,6 @@
 """Module extensions for tf2"""
 
+load("@rules_oci//oci:pull.bzl", "oci_pull")
 load("//tf2/modules/download:module_git_repository.bzl", "module_git_repository")
 load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository")
 load("//tf2/modules/repository:terraform_modules.bzl", "terraform_modules")
@@ -899,5 +900,72 @@ tf_modules = module_extension(
     implementation = _tf_modules_impl,
     tag_classes = {
         "download": _module_download,
+    },
+)
+
+# =============================================================================
+# tf_agent_base extension - TFC agent base image management
+# =============================================================================
+
+def _tf_agent_base_impl(module_ctx):
+    """Implementation of tf_agent_base module extension.
+
+    Reads the tfc-agent version from versions.json and pulls the base image
+    using rules_oci with dynamic versioning.
+
+    This extension:
+    1. Reads versions.json to get the tfc-agent version
+    2. Calls oci_pull with that version to create the base image repositories
+    3. Creates repos: tfc_agent_base, tfc_agent_base_linux_amd64, tfc_agent_base_linux_arm64
+    """
+    for mod in module_ctx.modules:
+        for config in mod.tags.from_versions_json:
+            # Read versions.json to get tfc-agent version
+            versions_path = module_ctx.path(config.versions_file)
+            versions_content = module_ctx.read(versions_path)
+            versions = json.decode(versions_content)
+
+            agent_version = versions.get("tools", {}).get("tfc-agent", "1.17.0")
+
+            # Call oci_pull with the dynamic version
+            # This creates:
+            #   - tfc_agent_base (alias that selects platform)
+            #   - tfc_agent_base_linux_amd64
+            #   - tfc_agent_base_linux_arm64
+            oci_pull(
+                name = "tfc_agent_base",
+                image = "index.docker.io/hashicorp/tfc-agent",
+                platforms = [
+                    "linux/amd64",
+                    "linux/arm64",
+                ],
+                tag = agent_version,
+                reproducible = False,  # Tag-based pulls aren't reproducible
+                is_bzlmod = True,
+            )
+
+            # Only process the first config
+            return
+
+    # Return extension metadata
+    return module_ctx.extension_metadata(
+        reproducible = False,
+    )
+
+# Tag class for agent base image configuration
+_agent_versions_json = tag_class(
+    attrs = {
+        "versions_file": attr.label(
+            doc = "Path to versions.json file",
+            mandatory = True,
+            allow_single_file = [".json"],
+        ),
+    },
+)
+
+tf_agent_base = module_extension(
+    implementation = _tf_agent_base_impl,
+    tag_classes = {
+        "from_versions_json": _agent_versions_json,
     },
 )
