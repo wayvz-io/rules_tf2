@@ -14,7 +14,8 @@
     "terraform-docs": "0.20.0",
     "opa": "1.4.2",
     "sentinel": "0.40.0",
-    "stacksplugin": "1.1.1"
+    "stacksplugin": "1.1.1",
+    "tfc-agent": "1.17.0"
   },
   "tflint_plugins": {
     "aws": "0.44.0",

@@ -52,6 +52,10 @@ load(
     "//tf2/tfcore:variables.bzl",
     _tf_variables = "tf_variables",
 )
+load(
+    "//tf2/agent:agent_image.bzl",
+    _tfc_agent_image = "tfc_agent_image",
+)
 
 # Provider management
 provider_mirror = _provider_mirror
@@ -76,3 +80,6 @@ tf_sentinel_fmt = _tf_sentinel_fmt
 tf_opa_test = _tf_opa_test
 tf_opa_fmt_test = _tf_opa_fmt_test
 tf_opa_fmt = _tf_opa_fmt
+
+# Agent image building
+tfc_agent_image = _tfc_agent_image

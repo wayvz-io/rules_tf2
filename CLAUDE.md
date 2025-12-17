@@ -39,6 +39,7 @@ All user-facing rules/macros:
 - `tf_runner` - Run arbitrary terraform commands
 - `tf_test` - Explicit test targets
 - `tf_cloud_workspace` - Terraform Cloud integration
+- `tfc_agent_image` - Build custom TFC agent Docker images with bundled providers
 - `provider_mirror` - Custom provider management
 
 ### Core Directories
@@ -48,7 +49,8 @@ All user-facing rules/macros:
 - **tf2/tfdocs/**: terraform-docs integration (test, generator)
 - **tf2/providers/**: Provider management (registry, download, mirrors)
 - **tf2/tools/**: Tool download and management (terraform, tflint, terraform-docs)
-- **tf2/extensions.bzl**: Module extensions (`tf_providers`, `tf_tools`)
+- **tf2/agent/**: TFC agent image building (agent_image, filtered_mirror, provider_layer)
+- **tf2/extensions.bzl**: Module extensions (`tf_providers`, `tf_tools`, `tf_agent_base`)
 - **tf2/internal/**: Internal utilities (staging, file_ops, organization)
 
 ### Configuration Files
@@ -123,6 +125,34 @@ Tool paths are resolved at runtime to handle both root module and external depen
 
 ### TFLint Plugins
 Configured per-provider in versions.json: aws, azurerm, google, opa, plus a built-in `tf2` plugin at `//go/tflint_ruleset:tflint-ruleset-tf2`.
+
+### TFC Agent Images
+
+The `tfc_agent_image` macro builds custom Terraform Cloud agent Docker images with pre-bundled providers:
+
+```starlark
+tfc_agent_image(
+    name = "my_agent",
+    providers = ["@tf_provider_registry//:aws_6"],  # Or use module= to extract from tf_module
+    repository = "my-org/tfc-agent",
+)
+```
+
+Requires the `tf_agent_base` extension in MODULE.bazel:
+```starlark
+tf_agent_base = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_agent_base")
+tf_agent_base.from_versions_json(versions_file = "path/to/versions.json")
+use_repo(tf_agent_base, "tfc_agent_base", "tfc_agent_base_linux_amd64", "tfc_agent_base_linux_arm64")
+```
+
+And `tfc-agent` version in versions.json:
+```json
+{
+  "tools": {
+    "tfc-agent": "1.17.0"
+  }
+}
+```
 
 ### External Module Management
 

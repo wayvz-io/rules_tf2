@@ -8,6 +8,7 @@ Bazel module extensions for MODULE.bazel configuration.
 |-----------|-------------|
 | [tf_providers](tf-providers.md) | Provider download and registry management |
 | [tf_tools](tf-tools.md) | Tool download (terraform, tflint, terraform-docs) |
+| [tf_agent_base](#tf_agent_base) | TFC agent base image management |
 
 ## tf_providers
 
@@ -47,6 +48,30 @@ use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
   },
   "tflint_plugins": {
     "aws": "0.30.0"
+  }
+}
+```
+
+## tf_agent_base
+
+Configure TFC agent base image for [tfc_agent_image](../cloud/tfc-agent-image.md):
+
+```starlark
+tf_agent_base = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_agent_base")
+tf_agent_base.from_versions_json(
+    versions_file = "path/to/versions.json",
+)
+use_repo(tf_agent_base, "tfc_agent_base", "tfc_agent_base_linux_amd64", "tfc_agent_base_linux_arm64")
+```
+
+The extension reads `tfc-agent` version from versions.json and pulls the appropriate `hashicorp/tfc-agent` Docker image for both linux/amd64 and linux/arm64 platforms.
+
+### versions.json
+
+```json
+{
+  "tools": {
+    "tfc-agent": "1.17.0"
   }
 }
 ```

@@ -1,0 +1,49 @@
+"""TFC agent image building rules"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
+package(default_visibility = ["//visibility:public"])
+
+exports_files([
+    "agent_image.bzl",
+    "filtered_mirror.bzl",
+    "terraformrc.bzl",
+    "provider_layer.bzl",
+    "tools_layer.bzl",
+])
+
+bzl_library(
+    name = "agent_image",
+    srcs = ["agent_image.bzl"],
+    deps = [
+        ":provider_layer",
+        ":terraformrc",
+        ":tools_layer",
+    ],
+)
+
+bzl_library(
+    name = "terraformrc",
+    srcs = ["terraformrc.bzl"],
+)
+
+bzl_library(
+    name = "provider_layer",
+    srcs = ["provider_layer.bzl"],
+    deps = [
+        "//tf2/providers/core:info",
+    ],
+)
+
+bzl_library(
+    name = "tools_layer",
+    srcs = ["tools_layer.bzl"],
+)
+
+bzl_library(
+    name = "filtered_mirror",
+    srcs = ["filtered_mirror.bzl"],
+    deps = [
+        "//tf2/providers/core:info",
+    ],
+)

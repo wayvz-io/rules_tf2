@@ -44,6 +44,7 @@
     - [tf_sentinel](reference/rules/tf-sentinel.md)
   - [Cloud Integration](reference/cloud/README.md)
     - [tf_cloud_workspace](reference/cloud/tf-cloud-workspace.md)
+    - [tfc_agent_image](reference/cloud/tfc-agent-image.md)
   - [Providers](reference/providers/README.md)
     - [provider_mirror](reference/providers/provider-mirror.md)
   - [Publishing](reference/publishing/README.md)

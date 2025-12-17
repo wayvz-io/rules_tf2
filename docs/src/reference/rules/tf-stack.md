@@ -36,6 +36,7 @@ tf_stack(
 | `name` | string | Stack name (default: "tf_stack") |
 | `srcs` | label_list | Stack source files (.tfcomponent.hcl, .tfdeploy.hcl, .json) |
 | `modules` | label_list | tf_module targets referenced by components |
+| `module_aliases` | string_dict | Map module labels to custom component names |
 | `providers` | label_list | Additional provider_mirror targets (optional) |
 | `terraform_version` | string | Terraform version (default: "1.14.1") |
 | `skip_validation` | bool | Skip terraform stacks validate test |
@@ -76,6 +77,27 @@ exported_stack/
 ├── .terraform.lock.hcl        # Generated lockfile
 └── .terraform-version         # Generated version file
 ```
+
+## Module Aliases
+
+By default, modules are staged using their package or target name. Use `module_aliases` to override this with custom names:
+
+```starlark
+tf_stack(
+    name = "my_stack",
+    srcs = [...],
+    modules = [
+        "//iac/aws/workloads:tf_module",
+        "//iac/azure/workloads:tf_module",
+    ],
+    module_aliases = {
+        "//iac/aws/workloads:tf_module": "aws_workloads",
+        "//iac/azure/workloads:tf_module": "azure_workloads",
+    },
+)
+```
+
+This stages modules to `./components/aws_workloads/` and `./components/azure_workloads/` instead of using the default derivation. Useful when multiple modules share the same package name but need distinct component names.
 
 ## Provider Inheritance
 

@@ -46,6 +46,7 @@ bzl_library(
         "//tf2/tools/download:terraform",
         "//tf2/tools/download:terraform_docs",
         "//tf2/tools/download:tflint",
+        "@rules_oci//oci:pull",  # For tf_agent_base extension
     ],
 )
 
