@@ -29,6 +29,7 @@ def _tf_stack_file_export_impl(ctx):
         deploy_files,
         data_files,
         stack_info.modules,
+        stack_info.module_aliases,
     )
 
     # Create staging directory for the export

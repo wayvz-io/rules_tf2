@@ -1,0 +1,14 @@
+load("//tf2:def.bzl", "tf_module")
+
+tf_module(
+    name = "tf_module",
+    testonly = True,
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+    ],
+    providers = [
+        "@tf_provider_registry//:null_3",
+    ],
+    visibility = ["//tests/integration/stack_module_aliases:__subpackages__"],
+)

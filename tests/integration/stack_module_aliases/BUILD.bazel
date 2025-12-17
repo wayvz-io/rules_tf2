@@ -1,0 +1,24 @@
+load("//tf2:def.bzl", "tf_stack")
+
+# Test stack demonstrating module_aliases feature
+# Both aws/workloads and azure/workloads have the same folder name,
+# but module_aliases allows them to coexist in the same stack
+tf_stack(
+    name = "tf_stack",
+    testonly = True,
+    srcs = [
+        "components.tfcomponent.hcl",
+        "dev.tfdeploy.hcl",
+        "variables.tfcomponent.hcl",
+    ],
+    module_aliases = {
+        "//tests/integration/stack_module_aliases/aws/workloads:tf_module": "aws_workloads",
+        "//tests/integration/stack_module_aliases/azure/workloads:tf_module": "azure_workloads",
+    },
+    modules = [
+        "//tests/integration/stack_module_aliases/aws/workloads:tf_module",
+        "//tests/integration/stack_module_aliases/azure/workloads:tf_module",
+    ],
+    skip_validation = True,  # Skip validation as we don't have providers configured
+    visibility = ["//visibility:public"],
+)

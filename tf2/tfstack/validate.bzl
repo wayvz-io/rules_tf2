@@ -21,7 +21,8 @@ def _tf_stack_validate_test_impl(ctx):
         component_files,
         deploy_files,
         data_files,
-        ctx.attr.stack[TfStackInfo].modules,
+        stack_info.modules,
+        stack_info.module_aliases,
     )
 
     # Create staging directory
