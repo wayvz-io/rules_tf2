@@ -96,6 +96,7 @@ def _tf_stack_impl(
         name = name + "_format",
         stack = ":" + name,
         visibility = visibility,
+        testonly = testonly,
     )
 
     # Create dependency validation test

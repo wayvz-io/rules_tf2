@@ -91,12 +91,24 @@ mkdir -p '{staging_dir}'
     # Create the validation script
     script = ctx.actions.declare_file("{}_test.sh".format(ctx.label.name))
 
-    # Get provider registry path if available
+    # Get provider registry path if available - find the mirror root
+    # The path needs to be relative to runfiles, not the build output path
     provider_mirror_path = ""
     if ctx.attr.provider_registry and ctx.files.provider_registry:
         for f in ctx.files.provider_registry:
-            if "mirror_linux" in f.path:
-                provider_mirror_path = f.dirname
+            if "mirror_linux" in f.path or "mirror_darwin" in f.path:
+                # Extract the runfiles-relative path
+                # short_path for external repos: ../+tf_providers+tf_provider_registry/mirror_linux_arm64/...
+                # Runfiles path: +tf_providers+tf_provider_registry/mirror_linux_arm64
+                path = f.short_path
+                # Strip leading ../ for external repos
+                if path.startswith("../"):
+                    path = path[3:]
+                if "/registry.terraform.io/" in path:
+                    provider_mirror_path = path.split("/registry.terraform.io/")[0]
+                else:
+                    # Fallback: use dirname of short_path
+                    provider_mirror_path = "/".join(path.split("/")[:-1])
                 break
 
     script_content = """#!/usr/bin/env bash
@@ -161,8 +173,7 @@ echo "Terraform Stack validation passed"
         terraform_bin = terraform_bin,
         stacksplugin_bin = stacksplugin_bin,
         provider_setup = """
-if [ -d "$RUNFILES/{provider_mirror_path}" ]; then
-    cat > "$WORK_DIR/.terraformrc" <<'EOF'
+cat > "$WORK_DIR/.terraformrc" <<EOF
 provider_installation {{
   filesystem_mirror {{
     path = "$RUNFILES/{provider_mirror_path}"
@@ -170,8 +181,7 @@ provider_installation {{
 }}
 disable_checkpoint = true
 EOF
-    export TF_CLI_CONFIG_FILE="$WORK_DIR/.terraformrc"
-fi
+export TF_CLI_CONFIG_FILE="$WORK_DIR/.terraformrc"
 """.format(provider_mirror_path = provider_mirror_path) if provider_mirror_path else "",
     )
 

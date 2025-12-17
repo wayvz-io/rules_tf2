@@ -5,7 +5,9 @@ tf_module(
     testonly = True,
     srcs = [
         "main.tf",
+        "outputs.tf",
         "terraform.tf",
+        "variables.tf",
     ],
     providers = [
         "@tf_provider_registry//:null_3",
