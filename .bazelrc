@@ -45,7 +45,7 @@ build --host_cxxopt=-std=c++23
 # Remote Build Execution (RBE) Configuration
 # Forcing IPV4 due to lack of internal ipv6
 startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
-build:rbe --remote_executor=grpc://sandpit-bb-api.tail2a574c.ts.net:8980
+build:rbe --remote_executor=grpc://bb.lab.wayvz.io:8980
 build:rbe --remote_instance_name=default
 build:rbe --extra_execution_platforms=//tools/remote-toolchains:rbe_nix_platform
 build:rbe --jobs=64
