@@ -1,6 +1,7 @@
 """Rule to create tools tar layer for TFC agent images."""
 
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 
 def _tools_layer_staging_impl(ctx):
     """Stage tool binaries for tar packaging.
@@ -30,7 +31,8 @@ def _tools_layer_staging_impl(ctx):
             copy_commands.append("chmod +x '{}/tfstacks'".format(staging_dir.path))
             break  # Only take first file (the binary)
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = tool_files,
         outputs = [staging_dir],
         command = "\n".join(copy_commands),
@@ -52,6 +54,7 @@ tools_layer_staging = rule(
             doc = "tfstacks binary label",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Stages tool binaries for tar packaging.",
 )
 
@@ -101,7 +104,8 @@ def _config_layer_staging_impl(ctx):
         copy_commands.append("cp -L '{}' '{}/.terraformrc'".format(f.path, staging_dir.path))
         break
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = config_files,
         outputs = [staging_dir],
         command = "\n".join(copy_commands),
@@ -120,6 +124,7 @@ config_layer_staging = rule(
             doc = "terraformrc file label",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Stages configuration files for tar packaging.",
 )
 

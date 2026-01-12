@@ -17,6 +17,7 @@ bzl_library(
     srcs = ["nested.bzl"],
     deps = [
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
         "@bazel_skylib//lib:paths",
     ],
 )
@@ -38,6 +39,7 @@ bzl_library(
         ":nested",
         "//tf2/internal:file_ops",
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
         "//tf2/tools/runners:tool_paths",
     ],
 )
@@ -57,6 +59,7 @@ bzl_library(
     deps = [
         ":nested",
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
     ],
 )
 

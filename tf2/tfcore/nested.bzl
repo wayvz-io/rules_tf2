@@ -3,6 +3,7 @@
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("//tf2/modules/core:info.bzl", "TfExternalModuleInfo")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "run_shell")
 
 def _process_module_files(_, module, module_name, skip_nested_modules = None):
     """Process a module's files for inclusion in a parent module.
@@ -145,7 +146,8 @@ def _rewrite_terraform_file(ctx, src_file, dest_path, module_mappings):
     # Use sed to rewrite the file
     sed_expr = "; ".join(sed_commands)
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = [src_file],
         outputs = [output_file],
         command = 'sed \'{}\' "{}" > "{}"'.format(sed_expr, src_file.path, output_file.path),

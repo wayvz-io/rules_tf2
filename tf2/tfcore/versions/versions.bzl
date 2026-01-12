@@ -5,6 +5,7 @@ via the tf2_terraform_required_providers rule.
 """
 
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderAliasInfo", "TfProviderConfigurationsInfo", "TfProviderMirrorInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
 
 def _tf_versions_check_test_impl(ctx):
@@ -281,7 +282,8 @@ def _tf_generate_versions_from_mirrors_impl(ctx):
 
     # Create an action to read version and generate JSON
     # This JSON will be consumed by the HCL tool to generate/update .tf files
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         outputs = [versions_file],
         inputs = [tf_version_file],
         command = """
@@ -298,6 +300,7 @@ EOF
             providers = json.encode_indent(required_providers, indent = "  "),
         ),
         mnemonic = "GenerateVersionsConfig",
+        use_default_shell_env = True,
     )
 
     return [
@@ -403,5 +406,6 @@ tf_generate_versions_from_mirrors = rule(
             default = "1.0.0",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Generates provider configurations from provider mirrors",
 )

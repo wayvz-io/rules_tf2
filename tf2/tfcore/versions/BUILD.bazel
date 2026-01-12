@@ -8,6 +8,7 @@ bzl_library(
     srcs = ["versions.bzl"],
     deps = [
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
         "//tf2/tools/runners:shell_utils",
     ],
 )
@@ -20,4 +21,7 @@ bzl_library(
 bzl_library(
     name = "versions_hcl",
     srcs = ["versions_hcl.bzl"],
+    deps = [
+        "//tf2/tools/runners:sh_toolchain",
+    ],
 )

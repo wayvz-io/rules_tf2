@@ -2,6 +2,7 @@
 
 load("//tf2/internal:docs_collection.bzl", "collect_module_docs")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load(":config.bzl", "REGISTRY_CONFIG")
 
 def _tf_module_publish_impl(ctx):
@@ -68,7 +69,8 @@ def _tf_module_publish_impl(ctx):
         ))
 
     # Create staging directory and copy files
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = srcs + doc_files,
         outputs = [staging_dir],
         command = """
@@ -86,7 +88,8 @@ mkdir -p '{staging_dir}'
     )
 
     # Create tarball from staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = [staging_dir],
         outputs = [tarball],
         command = "(cd '{}' && tar -czf - .) > '{}'".format(
@@ -395,6 +398,7 @@ tf_publish_registry = rule(
         ),
     },
     executable = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Publish Terraform modules to Terraform Registry (HCP Terraform/TFE).
 
     This rule packages a tf_module and publishes it to a Terraform Registry using

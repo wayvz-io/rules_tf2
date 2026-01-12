@@ -2,6 +2,7 @@
 
 load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _tf_validate_test_impl(ctx):
@@ -43,7 +44,8 @@ def _tf_validate_test_impl(ctx):
         all_inputs.append(lock_file)
 
     # Create the staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = all_inputs,
         outputs = [staging_dir],
         command = """
@@ -235,5 +237,6 @@ tf_validate_test = rule(
         ),
     },
     test = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Validates Terraform configuration",
 )
