@@ -7,6 +7,9 @@ package(default_visibility = ["//visibility:public"])
 bzl_library(
     name = "provider_download_action",
     srcs = ["provider_download_action.bzl"],
+    deps = [
+        "//tf2/tools/runners:sh_toolchain",
+    ],
 )
 
 bzl_library(

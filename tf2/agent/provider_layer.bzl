@@ -2,6 +2,7 @@
 
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 
 def _provider_layer_staging_impl(ctx):
     """Stage providers for tar packaging with correct structure.
@@ -36,7 +37,8 @@ def _provider_layer_staging_impl(ctx):
             # Skip non-provider files (like .empty marker)
             continue
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = provider_files,
         outputs = [staging_dir],
         command = "\n".join(commands) if len(commands) > 1 else "mkdir -p '{}'".format(staging_dir.path),
@@ -55,6 +57,7 @@ provider_layer_staging = rule(
             doc = "Provider mirror label (e.g., @tf_provider_registry//:mirror_linux_amd64)",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Stages provider files for tar packaging.",
 )
 

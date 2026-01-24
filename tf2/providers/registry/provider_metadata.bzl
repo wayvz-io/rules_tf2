@@ -1,6 +1,7 @@
 """Provider metadata rule that provides version information without downloads"""
 
 load("//tf2/providers/core:info.bzl", "TfProviderAliasInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 
 def _provider_metadata_impl(ctx):
     """Implementation of provider_metadata rule - just metadata"""
@@ -23,8 +24,10 @@ def _provider_metadata_impl(ctx):
 
     # Create a dummy directory to satisfy the runfiles requirement
     dummy_dir = ctx.actions.declare_directory(ctx.label.name + "_providers")
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         outputs = [dummy_dir],
+        inputs = [],
         command = "mkdir -p {}".format(dummy_dir.path),
         mnemonic = "ProviderMetadata",
     )
@@ -56,6 +59,7 @@ provider_metadata = rule(
             mandatory = True,
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Provides metadata about a provider version without downloading.
 
     This rule provides version information that can be used to generate

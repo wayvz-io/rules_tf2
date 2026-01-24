@@ -3,6 +3,7 @@
 load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
 load("//tf2/tfcore:variables.bzl", "TfVariablesInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load("//tf2/tools/runners:tool_paths.bzl", "get_terraform_path")
 
 def _tf_runner_impl(ctx):
@@ -81,7 +82,8 @@ def _tf_runner_impl(ctx):
         all_inputs = all_inputs + [stack_info.lock_file]
 
     # Create the staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = all_inputs,
         outputs = [staging_dir],
         command = """
@@ -294,6 +296,7 @@ tf_runner = rule(
         ),
     },
     executable = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """General-purpose Terraform runner for executing terraform commands.
     
     This rule creates an executable target that can run any terraform command

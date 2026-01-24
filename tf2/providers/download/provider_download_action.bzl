@@ -1,5 +1,7 @@
 """BUILD rule for downloading individual Terraform provider binaries using actions"""
 
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
+
 def _provider_download_action_impl(ctx):
     """Download and extract a single provider binary using Bazel actions."""
 
@@ -138,15 +140,16 @@ rm -rf "$DOWNLOAD_DIR"
     )
 
     # Run the download script with use_default_shell_env to get system tools
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         outputs = [provider_dir],
+        inputs = [script],
         command = "{script} {output} {url} {sha256}".format(
             script = script.path,
             output = provider_dir.path,
             url = ctx.attr.url,
             sha256 = ctx.attr.sha256 or "",
         ),
-        tools = [script],
         mnemonic = "ProviderDownload",
         progress_message = "Downloading provider {}".format(ctx.label.name),
         use_default_shell_env = True,  # This gives us access to system tools
@@ -181,6 +184,7 @@ provider_download_action = rule(
             doc = "Platform (e.g., linux_amd64)",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Downloads a single Terraform provider binary using Bazel actions.
     
     This rule downloads a provider archive from the specified URL,

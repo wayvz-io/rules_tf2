@@ -1,5 +1,7 @@
 """Internal file operations utilities for Terraform staging"""
 
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
+
 def copy_source_files(source_files, output_prefix = ""):
     """Simple helper to copy source files with optional prefix.
 
@@ -144,7 +146,8 @@ def create_staging_directory(ctx, name_suffix, source_files, package_path = None
 
     copy_commands = build_staging_copy_commands(source_files, staging_dir.path, package_path)
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = source_files,
         outputs = [staging_dir],
         command = """
@@ -186,7 +189,8 @@ def stage_terraform_files(ctx, output_dir, source_files, nested_modules = None):
         )
 
         # Copy file to staged location
-        ctx.actions.run_shell(
+        run_shell(
+            ctx,
             inputs = [src_file],
             outputs = [staged_file],
             command = "cp {} {}".format(src_file.path, staged_file.path),
@@ -205,7 +209,8 @@ def stage_terraform_files(ctx, output_dir, source_files, nested_modules = None):
                     "{}/{}".format(module_dir, module_file.basename),
                 )
 
-                ctx.actions.run_shell(
+                run_shell(
+                    ctx,
                     inputs = [module_file],
                     outputs = [staged_file],
                     command = "mkdir -p {} && cp {} {}".format(

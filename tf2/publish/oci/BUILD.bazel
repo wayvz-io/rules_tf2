@@ -13,6 +13,7 @@ bzl_library(
         ":config",
         "//tf2/internal:docs_collection",
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
     ],
 )
 

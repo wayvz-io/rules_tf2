@@ -1,5 +1,6 @@
 """Terraform command execution utilities"""
 
+load(":sh_toolchain.bzl", "run_shell")
 load(":tool_paths.bzl", "get_terraform_path")
 
 def create_terraform_format_test(ctx, name, srcs):
@@ -299,10 +300,10 @@ def _run_terraform_action(ctx, terraform_binary, args, srcs, config_file = None,
     if srcs:
         work_dir = srcs[0].dirname
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         outputs = [output_file],
         inputs = inputs,
-        tools = [terraform_binary],
         command = "cd {} && {} {} > {} 2>&1".format(
             work_dir,
             terraform_binary.path,

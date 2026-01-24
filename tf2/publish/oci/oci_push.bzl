@@ -2,6 +2,7 @@
 
 load("//tf2/internal:docs_collection.bzl", "collect_module_docs")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load(":config.bzl", "OCI_CONFIG")
 
 def _oci_push_impl(ctx):
@@ -44,7 +45,8 @@ def _oci_push_impl(ctx):
         ))
 
     # Create the staging directory structure and copy files
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = ctx.files.srcs,
         outputs = [staging_dir],
         command = """
@@ -62,7 +64,8 @@ mkdir -p '{staging_dir}'
     )
 
     # Create tarball from the staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = [staging_dir],
         outputs = [tarball],
         command = "(cd '{}' && tar -czf - .) > '{}'".format(
@@ -195,6 +198,7 @@ oci_push = rule(
         ),
     },
     executable = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Push Terraform stacks to OCI registry.
     
     This rule creates a tarball from the provided source files and pushes it to an OCI
@@ -272,7 +276,8 @@ def _tf_module_push_oci_impl(ctx):
         ))
 
     # Create the staging directory structure and copy files
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = srcs + doc_files,
         outputs = [staging_dir],
         command = """
@@ -290,7 +295,8 @@ mkdir -p '{staging_dir}'
     )
 
     # Create tarball from the staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = [staging_dir],
         outputs = [tarball],
         command = "(cd '{}' && tar -czf - .) > '{}'".format(
@@ -434,6 +440,7 @@ tf_publish_oci = rule(
         ),
     },
     executable = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Push Terraform stacks to OCI registry.
 
     This rule takes a tf_stack target and pushes it to an OCI registry using the

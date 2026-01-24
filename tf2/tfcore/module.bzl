@@ -1,6 +1,7 @@
 """Core Terraform module rule implementation"""
 
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE")
 load(":nested.bzl", "process_nested_modules")
 
 def _tf_module_impl(ctx):
@@ -84,6 +85,7 @@ tf_module_rule = rule(
             doc = "Terraform lock file",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Defines a Terraform module (can contain nested modules for complex deployments)",
 )
 

@@ -1,5 +1,7 @@
 """Rules for managing Terraform versions using the HCL tool"""
 
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
+
 def _tf_update_versions_impl(ctx):
     """Update terraform version requirements in .tf files"""
 
@@ -136,7 +138,8 @@ def _tf_read_versions_impl(ctx):
         # Get the directory of the first source file
         src_dir = ctx.files.srcs[0].dirname
 
-        ctx.actions.run_shell(
+        run_shell(
+            ctx,
             outputs = [output],
             inputs = ctx.files.srcs,
             command = """
@@ -168,5 +171,6 @@ tf_read_versions = rule(
             doc = "The HCL tool binary",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Reads terraform version requirements from .tf files and outputs as JSON",
 )

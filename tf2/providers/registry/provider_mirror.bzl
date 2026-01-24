@@ -1,5 +1,7 @@
 """BUILD rules for creating a Terraform provider filesystem mirror at build time"""
 
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
+
 def _provider_mirror_impl(ctx):
     """Implementation of provider_mirror rule.
 
@@ -76,11 +78,11 @@ def _provider_mirror_impl(ctx):
     )
 
     # Run the script to create the mirror
-    ctx.actions.run_shell(
-        inputs = provider_inputs,
+    run_shell(
+        ctx,
+        inputs = provider_inputs + [script],
         outputs = [mirror_dir],
         command = script.path,
-        tools = [script],
         mnemonic = "ProviderMirror",
         progress_message = "Creating provider mirror for {}".format(ctx.label),
     )
@@ -108,6 +110,7 @@ provider_mirror = rule(
             default = "linux_amd64",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
 )
 
 def collect_required_providers(_):

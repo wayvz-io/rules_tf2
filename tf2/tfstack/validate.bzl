@@ -3,6 +3,7 @@
 load("//tf2/internal:file_ops.bzl", "build_staging_copy_commands")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfStackInfo")
 load("//tf2/tfstack:nested.bzl", "process_stack_modules")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE")
 load("//tf2/tools/runners:tool_paths.bzl", "TOOLS_ATTR", "get_stacksplugin_path", "get_terraform_path")
 
 def _tf_stack_validate_test_impl(ctx):
@@ -35,23 +36,31 @@ def _tf_stack_validate_test_impl(ctx):
 
     for f in all_processed_files:
         # Determine destination path
-        if f.path.endswith(".tfcomponent.hcl") or f.path.endswith(".tfdeploy.hcl") or f.path.endswith(".json"):
-            # Root level files
+        if f.path.endswith(".tfcomponent.hcl") or f.path.endswith(".tfdeploy.hcl"):
+            # Root level stack config files
             dest_path = f.basename
         elif "/components/" in f.path:
             # Extract components/... structure
             idx = f.path.find("/components/")
             dest_path = f.path[idx + 1:]  # Include "components/..."
-
-            # Create parent directory
-            parts = dest_path.split("/")
-            if len(parts) > 1:
-                dest_dir = "/".join(parts[:-1])
-                if dest_dir not in created_dirs:
-                    copy_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dest_dir))
-                    created_dirs[dest_dir] = True
+        elif "/intents/" in f.path:
+            # Extract intents/... structure (data files)
+            idx = f.path.find("/intents/")
+            dest_path = f.path[idx + 1:]  # Include "intents/..."
+        elif "/cmdb/" in f.path:
+            # Extract cmdb/... structure (data files)
+            idx = f.path.find("/cmdb/")
+            dest_path = f.path[idx + 1:]  # Include "cmdb/..."
         else:
             dest_path = f.basename
+
+        # Create parent directory if needed
+        parts = dest_path.split("/")
+        if len(parts) > 1:
+            dest_dir = "/".join(parts[:-1])
+            if dest_dir not in created_dirs:
+                copy_commands.append("mkdir -p '{}/{}'".format(staging_dir.path, dest_dir))
+                created_dirs[dest_dir] = True
 
         copy_commands.append("cp -L '{}' '{}/{}'".format(f.path, staging_dir.path, dest_path))
         all_inputs.append(f)
@@ -68,18 +77,29 @@ def _tf_stack_validate_test_impl(ctx):
     version_content = stack_info.terraform_version or "1.14.1"
     copy_commands.append("echo '{}' > '{}/.terraform-version'".format(version_content, staging_dir.path))
 
-    # Create the staging directory
-    ctx.actions.run_shell(
-        inputs = all_inputs,
-        outputs = [staging_dir],
-        command = """
+    # Create the staging script
+    staging_script = ctx.actions.declare_file("{}_staging.sh".format(ctx.label.name))
+    staging_script_content = """#!/usr/bin/env bash
 set -euo pipefail
 mkdir -p '{staging_dir}'
 {copy_commands}
 """.format(
-            staging_dir = staging_dir.path,
-            copy_commands = "\n".join(copy_commands),
-        ),
+        staging_dir = staging_dir.path,
+        copy_commands = "\n".join(copy_commands),
+    )
+
+    ctx.actions.write(
+        output = staging_script,
+        content = staging_script_content,
+        is_executable = True,
+    )
+
+    # Create the staging directory
+    ctx.actions.run(
+        inputs = all_inputs + [staging_script],
+        outputs = [staging_dir],
+        executable = staging_script,
+        use_default_shell_env = True,
         mnemonic = "PrepareStackValidationStaging",
         progress_message = "Preparing Terraform Stack validation staging for %s" % ctx.label,
     )
@@ -217,6 +237,7 @@ tf_stack_validate_test = rule(
             allow_files = True,
         ),
     }, **TOOLS_ATTR),
+    toolchains = [SH_TOOLCHAIN_TYPE],
     test = True,
     doc = "Validates Terraform Stack configuration using terraform stacks validate",
 )

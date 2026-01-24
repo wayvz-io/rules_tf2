@@ -32,12 +32,16 @@ bzl_library(
     srcs = ["provider_layer.bzl"],
     deps = [
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
     ],
 )
 
 bzl_library(
     name = "tools_layer",
     srcs = ["tools_layer.bzl"],
+    deps = [
+        "//tf2/tools/runners:sh_toolchain",
+    ],
 )
 
 bzl_library(
@@ -45,5 +49,6 @@ bzl_library(
     srcs = ["filtered_mirror.bzl"],
     deps = [
         "//tf2/providers/core:info",
+        "//tf2/tools/runners:sh_toolchain",
     ],
 )

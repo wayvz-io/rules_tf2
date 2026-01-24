@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:paths.bzl", "paths")
 load("//tf2/providers/core:info.bzl", "TfModuleInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "run_shell")
 
 def _process_module_files_for_stack(_, module, module_name):
     """Process a module's files for inclusion in a stack's components directory.
@@ -98,7 +99,9 @@ def _rewrite_component_file(ctx, src_file, dest_path, module_mappings):
     Returns:
         File object for the rewritten file
     """
-    output_file = ctx.actions.declare_file(dest_path)
+    # Include the rule name in the output path to avoid conflicts between
+    # different rules that process the same source files
+    output_file = ctx.actions.declare_file("{}/{}".format(ctx.label.name, dest_path))
 
     if not module_mappings:
         # No rewrites needed, just copy the file
@@ -118,7 +121,8 @@ def _rewrite_component_file(ctx, src_file, dest_path, module_mappings):
 
     sed_expr = "; ".join(sed_commands)
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = [src_file],
         outputs = [output_file],
         command = 'sed \'{}\' "{}" > "{}"'.format(sed_expr, src_file.path, output_file.path),

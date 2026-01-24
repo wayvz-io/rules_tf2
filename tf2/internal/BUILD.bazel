@@ -38,4 +38,7 @@ bzl_library(
 bzl_library(
     name = "file_ops",
     srcs = ["file_ops.bzl"],
+    deps = [
+        "//tf2/tools/runners:sh_toolchain",
+    ],
 )

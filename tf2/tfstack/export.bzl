@@ -2,6 +2,7 @@
 
 load("//tf2/providers/core:info.bzl", "TfStackInfo")
 load("//tf2/tfstack:nested.bzl", "process_stack_modules")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 load("//tf2/tools/runners:shell_utils.bzl", "get_runfiles_dir_script", "get_workspace_dir_script")
 
 def _tf_stack_file_export_impl(ctx):
@@ -42,10 +43,9 @@ def _tf_stack_file_export_impl(ctx):
 
     for f in all_processed_files:
         # Determine destination path
+        # Note: .json files are NOT special-cased here - they may come from modules
+        # and need to preserve their path structure under components/
         if f.path.endswith(".tfcomponent.hcl") or f.path.endswith(".tfdeploy.hcl"):
-            dest_path = f.basename
-        elif f.path.endswith(".json"):
-            # Data files - preserve structure if in subdirectory
             dest_path = f.basename
         elif "/components/" in f.path:
             idx = f.path.find("/components/")
@@ -76,7 +76,8 @@ def _tf_stack_file_export_impl(ctx):
     copy_commands.append("echo '{}' > '{}/.terraform-version'".format(version_content, staging_dir.path))
 
     # Create the staging directory
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = all_inputs,
         outputs = [staging_dir],
         command = """
@@ -154,5 +155,6 @@ tf_stack_file_export = rule(
         ),
     },
     executable = True,
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Exports a Terraform Stack to a directory with proper structure",
 )

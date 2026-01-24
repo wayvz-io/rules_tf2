@@ -6,6 +6,7 @@ from a tf_module's dependencies.
 """
 
 load("//tf2/providers/core:info.bzl", "TfModuleInfo", "TfProviderConfigurationsInfo")
+load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 
 def _parse_provider_alias(alias):
     """Parse a provider alias to extract name and major version.
@@ -151,7 +152,8 @@ def _filtered_provider_mirror_impl(ctx):
     if not included_files:
         commands.append("# No providers matched, creating empty staging")
 
-    ctx.actions.run_shell(
+    run_shell(
+        ctx,
         inputs = included_files if included_files else provider_files,
         outputs = [staging_dir],
         command = "\n".join(commands),
@@ -177,6 +179,7 @@ filtered_provider_mirror = rule(
             doc = "tf_module to extract providers from",
         ),
     },
+    toolchains = [SH_TOOLCHAIN_TYPE],
     doc = """Creates a filtered provider mirror containing only specified providers.
 
 Accepts either:
