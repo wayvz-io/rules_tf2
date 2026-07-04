@@ -34,6 +34,7 @@ bzl_library(
     deps = [
         "//tf2/modules/download:module_git_repository",
         "//tf2/modules/download:module_registry_repository",
+        "//tf2/modules/registry:alias",
         "//tf2/modules/repository:terraform_modules",
         "//tf2/providers/download:provider_download_repository",
         "//tf2/providers/repository:hcl_parser",
