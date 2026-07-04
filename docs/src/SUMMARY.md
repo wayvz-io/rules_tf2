@@ -13,6 +13,7 @@
 # Explanation
 
 - [Architecture](explanation/architecture.md)
+- [Hermeticity, CI & CD](explanation/hermeticity.md)
 - [Versioning](explanation/versioning/README.md)
   - [Providers](explanation/versioning/providers.md)
   - [Tools](explanation/versioning/tools.md)

@@ -24,9 +24,13 @@ bazel_dep(name = "rules_tf2", version = "0.1.0")
 git_override(
     module_name = "rules_tf2",
     remote = "https://github.com/wayvz-io/rules_tf2.git",
-    tag = "0.1.0",
+    tag = "v0.1.0",
 )
 ```
+
+You also need to configure providers and tools via the module extensions before
+a `tf_module` will build — see [Module Extensions](reference/extensions/README.md)
+for the `tf_providers` / `tf_tools` setup.
 
 Create a Terraform module with automatic testing:
 
@@ -35,14 +39,20 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+        "README.md",
+    ],
 )
 ```
 
 Run all tests:
 
 ```bash
-bazel test //path/to:my_module_all
+bazel test //path/to:all
 ```
 
 ## Documentation Structure

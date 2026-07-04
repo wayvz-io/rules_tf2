@@ -10,6 +10,7 @@ Task-oriented instructions for accomplishing specific goals.
 
 | Goal | Where to look |
 |------|---------------|
+| Understand the hermetic boundary and CI/CD split | [Hermeticity, CI & CD](../explanation/hermeticity.md) |
 | Create a module with automatic tests | [`tf_module`](../reference/rules/tf-module.md), [Module Structure](../explanation/tf-modules/structure.md) |
 | Configure providers and lock files | [Provider Versioning](../explanation/versioning/providers.md) |
 | Use external modules | [External Modules](../explanation/versioning/external-modules.md), [Module Registry](../explanation/tf-modules/module-registry.md) |

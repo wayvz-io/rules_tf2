@@ -107,7 +107,7 @@ load("@rules_tf2//tf2:def.bzl", "tf_runner")
 
 tf_runner(
     name = "terraform",
-    module = ":vpc",
+    stack = ":vpc",
 )
 ```
 
