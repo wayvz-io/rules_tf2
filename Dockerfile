@@ -34,14 +34,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         zip \
     && rm -rf /var/lib/apt/lists/*
 
-# Install bazelisk as `bazel`. On first invocation bazelisk reads the mounted
-# repo's .bazelversion and downloads that exact Bazel version, so the image
-# tracks whatever version the repo pins (no hardcoded version here).
+# Install bazelisk as `bazel`. bazelisk reads the mounted repo's .bazelversion,
+# but some environments ignore it and default to latest, so we also pin the
+# version explicitly. Keep USE_BAZEL_VERSION in sync with .bazelversion.
+# (Bazel 9 is a planned follow-up.)
 ARG BAZELISK_VERSION=v1.25.0
 RUN curl -fsSL \
         "https://github.com/bazelbuild/bazelisk/releases/download/${BAZELISK_VERSION}/bazelisk-linux-amd64" \
         -o /usr/local/bin/bazel \
     && chmod +x /usr/local/bin/bazel
+ENV USE_BAZEL_VERSION=8.5.0
 
 # Devs mount their checkout here.
 WORKDIR /workspace

@@ -23,6 +23,10 @@ jobs:
           repository-cache: true
 
       - name: Run tests before release
+        env:
+          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
+          # latest and ignores .bazelversion. Bazel 9 is a planned follow-up.
+          USE_BAZEL_VERSION: "8.5.0"
         run: |
           echo "Running tests to ensure release quality..."
           bazel test //...

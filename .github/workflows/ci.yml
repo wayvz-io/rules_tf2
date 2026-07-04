@@ -28,4 +28,8 @@ jobs:
           repository-cache: true
 
       - name: Build and test
+        env:
+          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
+          # latest and ignores .bazelversion. Bazel 9 is a planned follow-up.
+          USE_BAZEL_VERSION: "8.5.0"
         run: bazel test //...
