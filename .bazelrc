@@ -42,6 +42,12 @@ build --tool_java_runtime_version=remotejdk_21
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
+# Build Go in pure mode (no cgo). The ruleset's Go code and its dependencies are
+# pure Go, and pure mode avoids the hermetic LLVM toolchain's force-included
+# redacted_dates.h header, which clang cannot resolve when rules_go invokes it
+# from the cgo stdlib builder.
+build --@rules_go//go/config:pure=true
+
 # ----------------------------------------------------------------------------
 # Optional Nix toolchains — opt in with `--config=nix`.
 #
