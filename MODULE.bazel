@@ -117,8 +117,12 @@ use_repo(non_module_deps, "mdbook")
 
 # Go SDK configuration for development (only when rules_tf2 is root module).
 # Downloaded (hermetic) rather than host, so no host Go / Nix is required.
+# Pinned to 1.24.x: rules_go 0.53 injects GOEXPERIMENT=coverageredesign, which
+# Go 1.25 removed ("unknown GOEXPERIMENT"). 1.24.11 matches the Go the nix
+# dev-shell used. (Bumping to Go 1.25 comes with the rules_go bump in the
+# Bazel 9 follow-up.)
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
-go_sdk.download(version = "1.25.3")
+go_sdk.download(version = "1.24.11")
 
 # Default (stock/hermetic) toolchains — used unless `--config=nix` is passed.
 # The Nix CC/Java toolchains are deliberately NOT registered here; they are
