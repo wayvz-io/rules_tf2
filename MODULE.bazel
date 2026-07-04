@@ -23,6 +23,10 @@ bazel_dep(name = "rules_shell", version = "0.5.0")
 # Documentation generation
 bazel_dep(name = "stardoc", version = "0.8.0")
 
+# Hermetic buildifier for the BUILD-file lint test (//:buildifier_test). Replaces
+# the nix dev-shell's buildifier so the lint test runs on a bare runner.
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+
 # OCI container image support
 bazel_dep(name = "rules_oci", version = "2.2.7")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
