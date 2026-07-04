@@ -43,15 +43,22 @@ else
         echo "Copied: $src -> $dst"
     }
 
+    # Destination filenames must match the paths listed in src/SUMMARY.md, or the
+    # generated pages will not be linked into the book and never render.
+    #
+    # Note: no stardoc is generated for tf_sentinel or tf_opa even
+    # though they are part of the public API. Their reference pages under
+    # src/reference/rules/ are hand-maintained and are intentionally not
+    # overwritten here.
     copy_stardoc "$STARDOC_DIR/tf_module.md" "$WORK_DIR/src/reference/rules/tf-module.md"
     copy_stardoc "$STARDOC_DIR/tf_runner.md" "$WORK_DIR/src/reference/rules/tf-runner.md"
     copy_stardoc "$STARDOC_DIR/tf_test.md" "$WORK_DIR/src/reference/rules/tf-test.md"
     copy_stardoc "$STARDOC_DIR/tf_variables.md" "$WORK_DIR/src/reference/rules/tf-variables.md"
     copy_stardoc "$STARDOC_DIR/tf_file_export.md" "$WORK_DIR/src/reference/rules/tf-file-export.md"
-    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tf-cloud-configuration.md"
+    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tf-cloud-workspace.md"
     copy_stardoc "$STARDOC_DIR/provider_mirror.md" "$WORK_DIR/src/reference/providers/provider-mirror.md"
-    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/publishing/tf-module-publish.md"
-    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/publishing/tf-module-push-oci.md"
+    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/publishing/tf-publish-registry.md"
+    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/publishing/tf-publish-oci.md"
     copy_stardoc "$STARDOC_DIR/extensions.md" "$WORK_DIR/src/reference/extensions/README.md"
 fi
 

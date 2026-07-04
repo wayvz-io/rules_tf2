@@ -11,7 +11,6 @@ load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "ge
 load("//tf2/tools/download:opa.bzl", "download_opa")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:sentinel.bzl", "download_sentinel")
-load("//tf2/tools/download:stacksplugin.bzl", "download_stacksplugin")
 load("//tf2/tools/download:terraform.bzl", "download_terraform")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
 load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
@@ -493,46 +492,6 @@ tf_providers = module_extension(
     },
 )
 
-def _tfc_config_impl(module_ctx):
-    """Implementation of tfc_config module extension"""
-
-    # Collect TFC configuration from modules
-    tfc_config = {}
-
-    for mod in module_ctx.modules:
-        for config in mod.tags.configure:
-            if config.organization:
-                tfc_config["organization"] = config.organization
-            if config.tfe_host:
-                tfc_config["tfe_host"] = config.tfe_host
-
-    # Note: In a real implementation, we would store this config somewhere
-    # that the rules can access it. For now, rules will need to pass
-    # organization explicitly or use environment variables.
-    # This is a placeholder for future enhancement.
-    pass
-
-# Tag class for TFC configuration
-_tfc_configure = tag_class(
-    attrs = {
-        "organization": attr.string(
-            doc = "Default Terraform Cloud organization",
-            mandatory = False,
-        ),
-        "tfe_host": attr.string(
-            doc = "Terraform Enterprise hostname (defaults to app.terraform.io)",
-            mandatory = False,
-        ),
-    },
-)
-
-tfc_config = module_extension(
-    implementation = _tfc_config_impl,
-    tag_classes = {
-        "configure": _tfc_configure,
-    },
-)
-
 def _tf_tools_impl(module_ctx):
     """Implementation of tf_tools module extension"""
 
@@ -541,7 +500,6 @@ def _tf_tools_impl(module_ctx):
     tflint_version = None
     terraform_docs_version = None
     sentinel_version = None
-    stacksplugin_version = None
     opa_version = None
 
     # Collect plugin configurations
@@ -562,8 +520,6 @@ def _tf_tools_impl(module_ctx):
                 terraform_docs_version = get_tool_version(versions_data, "terraform-docs")
             if not sentinel_version:
                 sentinel_version = get_tool_version(versions_data, "sentinel")
-            if not stacksplugin_version:
-                stacksplugin_version = get_tool_version(versions_data, "stacksplugin")
             if not opa_version:
                 opa_version = get_tool_version(versions_data, "opa")
 
@@ -607,11 +563,6 @@ def _tf_tools_impl(module_ctx):
     download_sentinel(
         name = "sentinel_tool",
         version = sentinel_version,
-    )
-
-    download_stacksplugin(
-        name = "stacksplugin_tool",
-        version = stacksplugin_version,
     )
 
     download_opa(

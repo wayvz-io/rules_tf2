@@ -51,12 +51,8 @@ When you define a `tf_module`, the macro creates these targets:
 - **Rule**: `tf_generate_versions`
 - **Purpose**: Updates versions.tf.json from provider_configurations
 
-## Stack Test Suite (`tf_stack`)
-
-Stacks have all the same tests as modules, plus:
-
 ### 6. Validation Test
-- **Target**: `simple_stack_validate_test`
+- **Target**: `simple_module_validate_test`
 - **Rule**: `tf_validate_test`
 - **Execution**:
   1. Copies module files to temp directory
@@ -80,17 +76,15 @@ Stacks have all the same tests as modules, plus:
 ### Provider Configurations
 - **Rule**: `provider_configurations`
 - **Purpose**: Generates versions.tf.json with version constraints
-- **Output**: versions.tf.json file for modules/stacks
+- **Output**: versions.tf.json file for modules
 
 ## Test Execution Summary
 
-For **modules**, these tests run:
+For each **module**, these tests run:
 1. Format check (terraform fmt)
 2. Lint check (tflint)
 3. Documentation check (terraform-docs)
 4. Version check (file comparison)
-
-For **stacks**, all module tests plus:
 5. Validation (terraform init + validate)
 
 All tests are properly executing their respective tools and validating the Terraform code.

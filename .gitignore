@@ -45,3 +45,6 @@ result-*
 # Direnv
 .direnv/
 .claude/settings.local.json
+
+# Local Buildbarn runtime volumes
+tools/rbe-local/volumes/

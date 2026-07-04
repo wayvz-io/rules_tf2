@@ -9,7 +9,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "terraform",
     srcs = ["terraform.go"],
-    importpath = "github.com/wayvz-io/network_intent_manager/build/rules/tf2/gazelle/terraform",
+    importpath = "github.com/wayvz-io/rules_tf2/tf2/gazelle/terraform",
     visibility = ["//visibility:public"],
     deps = [
         "@gazelle//config:go_default_library",

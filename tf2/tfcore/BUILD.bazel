@@ -73,7 +73,6 @@ bzl_library(
     deps = [
         "//tf2/tfcore/versions",
         "//tf2/tfcore/versions:lockfile",
-        "//tf2/tfcore/versions:versions_hcl",
     ],
 )
 

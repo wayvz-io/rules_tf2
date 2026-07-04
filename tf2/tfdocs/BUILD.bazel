@@ -10,11 +10,3 @@ bzl_library(
         "//tf2/tools/runners:tfdoc",
     ],
 )
-
-bzl_library(
-    name = "test",
-    srcs = ["test.bzl"],
-    deps = [
-        "//tf2/tools/runners:tfdoc",
-    ],
-)

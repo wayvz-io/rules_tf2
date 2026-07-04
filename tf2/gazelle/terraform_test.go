@@ -436,14 +436,6 @@ func TestKinds_SrcsAreMergeableAndSubstituted(t *testing.T) {
 		t.Error("tf_module srcs should be in MergeableAttrs to update BUILD files")
 	}
 
-	tfStackKind := kinds["tf_stack"]
-	if !tfStackKind.SubstituteAttrs["srcs"] {
-		t.Error("tf_stack srcs should be in SubstituteAttrs for label substitution")
-	}
-	if !tfStackKind.MergeableAttrs["srcs"] {
-		t.Error("tf_stack srcs should be in MergeableAttrs to update BUILD files")
-	}
-
 	tfTestKind := kinds["tf_test"]
 	if !tfTestKind.SubstituteAttrs["test_files"] {
 		t.Error("tf_test test_files should be in SubstituteAttrs for label substitution")
@@ -677,13 +669,13 @@ func TestExtractFilenameFromComplexPath(t *testing.T) {
 		{"${var.config_dir}/settings.json", "settings.json"},
 		{"${local.path}/config.yaml", "config.yaml"},
 		{"${module.foo.output}/template.tpl", "template.tpl"},
-		{"simple/path.txt", ""}, // Not complex, no interpolation
-		{"${var.filename}", ""},  // No path separator
+		{"simple/path.txt", ""},         // Not complex, no interpolation
+		{"${var.filename}", ""},         // No path separator
 		{"${var.path}/${var.file}", ""}, // Filename also has interpolation
-		{"//bazel/label:target", ""}, // Bazel label
-		{"@repo//path:file", ""},     // Bazel label
-		{"nodots", ""},               // No file extension
-		{"${var.dir}/noextension", ""}, // No file extension
+		{"//bazel/label:target", ""},    // Bazel label
+		{"@repo//path:file", ""},        // Bazel label
+		{"nodots", ""},                  // No file extension
+		{"${var.dir}/noextension", ""},  // No file extension
 	}
 
 	for _, tc := range tests {
@@ -914,4 +906,3 @@ tf_module(
 		t.Errorf("expected 'terraform.tf' in srcs, got %v", srcs)
 	}
 }
-

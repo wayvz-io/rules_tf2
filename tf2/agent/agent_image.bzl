@@ -34,7 +34,6 @@ _PLATFORMS = {
         "base": "@tfc_agent_base_linux_amd64",
         "provider_mirror": "@tf_provider_registry//:mirror_linux_amd64",
         "terraform": "@tf_tool_registry//:terraform",
-        "tfstacks": "@tf_tool_registry//:stacksplugin",
     },
     "linux_arm64": {
         "os": "linux",
@@ -42,7 +41,6 @@ _PLATFORMS = {
         "base": "@tfc_agent_base_linux_arm64",
         "provider_mirror": "@tf_provider_registry//:mirror_linux_arm64",
         "terraform": "@tf_tool_registry//:terraform",
-        "tfstacks": "@tf_tool_registry//:stacksplugin",
     },
 }
 
@@ -53,7 +51,6 @@ def _build_platform_image(
         provider_aliases = None,
         module = None,
         include_terraform = True,
-        include_tfstacks = True,
         terraformrc_target = None,
         visibility = None):
     """Build OCI image for a specific platform.
@@ -65,7 +62,6 @@ def _build_platform_image(
         provider_aliases: List of provider aliases to include (filtered mirror)
         module: tf_module label to extract providers from (filtered mirror)
         include_terraform: Whether to include terraform binary
-        include_tfstacks: Whether to include tfstacks binary
         terraformrc_target: Label for terraformrc file
         visibility: Target visibility
     """
@@ -100,7 +96,6 @@ def _build_platform_image(
     agent_tools_layer(
         name = tools_layer_name,
         terraform = platform_config["terraform"] if include_terraform else None,
-        tfstacks = platform_config["tfstacks"] if include_tfstacks else None,
     )
 
     # Create config layer
@@ -130,9 +125,8 @@ def tfc_agent_image(
         name,
         providers = None,
         module = None,
-        platforms = ["linux_amd64", "linux_arm64"],
+        platforms = ["linux_amd64"],
         include_terraform = True,
-        include_tfstacks = True,
         registry = "ghcr.io",
         repository = None,
         tag = "latest",
@@ -143,7 +137,6 @@ def tfc_agent_image(
     Creates a multi-architecture OCI image containing:
     - TFC agent base image (hashicorp/tfc-agent)
     - Terraform binary
-    - tfstacks plugin
     - Provider filesystem mirror
     - .terraformrc configuration
 
@@ -159,9 +152,11 @@ def tfc_agent_image(
                    provider labels (e.g., ["@tf_provider_registry//:aws_6"]).
                    If None and module is None, uses all providers.
         module: tf_module label to extract providers from (mutually exclusive with providers)
-        platforms: List of target platforms (default: ["linux_amd64", "linux_arm64"])
+        platforms: List of target platforms (default: ["linux_amd64"]). NOTE:
+                   "linux_arm64" is only usable if the upstream hashicorp/tfc-agent
+                   base image publishes an arm64 manifest for the pinned version -
+                   many versions are amd64-only, so arm64 is opt-in and untested.
         include_terraform: Include terraform binary (default: True)
-        include_tfstacks: Include tfstacks plugin (default: True)
         registry: OCI registry hostname (default: ghcr.io)
         repository: Repository path for push target (e.g., "org/image-name")
         tag: Image tag (default: "latest")
@@ -223,7 +218,6 @@ def tfc_agent_image(
             provider_aliases = provider_aliases,
             module = module,
             include_terraform = include_terraform,
-            include_tfstacks = include_tfstacks,
             terraformrc_target = ":" + terraformrc_name,
             visibility = ["//visibility:private"],
         )

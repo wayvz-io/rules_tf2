@@ -39,5 +39,5 @@ Module publishing:
 
 Bazel module extensions for MODULE.bazel:
 
-- [tf_providers](extensions/tf-providers.md) - Provider download and management
-- [tf_tools](extensions/tf-tools.md) - Tool download (terraform, tflint, terraform-docs)
+- [Module Extensions](extensions/README.md) - `tf_providers` (provider download and
+  management), `tf_tools` (terraform, tflint, terraform-docs), and related extensions

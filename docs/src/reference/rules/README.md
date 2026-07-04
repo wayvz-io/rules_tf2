@@ -7,7 +7,6 @@ Core Bazel rules and macros for Terraform module management.
 | Rule | Description |
 |------|-------------|
 | [tf_module](tf-module.md) | Main macro for creating Terraform modules with testing |
-| [tf_stack](tf-stack.md) | Macro for creating Terraform Stacks with component staging |
 | [tf_runner](tf-runner.md) | Run arbitrary Terraform commands against a module |
 | [tf_test](tf-test.md) | Run Terraform native tests (`.tftest.hcl`) |
 | [tf_variables](tf-variables.md) | Collect variable files for use with runners |

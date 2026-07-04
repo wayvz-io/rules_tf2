@@ -43,9 +43,20 @@ build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
 # Remote Build Execution (RBE) Configuration
-# Forcing IPV4 due to lack of internal ipv6
+#
+# NOTE: This ruleset was developed against an internal Buildbarn cluster whose
+# workers were built from the *same Nix images* as the dev shell. That matters:
+# action toolchains here resolve to /nix/store paths, so a worker must have those
+# store paths present to execute actions. We put real effort into syncing those
+# Nix images onto the RBE workers, but we have NOT validated this against a
+# generic (e.g. plain Ubuntu) RBE cluster - a vanilla worker lacks /nix/store and
+# will fail. Point --config=rbe at your own executor and mirror the Nix store to
+# your workers.
+#
+# For a local Buildbarn smoke test (podman), see //tools/rbe-local and use
+# `--config=rbe_local` (endpoint grpc://localhost:8980).
 startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
-build:rbe --remote_executor=grpc://bb.lab.wayvz.io:8980
+build:rbe --remote_executor=grpc://localhost:8980  # replace with your RBE endpoint
 build:rbe --remote_instance_name=default
 build:rbe --extra_execution_platforms=//tools/remote-toolchains:rbe_nix_platform
 build:rbe --jobs=64
@@ -54,4 +65,13 @@ build:rbe --incompatible_strict_action_env
 build:rbe --remote_download_toplevel
 build:rbe --action_env=PATH
 build:rbe --verbose_failures
-build:rbe --toolchain_resolution_debug=.*
+
+# Local Buildbarn smoke test (see //tools/rbe-local). Standalone (does NOT inherit
+# --config=rbe) so it can target a local podman-hosted Buildbarn cleanly. The stock
+# hardlinking worker registers under the instance name "hardlinking".
+build:rbe_local --remote_executor=grpc://localhost:8980
+build:rbe_local --remote_instance_name=hardlinking
+build:rbe_local --extra_execution_platforms=//tools/remote-toolchains:rbe_local_platform
+build:rbe_local --incompatible_strict_action_env
+build:rbe_local --remote_download_toplevel
+build:rbe_local --verbose_failures

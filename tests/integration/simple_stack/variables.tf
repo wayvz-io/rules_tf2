@@ -1,1 +1,0 @@
-# Variables for hello_world stack

@@ -257,7 +257,7 @@ tf_runner = rule(
         "stack": attr.label(
             mandatory = True,
             providers = [TfModuleInfo],
-            doc = "The tf_stack target to run terraform commands against",
+            doc = "The tf_module target to run terraform commands against",
         ),
         "variables": attr.label(
             providers = [TfVariablesInfo],
@@ -300,22 +300,22 @@ tf_runner = rule(
     doc = """General-purpose Terraform runner for executing terraform commands.
     
     This rule creates an executable target that can run any terraform command
-    against the provided stack and variables.
-    
+    against the provided module and variables.
+
     Example:
         tf_runner(
-            name = "my_stack_runner",
-            stack = ":my_stack",
+            name = "my_module_runner",
+            stack = ":my_module",
             variables = ":my_vars",
             backend_type = "cloud",
             backend_organization = "my-org",
             backend_workspace = "my-workspace",
         )
-        
+
         # Then run:
-        # bazel run //path:my_stack_runner -- plan
-        # bazel run //path:my_stack_runner -- apply
-        # bazel run //path:my_stack_runner -- state list
-        # bazel run //path:my_stack_runner -- taint resource.name
+        # bazel run //path:my_module_runner -- plan
+        # bazel run //path:my_module_runner -- apply
+        # bazel run //path:my_module_runner -- state list
+        # bazel run //path:my_module_runner -- taint resource.name
     """,
 )

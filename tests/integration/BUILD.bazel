@@ -7,8 +7,6 @@ test_suite(
         "//tests/integration/another_module:tf_module_validate_test",
         "//tests/integration/module_with_deps:tf_module_validate_test",
         "//tests/integration/simple_module:tf_module_validate_test",
-        "//tests/integration/simple_stack:tf_module_validate_test",
-        "//tests/integration/stack_with_modules:tf_module_validate_test",
     ],
     visibility = ["//visibility:public"],
 )

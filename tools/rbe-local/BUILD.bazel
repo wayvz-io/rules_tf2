@@ -1,0 +1,14 @@
+# Trivial, Nix-free target used to smoke-test remote execution against the local
+# Buildbarn cluster (see README.md). A plain genrule so it can run on the stock
+# Ubuntu Buildbarn worker, which has no /nix/store.
+genrule(
+    name = "remote_smoke",
+    outs = ["remote_smoke.txt"],
+    cmd = "echo 'built via rules_tf2 RBE smoke test' > $@",
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "run.sh",
+    "smoke_test.sh",
+])

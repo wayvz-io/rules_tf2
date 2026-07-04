@@ -18,14 +18,6 @@ bazel test //path/to:target --test_output=all   # Debug specific test
 bazel clean --expunge          # Clean cache (for tool download issues)
 ```
 
-### Graphite Workflow
-```bash
-gt create -am "Brief description"    # Create branch with commit
-gt modify -am "Updated message"      # Stage all + amend commit
-gt restack                           # Rebase on main
-gt submit                            # Submit for review
-```
-
 ### Development Environment
 ```bash
 nix develop                    # Enter dev shell (terraform, tflint, terraform-docs)

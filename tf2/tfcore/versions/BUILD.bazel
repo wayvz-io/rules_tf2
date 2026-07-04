@@ -17,11 +17,3 @@ bzl_library(
     name = "lockfile",
     srcs = ["lockfile.bzl"],
 )
-
-bzl_library(
-    name = "versions_hcl",
-    srcs = ["versions_hcl.bzl"],
-    deps = [
-        "//tf2/tools/runners:sh_toolchain",
-    ],
-)

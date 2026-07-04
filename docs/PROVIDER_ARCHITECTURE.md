@@ -135,10 +135,11 @@ def _filesystem_mirror_impl(ctx):
 
 4. **Repository Creation**: Creates `provider_download_repository` for each provider/platform
 
-5. **Stack Declaration**: User declares providers in BUILD file
+5. **Module Declaration**: User declares providers in BUILD file
    ```python
-   tf_stack(
-       name = "my_stack",
+   tf_module(
+       name = "my_module",
+       srcs = ["main.tf", "terraform.tf"],
        providers = [
            "@tf_provider_registry//:aws_6",
            "@tf_provider_registry//:azurerm_4",

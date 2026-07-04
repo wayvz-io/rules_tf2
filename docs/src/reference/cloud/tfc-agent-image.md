@@ -19,9 +19,8 @@ tfc_agent_image(
 | `name` | string | Yes | Target name for the image |
 | `providers` | list | No | Provider aliases or labels to include |
 | `module` | label | No | tf_module to extract providers from |
-| `platforms` | list | No | Target platforms (default: `["linux_amd64", "linux_arm64"]`) |
+| `platforms` | list | No | Target platforms (default: `["linux_amd64"]`) |
 | `include_terraform` | bool | No | Include terraform binary (default: `True`) |
-| `include_tfstacks` | bool | No | Include tfstacks plugin (default: `True`) |
 | `registry` | string | No | OCI registry hostname (default: `ghcr.io`) |
 | `repository` | string | No | Repository path for push target |
 | `tag` | string | No | Image tag (default: `latest`) |
@@ -111,7 +110,6 @@ Each image contains:
 | Path | Contents |
 |------|----------|
 | `/usr/local/bin/terraform` | Terraform binary |
-| `/usr/local/bin/terraform-stacks-local-cli` | Stacks plugin |
 | `/etc/terraform/plugins/` | Provider filesystem mirror |
 | `/etc/terraform/.terraformrc` | Provider mirror configuration |
 
