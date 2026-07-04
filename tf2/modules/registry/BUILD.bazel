@@ -9,3 +9,8 @@ bzl_library(
         "//tf2/modules/core:info",
     ],
 )
+
+bzl_library(
+    name = "alias",
+    srcs = ["alias.bzl"],
+)

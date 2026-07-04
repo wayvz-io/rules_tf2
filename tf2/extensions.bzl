@@ -3,6 +3,7 @@
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 load("//tf2/modules/download:module_git_repository.bzl", "module_git_repository")
 load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository")
+load("//tf2/modules/registry:alias.bzl", "generate_module_alias", "generate_repo_name")
 load("//tf2/modules/repository:terraform_modules.bzl", "terraform_modules")
 load("//tf2/providers/download:provider_download_repository.bzl", "provider_download_repository")
 load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_provider_key")
@@ -654,86 +655,6 @@ tf_tools = module_extension(
 # tf_modules extension - External Terraform module management
 # =============================================================================
 
-def _sanitize_ref(ref):
-    """Sanitize a git ref for use in repository names.
-
-    Args:
-        ref: Git ref (tag or commit hash)
-
-    Returns:
-        Sanitized string suitable for repository names
-    """
-    sanitized = ref.replace(".", "_").replace("-", "_").replace("/", "_")
-    if sanitized.startswith("v"):
-        sanitized = sanitized[1:]
-    return sanitized
-
-def _generate_module_alias(source, source_type, version):
-    """Generate an alias name for a module.
-
-    Args:
-        source: Module source string
-        source_type: One of 'registry', 'git', or 'private'
-        version: Module version or git ref
-
-    Returns:
-        Alias string (e.g., 'vpc_aws_5', 'hashicorp_consul_v0_11_0')
-    """
-    major_version = version.split(".")[0] if "." in version else _sanitize_ref(version)
-
-    if source_type == "registry":
-        # terraform-aws-modules/vpc/aws -> vpc_aws_5
-        parts = source.split("/")
-        if len(parts) == 3:
-            name, provider = parts[1], parts[2]
-            return "{}_{}_{}".format(name, provider, major_version)
-        return "{}_{}".format(parts[-1], major_version)
-
-    elif source_type == "private":
-        # app.terraform.io/my-org/my-module/aws -> my_module_aws_1
-        parts = source.split("/")
-        if len(parts) == 4:
-            name, provider = parts[2], parts[3]
-            return "{}_{}_{}".format(name.replace("-", "_"), provider, major_version)
-        return "{}".format(parts[-1].replace("-", "_"))
-
-    elif source_type == "git":
-        # github.com/owner/repo -> owner_repo_v1_0_0
-        if source.startswith("github.com/"):
-            parts = source.split("/")
-            owner, repo = parts[1], parts[2]
-            return "{}_{}_{}".format(
-                owner.replace("-", "_"),
-                repo.replace("-", "_").replace("terraform-", "").replace("terraform_", ""),
-                _sanitize_ref(version),
-            )
-        elif source.startswith("git::"):
-            # git::https://github.com/owner/repo.git -> owner_repo_ref
-            url = source[5:].replace(".git", "")
-            parts = url.split("/")
-            owner, repo = parts[-2], parts[-1]
-            return "{}_{}_{}".format(
-                owner.replace("-", "_"),
-                repo.replace("-", "_").replace("terraform-", "").replace("terraform_", ""),
-                _sanitize_ref(version),
-            )
-
-    fail("Cannot generate alias for source: {} (type: {})".format(source, source_type))
-
-def _generate_repo_name(source, source_type, version):
-    """Generate a repository name for a module download.
-
-    Args:
-        source: Module source string
-        source_type: One of 'registry', 'git', or 'private'
-        version: Module version or git ref
-
-    Returns:
-        Repository name string
-    """
-    alias = _generate_module_alias(source, source_type, version)
-    return "tf_module_{}".format(alias)
-
 def _tf_modules_impl(module_ctx):
     """Implementation of tf_modules module extension.
 
@@ -782,8 +703,8 @@ def _tf_modules_impl(module_ctx):
                                 if version not in modules_config[full_source]:
                                     modules_config[full_source].append(version)
 
-                                alias = _generate_module_alias(source, source_type, version)
-                                repo_name = _generate_repo_name(source, source_type, version)
+                                alias = generate_module_alias(source, source_type, version)
+                                repo_name = generate_repo_name(source, source_type, version)
 
                                 aliases[alias] = [full_source, source_type, version]
                                 module_repositories[alias] = {
@@ -811,8 +732,8 @@ def _tf_modules_impl(module_ctx):
                             if ref not in modules_config[source]:
                                 modules_config[source].append(ref)
 
-                            alias = _generate_module_alias(source, "git", ref)
-                            repo_name = _generate_repo_name(source, "git", ref)
+                            alias = generate_module_alias(source, "git", ref)
+                            repo_name = generate_repo_name(source, "git", ref)
 
                             aliases[alias] = [source, "git", ref]
                             module_repositories[alias] = {
