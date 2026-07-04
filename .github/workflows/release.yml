@@ -16,6 +16,15 @@ jobs:
         with:
           fetch-depth: 0  # Need full history for changelog generation
 
+      # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
+      # bloat so it fits on the runner's root disk.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          sudo docker image prune --all --force || true
+          df -h /
+
       - uses: bazel-contrib/setup-bazel@0.15.0
         with:
           bazelisk-cache: true
