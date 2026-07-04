@@ -44,12 +44,12 @@ When you define a `tf_module`, the macro creates these targets:
 ### 5. Versions Check & Generator
 - **Test Target**: `simple_module_versions_check_test`
 - **Rule**: `tf_versions_check_test`
-- **Execution**: Compares versions.tf.json with generated version from provider_configurations
-- **Output**: "versions.tf.json is up to date"
+- **Execution**: Compares the module's committed version constraints (`versions.tf`) against the constraints generated from the declared providers
+- **Output**: "versions are up to date"
 
 - **Generator Target**: `simple_module_generate_versions`
 - **Rule**: `tf_generate_versions`
-- **Purpose**: Updates versions.tf.json from provider_configurations
+- **Purpose**: Writes the required-provider version constraints into `versions.tf` (or updates existing `.tf` files)
 
 ### 6. Validation Test
 - **Target**: `simple_module_validate_test`
@@ -57,7 +57,7 @@ When you define a `tf_module`, the macro creates these targets:
 - **Execution**:
   1. Copies module files to temp directory
   2. Runs `terraform init -backend=false -upgrade=false`
-     - With `-plugin-dir` if provider_library is specified
+     - Using the filesystem provider mirror (`-plugin-dir`) so no network access is needed
   3. Runs `terraform validate -no-color`
 - **Output**: 
   - "Terraform has been successfully initialized!"
@@ -65,18 +65,23 @@ When you define a `tf_module`, the macro creates these targets:
 
 ## Provider Management
 
-### Provider Library
-- **Rule**: `provider_library`
-- **Purpose**: Downloads and caches exact provider versions
-- **Execution**:
-  1. Creates versions.tf.json with exact versions
-  2. Runs `terraform init` to download providers
-  3. Runs `terraform providers mirror` to create local cache
+Providers are declared centrally in `versions.json` and consumed through the `tf_providers` module extension rather than per-module rules. See `PROVIDER_ARCHITECTURE.md` for the full design.
 
-### Provider Configurations
-- **Rule**: `provider_configurations`
-- **Purpose**: Generates versions.tf.json with version constraints
-- **Output**: versions.tf.json file for modules
+### Provider Registry & Hashes
+- **Extension**: `tf_providers` (creates `@tf_provider_registry`)
+- **Purpose**: Resolve provider requirements and generate reproducible hashes
+- **Execution**:
+  1. Reads provider requirements from `versions.json`
+  2. Checks `module_ctx.facts` for cached hashes; for missing providers runs `terraform providers lock` inline
+  3. Caches the generated h1/zh hashes in `MODULE.bazel.lock` (requires Bazel 8.5+)
+  4. Providers are referenced by major-version alias, e.g. `@tf_provider_registry//:aws_6`
+
+### Filesystem Mirror
+- **Purpose**: Aggregate downloaded providers into a local mirror so Terraform runs offline
+- **Execution**:
+  1. Each provider/platform is downloaded into its own repository on demand
+  2. Providers are assembled into a filesystem mirror
+  3. Terraform init uses the mirror via `-plugin-dir` (no network access during builds)
 
 ## Test Execution Summary
 

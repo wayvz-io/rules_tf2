@@ -79,6 +79,7 @@ Manual overrides aren't lost on regeneration.
 |-----------|--------|
 | `# gazelle:terraform_enabled false` | Disable for directory |
 | `# gazelle:terraform_provider NAME TARGET` | Map provider to registry alias |
+| `# gazelle:terraform_ignore_file_warning FILENAME` | Suppress the "referenced with dynamic path" warning for a file that only exists at runtime |
 
 ## When to Run
 

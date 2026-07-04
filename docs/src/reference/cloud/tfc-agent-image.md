@@ -41,11 +41,16 @@ Three modes for selecting which providers to bundle:
 
 | Target | Description |
 |--------|-------------|
-| `:{name}` | Multi-arch OCI image index |
-| `:{name}_linux_amd64` | AMD64 platform image |
-| `:{name}_linux_arm64` | ARM64 platform image |
+| `:{name}` | OCI image index (single-arch by default; multi-arch only when multiple `platforms` are given) |
+| `:{name}_linux_amd64` | AMD64 platform image (created by the default `platforms`) |
+| `:{name}_linux_arm64` | ARM64 platform image (only when `linux_arm64` is added to `platforms`) |
 | `:{name}_push` | Push target (if `repository` specified) |
 | `:{name}_terraformrc` | Generated .terraformrc file |
+
+> **Note:** `platforms` defaults to `["linux_amd64"]`, so only the amd64 image and a
+> single-arch index are created. Add `"linux_arm64"` to `platforms` to also build the
+> arm64 image, but note that the upstream `hashicorp/tfc-agent` base image often has no
+> arm64 manifest for a given version, so arm64 is opt-in and untested.
 
 ## Examples
 

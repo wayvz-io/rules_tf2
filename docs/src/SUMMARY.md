@@ -40,6 +40,7 @@
     - [tf_variables](reference/rules/tf-variables.md)
     - [tf_file_export](reference/rules/tf-file-export.md)
     - [tf_sentinel](reference/rules/tf-sentinel.md)
+    - [tf_opa](reference/rules/tf-opa.md)
   - [Cloud Integration](reference/cloud/README.md)
     - [tf_cloud_workspace](reference/cloud/tf-cloud-workspace.md)
     - [tfc_agent_image](reference/cloud/tfc-agent-image.md)

@@ -173,7 +173,7 @@ When provider versions are updated in `versions.json`:
 
 5. Commit `versions.json` and `MODULE.bazel.lock`:
    ```bash
-   git add versions.json MODULE.bazel.lock
+   git add tests/providers/versions.json MODULE.bazel.lock
    git commit -m "Update provider versions"
    ```
 

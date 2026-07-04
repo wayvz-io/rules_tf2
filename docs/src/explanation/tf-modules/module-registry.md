@@ -21,6 +21,7 @@ tf_publish_registry(
     organization = "my-org",
     namespace = "my-namespace",
     module_name = "vpc",
+    provider = "aws",
 )
 ```
 
@@ -41,7 +42,17 @@ The registry API endpoint is derived from your Terraform Cloud/Enterprise config
 
 ## Versioning
 
-Module versions typically come from git tags or CI build numbers. The publish rule accepts a `version` attribute or reads from environment variables.
+The publish rule computes the next version automatically. It queries the registry for the module's current highest version and bumps it. Control which component is bumped with the `version_increment` attribute (`major`, `minor`, or `patch`; defaults to `patch`), or override the increment at run time:
+
+```bash
+bazel run //path/to:publish -- --version-type minor
+```
+
+You can also pin an exact version, bypassing auto-computation:
+
+```bash
+bazel run //path/to:publish -- --version 2.0.0
+```
 
 ## See Also
 

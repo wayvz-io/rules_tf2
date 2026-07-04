@@ -61,7 +61,7 @@ module "vpc" {
 }
 ```
 
-Requires Terraform 1.5+ for OCI source support.
+Requires Terraform 1.14+ for native OCI module source support.
 
 ## See Also
 

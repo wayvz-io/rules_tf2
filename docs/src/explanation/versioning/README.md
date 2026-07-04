@@ -35,7 +35,6 @@ Two extensions in `MODULE.bazel` load the configuration:
 tf_providers = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_providers")
 tf_providers.download(
     versions_file = "path/to/versions.json",
-    lock_file = "path/to/provider_locks.json",
 )
 use_repo(tf_providers, "tf_provider_registry")
 
@@ -50,7 +49,7 @@ use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
 ## Updating Versions
 
 1. Edit `versions.json` with new versions
-2. Regenerate `provider_locks.json` for new provider hashes
+2. Run `bazel build //...` — the `tf_providers` extension generates any missing provider hashes and stores them in `MODULE.bazel.lock` (via lockfile facts). No separate hash file to maintain.
 3. Run `bazel test //...` to verify
 
 See [Auto Updates](auto-updates.md) for scripts that automate this workflow.

@@ -59,6 +59,6 @@ BUILD.bazel
 
 ## See Also
 
-- [Provider System](providers.md) - Details on provider management
-- [Validation](validation.md) - terraform validate
-- [Linting](linting.md) - TFLint configuration
+- [Provider System](versioning/providers.md) - Details on provider management
+- [Testing](tf-modules/testing.md) - terraform validate and other module tests
+- [Linting](tf-modules/linting.md) - TFLint configuration

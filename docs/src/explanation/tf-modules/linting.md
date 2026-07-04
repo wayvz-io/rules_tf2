@@ -9,18 +9,16 @@ Each `tf_module` generates linting targets:
 
 ## TFLint Configuration
 
-rules_tf2 generates `.tflint.hcl` files by merging rule layers:
+rules_tf2 automatically generates a `.tflint.hcl` file for each module by merging rule layers internally:
 
 1. **Base rules** - Always applied
 2. **Provider rules** - Added based on declared providers
-3. **Tagged overrides** - Applied if module has matching tags
-4. **Manual overrides** - Your explicit overrides win
 
 ### How Merging Works
 
-Rules are merged, not replaced. If base rules enable `terraform_documented_variables` and a tagged override disables it, the final config has it disabled.
+Rules are merged, not replaced. Later layers overlay earlier ones—if a base rule enables `terraform_documented_variables` and a later layer disables it, the final config has it disabled.
 
-Override what you need—don't redefine everything.
+This layering happens inside rules_tf2. You don't assemble it yourself; you either accept the auto-generated config or replace it entirely with your own `.tflint.hcl` (see [Custom Configuration](#custom-configuration)).
 
 ### Provider-Specific Rules
 
@@ -34,37 +32,9 @@ When you declare providers, rules_tf2 enables the corresponding TFLint plugin:
 
 Plugin versions come from your `versions.json`.
 
-### Tagged Overrides
+### Custom Configuration
 
-Tags apply preset rule changes:
-
-- `standalone_module` - Disables documentation rules
-- `consumer_module` - Enables strict documentation rules
-- `test_module` - Disables documentation and naming rules
-
-```starlark
-tf_module(
-    name = "my_module",
-    srcs = ["main.tf", "variables.tf"],
-    tags = ["standalone_module"],
-)
-```
-
-### Manual Overrides
-
-Override specific rules:
-
-```starlark
-tf_module(
-    name = "my_module",
-    srcs = ["main.tf", "variables.tf"],
-    rule_overrides = {
-        "terraform_naming_convention.enabled": "false",
-    },
-)
-```
-
-Or provide your own `.tflint.hcl`:
+The `tf_module` macro does not expose knobs for tweaking individual rules. If the auto-generated config isn't what you want, supply your own `.tflint.hcl` with the `tflint_config` attribute—it replaces the generated one for that module:
 
 ```starlark
 tf_module(
@@ -73,6 +43,8 @@ tf_module(
     tflint_config = ".tflint.hcl",
 )
 ```
+
+The `tags` attribute on `tf_module` is forwarded to the generated Bazel test targets as ordinary target tags (for use with `bazel test --test_tag_filters`). It does **not** select or disable TFLint rules.
 
 ## The tf2 Plugin
 

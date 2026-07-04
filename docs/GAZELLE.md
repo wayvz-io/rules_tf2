@@ -134,6 +134,14 @@ tf_module(
 )
 ```
 
+### terraform_ignore_file_warning
+
+Suppress the warning Gazelle emits when a `.tf` file references a path that cannot be resolved statically (for example a `${path.module}`-based dynamic path). Use this for files that only exist at runtime:
+
+```starlark
+# gazelle:terraform_ignore_file_warning generated.tf
+```
+
 ## Preserved Attributes
 
 When updating existing rules, Gazelle preserves:
@@ -143,4 +151,6 @@ When updating existing rules, Gazelle preserves:
 - `tflint_config`
 - `tfdoc_config`
 - `visibility`
+- `skip_validation`
 - `tags`
+- `testonly`

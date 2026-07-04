@@ -15,12 +15,15 @@ Core Bazel rules for Terraform modules:
 - [tf_test](rules/tf-test.md) - Run Terraform native tests
 - [tf_variables](rules/tf-variables.md) - Collect variable files for runners
 - [tf_file_export](rules/tf-file-export.md) - Export modules to filesystem
+- [tf_sentinel](rules/tf-sentinel.md) - Test and format Sentinel policies
+- [tf_opa](rules/tf-opa.md) - Test and format OPA (Rego) policies
 
 ### [Cloud Integration](cloud/README.md)
 
 Terraform Cloud and Enterprise integration:
 
 - [tf_cloud_workspace](cloud/tf-cloud-workspace.md) - Create TFC runner targets
+- [tfc_agent_image](cloud/tfc-agent-image.md) - Build custom TFC agent Docker images
 
 ### [Providers](providers/README.md)
 
