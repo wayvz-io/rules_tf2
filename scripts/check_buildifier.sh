@@ -6,6 +6,15 @@ set -euo pipefail
 
 echo "Running strict buildifier checks (formatting + linting)..."
 
+# Resolve the buildifier binary. Prefer a hermetic binary passed as $1 (the
+# Bazel test/binary rule supplies @buildifier_prebuilt//:buildifier), so this
+# runs on a bare runner without nix. Resolve to an absolute path now, before
+# any cd below changes the working directory. Fall back to PATH (nix dev-shell).
+BUILDIFIER=""
+if [ "${1:-}" != "" ] && [ -e "${1}" ]; then
+    BUILDIFIER="$(cd "$(dirname "${1}")" && pwd)/$(basename "${1}")"
+fi
+
 # Find the source directory (when running from Bazel runfiles)
 if [[ $(pwd) == *"runfiles"* ]]; then
     # We're in Bazel runfiles, need to find the actual source
@@ -25,10 +34,16 @@ if [[ $(pwd) == *"runfiles"* ]]; then
     fi
 fi
 
-# Check if buildifier is available
-if ! command -v buildifier &> /dev/null; then
-    echo "ERROR: buildifier not found in PATH"
-    echo "Please install buildifier or run from a nix environment with 'nix develop'"
+# Prefer a buildifier already on PATH (e.g. the nix dev-shell binary, which runs
+# natively on the host — including NixOS). Otherwise use the hermetic binary
+# resolved above, which is what a bare runner / CI without a host buildifier uses.
+if command -v buildifier &> /dev/null; then
+    BUILDIFIER="buildifier"
+elif [ -n "$BUILDIFIER" ]; then
+    : # use the hermetic binary passed as $1 (already resolved to an absolute path)
+else
+    echo "ERROR: buildifier not found (no hermetic binary passed and none in PATH)"
+    echo "Run via 'bazel test //:buildifier_test' or from a nix environment with 'nix develop'"
     exit 1
 fi
 
@@ -37,7 +52,7 @@ TEMP_OUTPUT=$(mktemp)
 trap "rm -f $TEMP_OUTPUT" EXIT
 
 set +e  # Don't exit on buildifier warnings
-buildifier -lint=warn -mode=check -r . > "$TEMP_OUTPUT" 2>&1
+"$BUILDIFIER" -lint=warn -mode=check -r . > "$TEMP_OUTPUT" 2>&1
 BUILDIFIER_EXIT_CODE=$?
 set -e
 

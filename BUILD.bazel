@@ -67,6 +67,8 @@ alias(
 sh_binary(
     name = "buildifier_check",
     srcs = ["//scripts:check_buildifier.sh"],
+    args = ["$(rootpath @buildifier_prebuilt//:buildifier)"],
+    data = ["@buildifier_prebuilt//:buildifier"],
     tags = ["lint"],
 )
 
@@ -75,6 +77,7 @@ sh_test(
     name = "buildifier_test",
     size = "small",
     srcs = ["//scripts:check_buildifier.sh"],
+    args = ["$(rootpath @buildifier_prebuilt//:buildifier)"],
     data = glob(
         [
             "*.bzl",
@@ -87,6 +90,7 @@ sh_test(
         exclude = ["BUILD.bazel"],
     ) + [
         "BUILD.bazel",
+        "@buildifier_prebuilt//:buildifier",
     ],
     tags = [
         "lint",

@@ -31,27 +31,49 @@ test --test_verbose_timeout_warnings
 # Usage: bazel test :all-tests
 # This is defined in the root BUILD file
 
-build --host_platform=@rules_nixpkgs_core//platforms:host
-build --java_runtime_version=nixpkgs_java
-build --tool_java_runtime_version=nixpkgs_java
+# Java: use the downloaded remote JDK (rules_java) so no host or Nix JDK is
+# required. --config=nix overrides these to the Nix-provided runtime below.
 build --java_language_version=21
 build --tool_java_language_version=21
-build --extra_toolchains=@nixpkgs_java_runtime_toolchain//:all # necessary on NixOS only
+build --java_runtime_version=remotejdk_21
+build --tool_java_runtime_version=remotejdk_21
 
 # Set C++ standard to C++23 (required by modern dependencies like Abseil)
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
+# Build Go in pure mode (no cgo). The ruleset's Go code and its dependencies are
+# pure Go, and pure mode avoids the hermetic LLVM toolchain's force-included
+# redacted_dates.h header, which clang cannot resolve when rules_go invokes it
+# from the cgo stdlib builder.
+build --@rules_go//go/config:pure=true
+
+# ----------------------------------------------------------------------------
+# Optional Nix toolchains — opt in with `--config=nix`.
+#
+# By default rules_tf2 builds with stock/hermetic toolchains (LLVM CC, remote
+# JDK, downloaded Go + mdbook) and needs no Nix. `--config=nix` swaps in the
+# Nix-provided CC + Java toolchains from the flake dev-shell. The Nix repos are
+# referenced ONLY here (via --extra_toolchains), so they are fetched only when
+# this config is active; a default build never needs Nix installed.
+# ----------------------------------------------------------------------------
+build:nix --host_platform=@rules_nixpkgs_core//platforms:host
+build:nix --extra_toolchains=@nixpkgs_config_cc_toolchains//:all,@nixpkgs_java_runtime_toolchain//:all,@nixpkgs_java_jdk_toolchain//:all
+build:nix --java_runtime_version=nixpkgs_java
+build:nix --tool_java_runtime_version=nixpkgs_java
+
 # Remote Build Execution (RBE) Configuration
 #
-# NOTE: This ruleset was developed against an internal Buildbarn cluster whose
-# workers were built from the *same Nix images* as the dev shell. That matters:
-# action toolchains here resolve to /nix/store paths, so a worker must have those
-# store paths present to execute actions. We put real effort into syncing those
-# Nix images onto the RBE workers, but we have NOT validated this against a
-# generic (e.g. plain Ubuntu) RBE cluster - a vanilla worker lacks /nix/store and
-# will fail. Point --config=rbe at your own executor and mirror the Nix store to
-# your workers.
+# With the DEFAULT (stock/hermetic) toolchains, actions resolve to downloaded
+# toolchain repos (LLVM CC, remote JDK, Go) that Bazel ships to the workers like
+# any other external repository — a vanilla Ubuntu RBE worker needs no special
+# preparation.
+#
+# With `--config=nix`, action toolchains resolve to /nix/store paths instead, so
+# each worker must have the matching /nix/store closure synced (a vanilla worker
+# lacks /nix/store and will fail). The local Buildbarn smoke test demonstrates
+# this by bind-mounting the host store into the worker (see //tools/rbe-local).
+# Point --config=rbe at your own executor.
 #
 # For a local Buildbarn smoke test (podman), see //tools/rbe-local and use
 # `--config=rbe_local` (endpoint grpc://localhost:8980).

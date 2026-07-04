@@ -52,6 +52,69 @@ This split is the answer to "when do you break hermeticity?": you break it on
 purpose, at `bazel run`, for the operations that inherently can't be hermetic
 (a plan needs real state; an apply changes real infrastructure).
 
+## Toolchains & execution environments
+
+Hermeticity is only as good as the toolchains that build the graph. rules_tf2
+supports two toolchain paths, and the choice affects nothing about *what*
+`bazel test` checks — only *where the build tools come from* and, for remote
+execution, *what a worker must have installed*.
+
+### Default path: stock, hermetic toolchains (no nix)
+
+Out of the box, the build uses toolchains Bazel downloads for itself. No host
+compiler, JDK, or Go is required — a plain machine with Bazel is enough:
+
+- **C/C++:** a hermetic downloaded CC toolchain (`toolchains_llvm`), so the
+  build doesn't depend on the host's system compiler.
+- **Java:** the default remote JDK from `rules_java` — no host Java needed.
+- **Go:** the Go SDK is fetched hermetically via `rules_go`
+  (`go_sdk.download(...)`), not taken from the host `PATH`. This is what builds
+  the ruleset's own Go pieces (e.g. the `tf2` TFLint ruleset).
+- **mdbook** (docs generation): a downloaded release binary. Note the download
+  is a glibc `linux x86_64` build, so it won't run on a NixOS host — NixOS
+  contributors build the book with the `mdbook` from the `flake.nix` dev-shell
+  instead.
+- **Terraform / TFLint / terraform-docs:** already downloaded hermetically by
+  the ruleset's own module extensions. This was **always** the case — these
+  tools have never come from nix, and consuming projects get them the same way
+  regardless of the toolchain path.
+
+A committed `Dockerfile` (a system `gcc`/JDK on top of the pinned Bazel from
+`.bazelversion`) is available if you want a reproducible local dev/CI parity
+container, but it is an *option*, not a requirement. CI runs on a bare
+`ubuntu-latest` runner using exactly these stock toolchains.
+
+### Opt-in path: nix (`--config=nix`)
+
+nix is fully supported but **optional**. Building with `--config=nix` swaps in
+the nixpkgs host platform, a nix-provided Java runtime, and nix CC / Go /
+mdbook toolchains instead of the downloaded ones. The `flake.nix` dev-shell
+remains for contributors who prefer to work inside a nix environment. Choose
+this path when you want your toolchains pinned by nixpkgs rather than by
+Bazel's downloads; otherwise the default path needs no extra flags.
+
+### What this means for remote execution (RBE)
+
+The hermetic tests are cacheable and remote-executable, but remote execution
+adds one requirement the local case hides: **a remote executor must have the
+action's toolchain closure available.** How that closure gets to the worker
+depends entirely on which path above you build with:
+
+- **Stock toolchains (default):** the CC, Java, Go, and mdbook toolchains are
+  ordinary Bazel external repositories, so Bazel ships them to workers as part
+  of the action inputs. No special worker preparation is needed — any generic
+  RBE worker can run the actions.
+- **nix toolchains (`--config=nix`):** the toolchains live under `/nix/store`,
+  which is *not* shipped as action inputs. Each worker must have the matching
+  `/nix/store` closure synced ahead of time. This is exactly why the local
+  Buildbarn smoke test in `tools/rbe-local` bind-mounts `/nix/store` into the
+  worker.
+
+This reconciles the earlier behaviour where "RBE needs the nix store" seemed
+inherent: it was never inherent to rules_tf2. Remote execution needed the nix
+store *only because the build was using nix toolchains*. On the default stock
+path, RBE needs no nix store at all.
+
 ## Mapping onto CI and CD
 
 A common pipeline shape — and the one rules_tf2 is designed around:

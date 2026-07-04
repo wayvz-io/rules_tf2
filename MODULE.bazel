@@ -23,6 +23,10 @@ bazel_dep(name = "rules_shell", version = "0.5.0")
 # Documentation generation
 bazel_dep(name = "stardoc", version = "0.8.0")
 
+# Hermetic buildifier for the BUILD-file lint test (//:buildifier_test). Replaces
+# the nix dev-shell's buildifier so the lint test runs on a bare runner.
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+
 # OCI container image support
 bazel_dep(name = "rules_oci", version = "2.2.7")
 bazel_dep(name = "rules_pkg", version = "1.1.0")
@@ -74,6 +78,17 @@ git_override(
     strip_prefix = "toolchains/java",
 )
 
+# Default hermetic CC toolchain (LLVM) — the stock, no-Nix path. It is
+# downloaded, so it works on a bare Ubuntu runner or in the dev Dockerfile
+# without any host gcc/clang. Opt into the Nix CC instead with `--config=nix`
+# (see .bazelrc). Registered as dev-only: consumers of rules_tf2 bring their
+# own CC toolchain, exactly as they did under the previous Nix setup.
+bazel_dep(name = "toolchains_llvm", version = "1.8.0")
+
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
+llvm.toolchain(llvm_version = "19.1.7")
+use_repo(llvm, "llvm_toolchain")
+
 # Nixpkgs setup - only when rules_tf2 is the root module (for development)
 nixpkgs_repo_ext = use_extension("@rules_nixpkgs_core//extensions:repository.bzl", "nix_repo", dev_dependency = True)
 nixpkgs_repo_ext.flake(
@@ -97,18 +112,26 @@ use_repo(non_module_deps, "nixpkgs_java_runtime")
 use_repo(non_module_deps, "nixpkgs_java_runtime_toolchain")
 use_repo(non_module_deps, "nixpkgs_java_jdk_toolchain")
 
-# mdbook for documentation generation
-use_repo(non_module_deps, "nixpkgs_mdbook")
+# mdbook for documentation generation (downloaded binary; no Nix required)
+use_repo(non_module_deps, "mdbook")
 
-# Go SDK configuration for development (only when rules_tf2 is root module)
+# Go SDK configuration for development (only when rules_tf2 is root module).
+# Downloaded (hermetic) rather than host, so no host Go / Nix is required.
+# Pinned to 1.24.x: rules_go 0.53 injects GOEXPERIMENT=coverageredesign, which
+# Go 1.25 removed ("unknown GOEXPERIMENT"). 1.24.11 matches the Go the nix
+# dev-shell used. (Bumping to Go 1.25 comes with the rules_go bump in the
+# Bazel 9 follow-up.)
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
-go_sdk.host()  # Use host Go SDK for development
+go_sdk.download(version = "1.24.11")
 
-# Register development-only toolchains when this is the root module
+# Default (stock/hermetic) toolchains — used unless `--config=nix` is passed.
+# The Nix CC/Java toolchains are deliberately NOT registered here; they are
+# opted into at build time via `build:nix --extra_toolchains=...` in .bazelrc.
+# Because a default build never references the Nix repos, it never fetches them
+# and therefore needs no Nix installed. The remote JDK (rules_java) and the Go
+# SDK register themselves; only the LLVM CC toolchain needs registering here.
 register_toolchains(
-    "@nixpkgs_config_cc_toolchains//:all",
-    "@nixpkgs_java_runtime_toolchain//:all",
-    "@nixpkgs_java_jdk_toolchain//:all",
+    "@llvm_toolchain//:all",
     dev_dependency = True,
 )
 

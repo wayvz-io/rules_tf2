@@ -21,11 +21,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Nix
-        uses: DeterminateSystems/determinate-nix-action@v3
-
-      - name: Setup Nix Cache
-        uses: DeterminateSystems/flakehub-cache-action@v2
+      # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
+      # bloat so it fits on the runner's root disk.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          sudo docker image prune --all --force || true
+          df -h /
 
       - uses: bazel-contrib/setup-bazel@0.15.0
         with:
@@ -33,8 +36,9 @@ jobs:
           disk-cache: true
           repository-cache: true
 
-      - name: Check flake
-        run: nix flake check
-
       - name: Build and test
-        run: nix develop . --command bazel test //...
+        env:
+          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
+          # latest and ignores .bazelversion. Bazel 9 is a planned follow-up.
+          USE_BAZEL_VERSION: "8.5.0"
+        run: bazel test //...
