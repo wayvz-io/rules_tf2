@@ -1,10 +1,36 @@
 # Tool Installation
 
-Rules_tf2 automatically downloads and manages Terraform tools (terraform, tflint, terraform-docs) and TFLint plugins as part of the build process. This eliminates the need for external package managers or manual tool installation.
+Rules_tf2 automatically downloads and manages Terraform tools (terraform, tflint, terraform-docs, opa, sentinel) and TFLint plugins as part of the build process. This eliminates the need for external package managers or manual tool installation.
 
 ## Configuration
 
-Add the `tf_tools` module extension to your `MODULE.bazel`:
+Add the `tf_tools` module extension to your `MODULE.bazel`. The primary path is `from_versions_json`, which reads all tool versions from a shared `versions.json` file:
+
+```starlark
+tf_tools = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_tools")
+
+tf_tools.from_versions_json(
+    versions_file = "path/to/versions.json",
+)
+
+use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
+```
+
+The `tools` section of `versions.json` supplies the versions:
+
+```json
+{
+  "tools": {
+    "terraform": "1.14.2",
+    "tflint": "0.60.0",
+    "terraform-docs": "0.20.0",
+    "opa": "1.4.2",
+    "sentinel": "0.40.0"
+  }
+}
+```
+
+Alternatively, versions can be set explicitly with the `configure` tag (this only covers terraform/tflint/terraform-docs and overrides values read from `versions.json`):
 
 ```starlark
 tf_tools = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_tools")
@@ -17,6 +43,8 @@ tf_tools.configure(
 
 use_repo(tf_tools, "tf_tool_registry")
 ```
+
+> **Note**: The `tfc-agent` binary is *not* pulled by `tf_tools`. It is downloaded by the separate `tf_agent_base` extension (also driven by `versions.json`), which is only needed when building TFC agent images.
 
 ## TFLint Plugin Support
 
@@ -62,7 +90,7 @@ use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
 The `tf_tools` module extension:
 
 1. Downloads platform-specific binaries (linux/darwin, amd64/arm64) from official releases
-2. Creates individual tool repositories (`terraform_tool`, `tflint_tool`, `terraform_docs_tool`)
+2. Creates individual tool repositories (`terraform_tool`, `tflint_tool`, `terraform_docs_tool`, `opa_tool`, `sentinel_tool`)
 3. Downloads TFLint plugin binaries when configured (`tflint_plugin_aws`, `tflint_plugin_azurerm`, etc.)
 4. Provides central registries (`tf_tool_registry`, `tflint_plugin_registry`) with aliases for tool access
 

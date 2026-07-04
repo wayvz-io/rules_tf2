@@ -102,7 +102,7 @@ tf_variables = rule(
     doc = """Defines a set of Terraform variables for use with stacks.
     
     This rule collects Terraform variable files (.tfvars and .tfvars.json) and
-    makes them available for use with tf_stack targets.
+    makes them available for use with tf_module targets.
     
     Example:
         tf_variables(

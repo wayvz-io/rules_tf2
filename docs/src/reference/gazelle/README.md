@@ -22,14 +22,23 @@ Configure Gazelle behavior with directives in BUILD.bazel files:
 
 | Directive | Description |
 |-----------|-------------|
-| `# gazelle:tf2_module_prefix` | Prefix for generated module names |
-| `# gazelle:tf2_providers` | Default providers for generated modules |
+| `# gazelle:terraform_enabled <true\|false>` | Enable or disable generation for the directory (default: enabled) |
+| `# gazelle:terraform_provider <provider_name> <label>` | Map a Terraform provider name to a provider registry label |
+| `# gazelle:terraform_ignore_file_warning <filename>` | Suppress warnings for a file with a dynamic/unresolved path |
+
+Example:
+
+```starlark
+# gazelle:terraform_provider aws @tf_provider_registry//:aws_6
+# gazelle:terraform_ignore_file_warning generated.tf
+```
 
 ## Generated Targets
 
-For each directory containing `.tf` files, Gazelle generates a `tf_module` target with:
+For each directory containing `.tf` files, Gazelle generates a `tf_module` target and a
+corresponding `tf_test` target. The `tf_module` target has:
 
 - `name` derived from directory name
 - `srcs` containing all `.tf` files and `README.md`
 - `deps` inferred from local module references
-- `providers` from directive or parent configuration
+- `providers` mapped from `terraform_provider` directives or parent configuration

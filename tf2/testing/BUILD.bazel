@@ -1,4 +1,0 @@
-package(default_visibility = ["//visibility:public"])
-
-# Currently no .bzl files in this directory
-# The testing functionality has been moved to tf2/module subdirectories

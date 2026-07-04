@@ -10,8 +10,3 @@ bzl_library(
         "//tf2/tfcore:tf_runner",
     ],
 )
-
-bzl_library(
-    name = "workspace",
-    srcs = ["workspace.bzl"],
-)

@@ -2,15 +2,27 @@
 
 Task-oriented instructions for accomplishing specific goals.
 
-How-to guides assume you know what you want to achieve and guide you through the steps to get there. They focus on practical outcomes rather than learning concepts.
+> **Note**: This project is published as-is and is not actively maintained.
+> A curated set of how-to guides has not been written. This page collects the
+> most relevant reference and explanation pages for common tasks until then.
 
-## Coming Soon
+## Common tasks
 
-- **How to configure providers for a module**
-- **How to set up provider lock files**
-- **How to run Terraform commands via Bazel**
-- **How to publish modules to Terraform Registry**
-- **How to push modules to OCI registries**
-- **How to integrate with Terraform Cloud**
-- **How to customize TFLint rules**
-- **How to generate documentation with terraform-docs**
+| Goal | Where to look |
+|------|---------------|
+| Understand the hermetic boundary and CI/CD split | [Hermeticity, CI & CD](../explanation/hermeticity.md) |
+| Create a module with automatic tests | [`tf_module`](../reference/rules/tf-module.md), [Module Structure](../explanation/tf-modules/structure.md) |
+| Configure providers and lock files | [Provider Versioning](../explanation/versioning/providers.md) |
+| Use external modules | [External Modules](../explanation/versioning/external-modules.md), [Module Registry](../explanation/tf-modules/module-registry.md) |
+| Run Terraform commands via Bazel | [`tf_runner`](../reference/rules/tf-runner.md) |
+| Run native Terraform tests | [`tf_test`](../reference/rules/tf-test.md) |
+| Test policies (Sentinel / OPA) | [Sentinel](../explanation/sentinel.md), [OPA](../explanation/opa.md) |
+| Publish to a registry or OCI | [`tf_publish_registry`](../reference/publishing/tf-publish-registry.md), [`tf_publish_oci`](../reference/publishing/tf-publish-oci.md) |
+| Integrate with Terraform Cloud | [`tf_cloud_workspace`](../reference/cloud/tf-cloud-workspace.md), [`tfc_agent_image`](../reference/cloud/tfc-agent-image.md) |
+| Customize TFLint rules | [Linting](../explanation/tf-modules/linting.md) |
+| Generate documentation | [Documentation](../explanation/tf-modules/documentation.md) |
+
+## Runnable examples
+
+For copy-and-run configurations, see the
+[`examples/`](https://github.com/wayvz-io/rules_tf2/tree/main/examples) directory.

@@ -11,7 +11,9 @@ tf_publish_registry(
     name = "publish",
     module = ":my_module",
     organization = "my-org",
-    namespace = "my-namespace",
+    module_name = "my-terraform-module",
+    provider = "aws",
+    # namespace = "my-namespace",  # optional, defaults to organization
 )
 ```
 

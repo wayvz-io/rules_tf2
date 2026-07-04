@@ -6,8 +6,7 @@ load("//tf2/tools/runners:sh_toolchain.bzl", "SH_TOOLCHAIN_TYPE", "run_shell")
 def _tools_layer_staging_impl(ctx):
     """Stage tool binaries for tar packaging.
 
-    Copies terraform and tfstacks binaries to a staging directory
-    ready for tar packaging.
+    Copies the terraform binary to a staging directory ready for tar packaging.
     """
     staging_dir = ctx.actions.declare_directory("{}_staging".format(ctx.attr.name))
 
@@ -21,14 +20,6 @@ def _tools_layer_staging_impl(ctx):
             # Copy and rename to just 'terraform'
             copy_commands.append("cp -L '{}' '{}/terraform'".format(f.path, staging_dir.path))
             copy_commands.append("chmod +x '{}/terraform'".format(staging_dir.path))
-            break  # Only take first file (the binary)
-
-    if ctx.attr.tfstacks:
-        for f in ctx.files.tfstacks:
-            tool_files.append(f)
-            # Copy and rename to just 'tfstacks'
-            copy_commands.append("cp -L '{}' '{}/tfstacks'".format(f.path, staging_dir.path))
-            copy_commands.append("chmod +x '{}/tfstacks'".format(staging_dir.path))
             break  # Only take first file (the binary)
 
     run_shell(
@@ -49,10 +40,6 @@ tools_layer_staging = rule(
             allow_files = True,
             doc = "Terraform binary label",
         ),
-        "tfstacks": attr.label(
-            allow_files = True,
-            doc = "tfstacks binary label",
-        ),
     },
     toolchains = [SH_TOOLCHAIN_TYPE],
     doc = "Stages tool binaries for tar packaging.",
@@ -61,18 +48,16 @@ tools_layer_staging = rule(
 def agent_tools_layer(
         name,
         terraform = None,
-        tfstacks = None,
         package_dir = "/usr/local/bin",
         visibility = None):
     """Create a tar layer containing tool binaries for OCI image.
 
-    This macro stages the terraform and tfstacks binaries and creates a tar
-    archive suitable for use as an OCI image layer.
+    This macro stages the terraform binary and creates a tar archive suitable
+    for use as an OCI image layer.
 
     Args:
         name: Target name
         terraform: Terraform binary label (e.g., @terraform_tool//:bin)
-        tfstacks: tfstacks binary label (e.g., @stacksplugin_tool//:bin)
         package_dir: Destination path in container (default: /usr/local/bin)
         visibility: Target visibility
     """
@@ -80,7 +65,6 @@ def agent_tools_layer(
     tools_layer_staging(
         name = name + "_staging",
         terraform = terraform,
-        tfstacks = tfstacks,
     )
 
     # Create tar archive

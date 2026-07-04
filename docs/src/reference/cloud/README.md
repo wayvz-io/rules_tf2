@@ -51,7 +51,7 @@ tfc_agent_image(
 ```
 
 This generates:
-- `:my_agent` - Multi-arch OCI image
+- `:my_agent` - OCI image index (single-arch amd64 by default; multi-arch only when multiple `platforms` are given)
 - `:my_agent_push` - Push to registry
 
 ```bash

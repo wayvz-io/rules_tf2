@@ -8,9 +8,11 @@ The published bundle includes:
 
 - **Module sources** - Files declared in `srcs`
 - **Nested modules** - Child modules from `modules` attribute
-- **Generated lockfile** - `.terraform.lock.hcl` for reproducible provider versions
+- **Documentation** - README and generated docs
 
-Only Bazel-exposed files are included. No stray files, no build artifacts.
+Only Bazel-exposed files are included. No stray files, no build artifacts. The
+generated `.terraform.lock.hcl` is intentionally *not* bundled (consumers
+resolve providers themselves) — consistent with the `*_no_lockfile_test`.
 
 ## tf_publish_registry
 
@@ -21,6 +23,7 @@ tf_publish_registry(
     organization = "my-org",
     namespace = "my-namespace",
     module_name = "vpc",
+    provider = "aws",
 )
 ```
 
@@ -32,16 +35,25 @@ bazel run //path/to:publish
 
 ## Authentication
 
-Authentication uses one of:
+Authentication requires the `TFE_TOKEN` environment variable — the publish
+script exits if it is unset. There is no credentials-file fallback.
 
-- `TFE_TOKEN` environment variable
-- Terraform CLI credentials (`~/.terraform.d/credentials.tfrc.json`)
-
-The registry API endpoint is derived from your Terraform Cloud/Enterprise configuration.
+The registry endpoint defaults to `app.terraform.io`; point it at a Terraform
+Enterprise host with the `registry` attribute.
 
 ## Versioning
 
-Module versions typically come from git tags or CI build numbers. The publish rule accepts a `version` attribute or reads from environment variables.
+The publish rule computes the next version automatically. It queries the registry for the module's current highest version and bumps it. Control which component is bumped with the `version_increment` attribute (`major`, `minor`, or `patch`; defaults to `patch`), or override the increment at run time:
+
+```bash
+bazel run //path/to:publish -- --version-type minor
+```
+
+You can also pin an exact version, bypassing auto-computation:
+
+```bash
+bazel run //path/to:publish -- --version 2.0.0
+```
 
 ## See Also
 

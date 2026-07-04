@@ -9,7 +9,7 @@ load("@rules_tf2//tf2:def.bzl", "tf_variables")
 
 tf_variables(
     name = "my_vars",
-    srcs = glob(["*.tfvars"]),
+    srcs = ["terraform.tfvars"],
 )
 ```
 

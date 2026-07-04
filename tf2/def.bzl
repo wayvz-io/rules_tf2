@@ -5,10 +5,6 @@ load(
     _tf_module = "tf_module",
 )
 load(
-    "//tf2/macros:tf_stack.bzl",
-    _tf_stack = "tf_stack",
-)
-load(
     "//tf2/opa:test.bzl",
     _tf_opa_fmt = "tf_opa_fmt",
     _tf_opa_fmt_test = "tf_opa_fmt_test",
@@ -62,7 +58,6 @@ provider_mirror = _provider_mirror
 
 # Core rules
 tf_module = _tf_module
-tf_stack = _tf_stack
 tf_publish_oci = _tf_publish_oci
 tf_publish_registry = _tf_publish_registry
 tf_file_export = _tf_file_export

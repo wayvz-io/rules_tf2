@@ -18,15 +18,15 @@ def tf_cloud_workspace(
         module: The tf_module target to run against (replaces stack parameter)
         workspace_name: Terraform Cloud workspace name
         variables: Optional tf_variables target with tfvars files
-        organization: Terraform Cloud organization (defaults to "Wayvz" if not set)
+        organization: Terraform Cloud organization (required)
         tfe_host: Terraform Enterprise hostname (optional, defaults to app.terraform.io)
         auto_backend: Automatically generate backend configuration (default True)
         **kwargs: Additional attributes passed to all rules
     """
 
-    # Default organization if not provided
+    # Organization is required - there is no sensible default.
     if not organization:
-        organization = "Wayvz"
+        fail("tf_cloud_workspace requires an 'organization' (your Terraform Cloud/Enterprise org name).")
 
     # Main runner target - can run any terraform command
     if auto_backend:

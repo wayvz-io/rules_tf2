@@ -52,22 +52,26 @@ MODULE.bazel.lock (facts section stores all hashes)
 Provider repositories (ready to use)
 ```
 
-### Stack-Specific Lock File Generation
+### Per-Module Lock File Generation
 
-For each `tf_stack` or `tf_module`, the system automatically:
+For each `tf_module`, the system automatically:
 1. Generates provider specifications based on declared provider dependencies
 2. Creates a `.terraform.lock.hcl` using stored hashes from `@tf_provider_registry//:provider_locks.json`
 3. Includes the lock file in validation tests
 
 ## Usage
 
-### Basic Stack Definition
+### Basic Module Definition
 
 ```python
-load("@rules_tf2//tf2:def.bzl", "tf_stack")
+load("@rules_tf2//tf2:def.bzl", "tf_module")
 
-tf_stack(
-    name = "my_stack",
+tf_module(
+    name = "my_module",
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+    ],
     providers = [
         "@tf_provider_registry//:aws_6",
         "@tf_provider_registry//:null_3",
@@ -75,29 +79,28 @@ tf_stack(
 )
 ```
 
-This automatically creates:
-- `:my_stack` - The main stack target
-- `:my_stack_provider_config` - Generated provider specifications
-- `:my_stack_lock_file` - Generated `.terraform.lock.hcl`
-- `:my_stack_validate_test` - Validation test using the lock file
+This automatically creates (among the generated test targets):
+- `:my_module` - The main module target
+- `:my_module_generated_lock` - Generated `.terraform.lock.hcl`
+- `:my_module_validate_test` - Validation test using the lock file
 
 ### Building Lock Files
 
 To generate just the lock file:
 ```bash
-bazel build //path/to/stack:stack_name_lock_file
+bazel build //path/to/module:module_name_generated_lock
 ```
 
 To see the generated lock file:
 ```bash
-cat bazel-bin/path/to/stack/.terraform.lock.hcl
+cat bazel-bin/path/to/module/.terraform.lock.hcl
 ```
 
 ### Testing with Lock Files
 
 Validation tests automatically use the generated lock file:
 ```bash
-bazel test //path/to/stack:stack_name_validate_test
+bazel test //path/to/module:module_name_validate_test
 ```
 
 ## How It Works
@@ -123,16 +126,17 @@ The extension also generates `@tf_provider_registry//:provider_locks.json` for u
 
 ### Lock File Generation Rule
 
-The `tf_lock_file_generator` rule:
+The `tf_generate_lockfile_for_validation` macro (wrapping the
+`tf_generate_lock_file` rule) is used internally by `tf_module`:
 1. Reads the required providers from Bazel module definitions
 2. Looks up corresponding hashes from `@tf_provider_registry//:provider_locks.json`
 3. Generates a valid `.terraform.lock.hcl` file
 
 ```python
-tf_lock_file_generator(
-    name = "stack_lock",
+tf_generate_lockfile_for_validation(
+    name = "module_lock",
     provider_locks = "@tf_provider_registry//:provider_locks.json",
-    versions_file = ":provider_config",
+    versions_json = ":provider_config",
 )
 ```
 
@@ -170,7 +174,7 @@ When provider versions are updated in `versions.json`:
 
 5. Commit `versions.json` and `MODULE.bazel.lock`:
    ```bash
-   git add versions.json MODULE.bazel.lock
+   git add tests/providers/versions.json MODULE.bazel.lock
    git commit -m "Update provider versions"
    ```
 
@@ -195,7 +199,7 @@ Hash generation runs `terraform providers lock` which downloads provider binarie
 ### Validation Failures
 
 If validation fails with lock file issues:
-1. Check the generated lock file exists: `bazel build //path:stack_lock_file`
+1. Check the generated lock file exists: `bazel build //path:module_generated_lock`
 2. Verify provider versions match between specifications and lock file
 3. Ensure the provider registry contains the required providers
 
@@ -206,7 +210,7 @@ If validation fails with lock file issues:
 - `tf2/extensions.bzl` - Module extension that generates hashes and creates provider repositories
 - `tf2/providers/repository/hcl_parser.bzl` - Parses `.terraform.lock.hcl` files
 - `tf2/providers/repository/terraform_providers.bzl` - Repository rule for provider registry
-- `tf2/tfcore/versions/lockfile.bzl` - Rule for generating stack-specific lock files
+- `tf2/tfcore/versions/lockfile.bzl` - Rule for generating per-module lock files
 
 ### Module Extension Flow
 

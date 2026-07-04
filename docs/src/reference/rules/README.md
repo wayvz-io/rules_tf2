@@ -7,11 +7,12 @@ Core Bazel rules and macros for Terraform module management.
 | Rule | Description |
 |------|-------------|
 | [tf_module](tf-module.md) | Main macro for creating Terraform modules with testing |
-| [tf_stack](tf-stack.md) | Macro for creating Terraform Stacks with component staging |
 | [tf_runner](tf-runner.md) | Run arbitrary Terraform commands against a module |
 | [tf_test](tf-test.md) | Run Terraform native tests (`.tftest.hcl`) |
 | [tf_variables](tf-variables.md) | Collect variable files for use with runners |
 | [tf_file_export](tf-file-export.md) | Export processed modules to filesystem |
+| [tf_sentinel](tf-sentinel.md) | Test and format Sentinel policies |
+| [tf_opa](tf-opa.md) | Test and format OPA (Rego) policies |
 
 ## tf_module
 

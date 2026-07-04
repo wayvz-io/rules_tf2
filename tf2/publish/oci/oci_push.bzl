@@ -416,7 +416,7 @@ tf_publish_oci = rule(
             doc = "OCI registry hostname (defaults to ghcr.io)",
         ),
         "repository": attr.string(
-            doc = "OCI repository (defaults to wayvz-io/network_intent_manager)",
+            doc = "OCI repository (e.g. my-org/my-repo)",
         ),
         "tag": attr.string(
             doc = "Image tag (defaults to 'unstable')",
@@ -441,13 +441,13 @@ tf_publish_oci = rule(
     },
     executable = True,
     toolchains = [SH_TOOLCHAIN_TYPE],
-    doc = """Push Terraform stacks to OCI registry.
+    doc = """Push a Terraform module to an OCI registry.
 
-    This rule takes a tf_stack target and pushes it to an OCI registry using the
+    This rule takes a tf_module target and pushes it to an OCI registry using the
     media types expected by Flux's tf-controller.
 
     Example:
-        tf_stack(
+        tf_module(
             name = "hub",
             ...
         )

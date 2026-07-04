@@ -41,22 +41,6 @@ TfProviderConfigurationsInfo = provider(
     },
 )
 
-TfStackInfo = provider(
-    doc = "Information about a Terraform Stack",
-    fields = {
-        "name": "Stack name",
-        "srcs": "All stack source files (depset)",
-        "component_files": "Component files (.tfcomponent.hcl)",
-        "deploy_files": "Deployment files (.tfdeploy.hcl)",
-        "data_files": "Data files (JSON, etc.)",
-        "modules": "Referenced tf_module targets",
-        "module_aliases": "Dict mapping module label strings to custom component names",
-        "provider_configurations": "Aggregated provider configurations from modules",
-        "lock_file": "Generated .terraform.lock.hcl",
-        "terraform_version": "Required Terraform version",
-    },
-)
-
 TfProviderMirrorInfo = provider(
     doc = "Information about a single provider mirror",
     fields = {

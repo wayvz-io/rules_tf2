@@ -55,16 +55,6 @@ alias(
 )
 
 alias(
-    name = "stacksplugin",
-    actual = "@stacksplugin_tool//:bin",
-)
-
-alias(
-    name = "stacksplugin_bin",
-    actual = "@stacksplugin_tool//:bin",
-)
-
-alias(
     name = "opa",
     actual = "@opa_tool//:bin",
 )
@@ -82,7 +72,6 @@ filegroup(
         "@tflint_tool//:bin",
         "@terraform_docs_tool//:bin",
         "@sentinel_tool//:bin",
-        "@stacksplugin_tool//:bin",
         "@opa_tool//:bin",
     ],
 )

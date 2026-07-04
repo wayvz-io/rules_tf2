@@ -23,22 +23,8 @@ bzl_library(
 )
 
 bzl_library(
-    name = "lock_file_generator",
-    srcs = ["lock_file_generator.bzl"],
-)
-
-bzl_library(
     name = "versions",
     srcs = ["versions.bzl"],
-)
-
-bzl_library(
-    name = "hash_generator",
-    srcs = ["hash_generator.bzl"],
-    deps = [
-        ":hcl_parser",
-        "//tf2/tools/download:platform",
-    ],
 )
 
 bzl_library(

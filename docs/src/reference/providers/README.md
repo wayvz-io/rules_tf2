@@ -15,7 +15,10 @@ Providers are managed through the `tf_providers` module extension and referenced
 ```starlark
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]),
+    srcs = [
+        "main.tf",
+        "terraform.tf",
+    ],
     providers = [
         "@tf_provider_registry//:aws_5",
         "@tf_provider_registry//:random_3",

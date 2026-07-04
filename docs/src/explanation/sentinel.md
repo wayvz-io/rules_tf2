@@ -66,7 +66,7 @@ The sentinel CLI is downloaded automatically when sentinel rules are used. Confi
 ```json
 {
   "tools": {
-    "sentinel": "0.26.0"
+    "sentinel": "0.40.0"
   }
 }
 ```

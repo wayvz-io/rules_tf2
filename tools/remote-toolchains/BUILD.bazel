@@ -1,3 +1,13 @@
+# Execution platforms for Remote Build Execution (RBE).
+#
+# These platforms carry `nix-support: true` because the ruleset's action
+# toolchains resolve to /nix/store paths - RBE workers must have those store
+# paths available (e.g. by building the worker image from the same Nix closure,
+# or by mounting the host /nix/store into the worker). See //.bazelrc (config rbe)
+# and //tools/rbe-local for a local podman-based Buildbarn example.
+
+# Platform for a remote Buildbarn cluster. Set `container-image` to your own
+# Nix-provisioned worker image.
 platform(
     name = "rbe_nix_platform",
     constraint_values = [
@@ -7,8 +17,29 @@ platform(
     exec_properties = {
         "OSFamily": "linux",
         "cpu": "aarch64",
-        "container-image": "docker://ghcr.io/wayvz-io/network_intent_manager/rbe-worker-default:latest",
+        # Replace with your own RBE worker image (must contain the required
+        # /nix/store paths, or mount the host store into the worker).
+        "container-image": "docker://ghcr.io/your-org/rbe-worker:latest",
         "nix-support": "true",
+    },
+    visibility = ["//visibility:public"],
+)
+
+# Platform for the local podman Buildbarn smoke test (//tools/rbe-local).
+# The exec_properties MUST match the properties advertised by the stock Buildbarn
+# hardlinking worker (config/worker-hardlinking-ubuntu22-04.jsonnet), otherwise the
+# scheduler will not dispatch actions to it. That worker is a vanilla Ubuntu image
+# with NO /nix/store - so only Nix-free actions (e.g. a plain genrule) will execute.
+# Use with `--config=rbe_local` and instance name "hardlinking".
+platform(
+    name = "rbe_local_platform",
+    constraint_values = [
+        "@platforms//cpu:x86_64",
+        "@platforms//os:linux",
+    ],
+    exec_properties = {
+        "OSFamily": "linux",
+        "container-image": "docker://ghcr.io/catthehacker/ubuntu:act-22.04@sha256:dd7654ffb01d5b7b54b23b9ce928a1f7f2d08c7b3d7e320b6574b55d7ccde78b",
     },
     visibility = ["//visibility:public"],
 )

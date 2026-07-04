@@ -14,11 +14,23 @@ rules_tf2 is a Bazel module that provides Terraform integration for Bazel builds
 
 ## Quick Start
 
-Add rules_tf2 to your `MODULE.bazel`:
+Add rules_tf2 to your `MODULE.bazel`. rules_tf2 is not published to the Bazel
+Central Registry, so a `git_override` (or `archive_override`) is required for the
+`bazel_dep` to resolve:
 
 ```starlark
 bazel_dep(name = "rules_tf2", version = "0.1.0")
+
+git_override(
+    module_name = "rules_tf2",
+    remote = "https://github.com/wayvz-io/rules_tf2.git",
+    tag = "v0.1.0",
+)
 ```
+
+You also need to configure providers and tools via the module extensions before
+a `tf_module` will build — see [Module Extensions](reference/extensions/README.md)
+for the `tf_providers` / `tf_tools` setup.
 
 Create a Terraform module with automatic testing:
 
@@ -27,14 +39,20 @@ load("@rules_tf2//tf2:def.bzl", "tf_module")
 
 tf_module(
     name = "my_module",
-    srcs = glob(["*.tf"]) + ["README.md"],
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+        "README.md",
+    ],
 )
 ```
 
 Run all tests:
 
 ```bash
-bazel test //path/to:my_module_all
+bazel test //path/to:all
 ```
 
 ## Documentation Structure
@@ -44,7 +62,7 @@ This documentation follows the [Diataxis](https://diataxis.fr/) framework:
 - **[Tutorials](tutorials/README.md)**: Learning-oriented guides for newcomers
 - **[How-to Guides](guides/README.md)**: Task-oriented instructions for specific goals
 - **[Reference](reference/README.md)**: Technical descriptions of rules, macros, and APIs
-- **[Explanation](explanation/README.md)**: Understanding-oriented discussions of concepts
+- **[Explanation](explanation/architecture.md)**: Understanding-oriented discussions of concepts
 
 ## Status
 

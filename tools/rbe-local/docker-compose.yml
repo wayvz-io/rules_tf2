@@ -1,0 +1,96 @@
+# Minimal local Buildbarn cluster for smoke-testing RBE with podman.
+#
+# Adapted from https://github.com/buildbarn/bb-deployments/tree/main/docker-compose
+# Trimmed to the non-privileged "hardlinking" worker (the FUSE worker needs
+# privileged mode + fusermount, which is awkward under rootless podman) and drops
+# the browser. Brings up a working Remote Execution endpoint on localhost:8980.
+#
+# Usage:  ./run.sh          (see run.sh / README.md)
+services:
+  frontend:
+    image: ghcr.io/buildbarn/bb-storage:20260609T094425Z-10acc76
+    command:
+    - /config/frontend.jsonnet
+    expose:
+    - 9980
+    ports:
+    - 8980:8980
+    volumes:
+    - ./config:/config
+
+  storage-0:
+    image: ghcr.io/buildbarn/bb-storage:20260609T094425Z-10acc76
+    command:
+    - /config/storage.jsonnet
+    expose:
+    - 8981
+    - 9980
+    volumes:
+    - ./config:/config
+    - ./volumes/storage-ac-0:/storage-ac
+    - ./volumes/storage-cas-0:/storage-cas
+    - ./volumes/storage-fsac-0:/storage-fsac
+
+  storage-1:
+    image: ghcr.io/buildbarn/bb-storage:20260609T094425Z-10acc76
+    command:
+    - /config/storage.jsonnet
+    expose:
+    - 8981
+    - 9980
+    volumes:
+    - ./config:/config
+    - ./volumes/storage-ac-1:/storage-ac
+    - ./volumes/storage-cas-1:/storage-cas
+    - ./volumes/storage-fsac-1:/storage-fsac
+
+  scheduler:
+    image: ghcr.io/buildbarn/bb-scheduler:20260527T162223Z-c48dcda
+    command:
+    - /config/scheduler.jsonnet
+    expose:
+    - 8982
+    - 8983
+    - 8984
+    - 9980
+    ports:
+    - 7982:7982
+    - 8983:8983
+    - 8984:8984
+    volumes:
+    - ./config:/config
+
+  runner-installer:
+    image: ghcr.io/buildbarn/bb-runner-installer:20260527T162223Z-c48dcda
+    volumes:
+    - ./volumes/bb:/bb
+
+  worker-hardlinking-ubuntu22-04:
+    image: ghcr.io/buildbarn/bb-worker:20260527T162223Z-c48dcda
+    command:
+    - /config/worker-hardlinking-ubuntu22-04.jsonnet
+    privileged: false
+    volumes:
+    - ./config:/config
+    - ./volumes/worker-hardlinking-ubuntu22-04:/worker
+
+  runner-hardlinking-ubuntu22-04:
+    image: ghcr.io/catthehacker/ubuntu:act-22.04@sha256:dd7654ffb01d5b7b54b23b9ce928a1f7f2d08c7b3d7e320b6574b55d7ccde78b
+    command:
+    - sh
+    - -c
+    - while ! test -f /bb/installed; do sleep 1; done; exec /bb/bb_runner /config/runner-ubuntu22-04.jsonnet
+    network_mode: none
+    volumes:
+    - ./config:/config
+    - ./volumes/bb:/bb
+    - ./volumes/worker-hardlinking-ubuntu22-04:/worker
+    # rules_tf2 actions resolve toolchains to /nix/store paths, which a vanilla
+    # Ubuntu worker does not have. Mounting the host store read-only is the local
+    # equivalent of "sync the Nix images onto the RBE workers". Without this, real
+    # builds fail with: fork/exec /nix/store/...-bash: no such file or directory.
+    - /nix/store:/nix/store:ro
+    # NOTE: no `depends_on` - podman-compose can leave a dependent of a one-shot
+    # (runner-installer) stuck in "Created". The `while test -f /bb/installed`
+    # loop above already handles ordering. If the runner does not start, run:
+    #   podman start rbe-local_runner-hardlinking-ubuntu22-04_1

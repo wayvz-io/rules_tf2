@@ -3,7 +3,7 @@
 # Default OCI registry configuration
 OCI_CONFIG = {
     "registry": "ghcr.io",
-    "repository": "wayvz-io/network_intent_manager",
+    "repository": "my-org/my-repo",
     "default_tag": "unstable",
 }
 

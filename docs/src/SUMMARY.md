@@ -13,6 +13,7 @@
 # Explanation
 
 - [Architecture](explanation/architecture.md)
+- [Hermeticity, CI & CD](explanation/hermeticity.md)
 - [Versioning](explanation/versioning/README.md)
   - [Providers](explanation/versioning/providers.md)
   - [Tools](explanation/versioning/tools.md)
@@ -29,19 +30,18 @@
   - [OCI Registry](explanation/tf-modules/oci-registry.md)
 - [Sentinel](explanation/sentinel.md)
 - [OPA](explanation/opa.md)
-- [Terraform Stacks](explanation/terraform-stacks.md)
 
 # Reference
 
 - [Starlark API]()
   - [Rules](reference/rules/README.md)
     - [tf_module](reference/rules/tf-module.md)
-    - [tf_stack](reference/rules/tf-stack.md)
     - [tf_runner](reference/rules/tf-runner.md)
     - [tf_test](reference/rules/tf-test.md)
     - [tf_variables](reference/rules/tf-variables.md)
     - [tf_file_export](reference/rules/tf-file-export.md)
     - [tf_sentinel](reference/rules/tf-sentinel.md)
+    - [tf_opa](reference/rules/tf-opa.md)
   - [Cloud Integration](reference/cloud/README.md)
     - [tf_cloud_workspace](reference/cloud/tf-cloud-workspace.md)
     - [tfc_agent_image](reference/cloud/tfc-agent-image.md)

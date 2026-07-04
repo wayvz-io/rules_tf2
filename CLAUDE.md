@@ -18,14 +18,6 @@ bazel test //path/to:target --test_output=all   # Debug specific test
 bazel clean --expunge          # Clean cache (for tool download issues)
 ```
 
-### Graphite Workflow
-```bash
-gt create -am "Brief description"    # Create branch with commit
-gt modify -am "Updated message"      # Stage all + amend commit
-gt restack                           # Rebase on main
-gt submit                            # Submit for review
-```
-
 ### Development Environment
 ```bash
 nix develop                    # Enter dev shell (terraform, tflint, terraform-docs)
@@ -78,7 +70,7 @@ tf_module(
 )
 ```
 
-Auto-generates: `*_format_test`, `*_lint_test`, `*_validate_test`, `*_versions_check_test`, `*_doc_test`, `*_deps_test`, `*_organization_check_test`, `*_untracked_files_test`, `*_no_lockfile_test`, `*_tflint_validate_test`
+Auto-generates: `*_format_test`, `*_lint_test`, `*_validate_test`, `*_versions_check_test`, `*_doc_test`, `*_deps_test`, `*_untracked_files_test`, `*_no_lockfile_test`, `*_tflint_validate_test` (plus a non-test `*_reorganize` run target)
 
 ### Provider Aliasing
 Providers are aliased to major version: `aws_6`, `random_3`, `azurerm_4`
