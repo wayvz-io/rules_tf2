@@ -67,9 +67,12 @@ Gazelle parses `terraform.tf` and adds matching providers to generated rules.
 When updating existing rules, Gazelle preserves manually-set attributes:
 - `providers`
 - `modules`
-- `deps`
+- `tflint_config`
+- `tfdoc_config`
 - `visibility`
+- `skip_validation`
 - `tags`
+- `testonly`
 
 Manual overrides aren't lost on regeneration.
 

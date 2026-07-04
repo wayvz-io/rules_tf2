@@ -43,7 +43,7 @@ modules/vpc/
 Gazelle generates:
 
 ```starlark
-load("//tf2:def.bzl", "tf_module")
+load("@rules_tf2//tf2:def.bzl", "tf_module")
 
 tf_module(
     srcs = [
@@ -78,7 +78,7 @@ tf_module(
 When `.tftest.hcl` or `.tftest.json` files are present, Gazelle generates a separate `tf_test` rule:
 
 ```starlark
-load("//tf2:def.bzl", "tf_module", "tf_test")
+load("@rules_tf2//tf2:def.bzl", "tf_module", "tf_test")
 
 tf_module(
     srcs = [

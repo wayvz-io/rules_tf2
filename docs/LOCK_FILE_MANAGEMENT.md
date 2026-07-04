@@ -81,14 +81,14 @@ tf_module(
 
 This automatically creates (among the generated test targets):
 - `:my_module` - The main module target
-- `:my_module_lock_file` - Generated `.terraform.lock.hcl`
+- `:my_module_generated_lock` - Generated `.terraform.lock.hcl`
 - `:my_module_validate_test` - Validation test using the lock file
 
 ### Building Lock Files
 
 To generate just the lock file:
 ```bash
-bazel build //path/to/module:module_name_lock_file
+bazel build //path/to/module:module_name_generated_lock
 ```
 
 To see the generated lock file:
@@ -126,16 +126,17 @@ The extension also generates `@tf_provider_registry//:provider_locks.json` for u
 
 ### Lock File Generation Rule
 
-The `tf_lock_file_generator` rule:
+The `tf_generate_lockfile_for_validation` macro (wrapping the
+`tf_generate_lock_file` rule) is used internally by `tf_module`:
 1. Reads the required providers from Bazel module definitions
 2. Looks up corresponding hashes from `@tf_provider_registry//:provider_locks.json`
 3. Generates a valid `.terraform.lock.hcl` file
 
 ```python
-tf_lock_file_generator(
+tf_generate_lockfile_for_validation(
     name = "module_lock",
     provider_locks = "@tf_provider_registry//:provider_locks.json",
-    versions_file = ":provider_config",
+    versions_json = ":provider_config",
 )
 ```
 
@@ -198,7 +199,7 @@ Hash generation runs `terraform providers lock` which downloads provider binarie
 ### Validation Failures
 
 If validation fails with lock file issues:
-1. Check the generated lock file exists: `bazel build //path:module_lock_file`
+1. Check the generated lock file exists: `bazel build //path:module_generated_lock`
 2. Verify provider versions match between specifications and lock file
 3. Ensure the provider registry contains the required providers
 

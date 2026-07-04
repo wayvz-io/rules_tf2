@@ -15,8 +15,10 @@ The short version:
 Everything in the generated test suite runs offline against a Bazel-managed
 Terraform toolchain and a **filesystem provider mirror**. There is no network
 access, no remote state, and no cloud backend involved. `terraform init` runs
-with `-backend=false` and `-plugin-dir` pointed at the mirror, so results are
-reproducible on any machine (and cacheable/remote-executable).
+with `-backend=false` against a filesystem mirror wired in through a generated
+`.terraformrc` (`provider_installation { filesystem_mirror { … } }`, exported
+via `TF_CLI_CONFIG_FILE`), so results are reproducible on any machine (and
+cacheable/remote-executable).
 
 Hermetic operations:
 
@@ -29,7 +31,7 @@ Hermetic operations:
 - **Policy-as-code tests** — Sentinel (`tf_sentinel_test`) and OPA
   (`tf_opa_test`) run against the config as hermetic Bazel tests
 - Building the **packaged artifact** that publishing rules push (the module
-  bundle + generated `.terraform.lock.hcl`)
+  sources, nested modules, and docs)
 
 Provider, tool, and (optionally) external-module versions are pinned in
 `versions.json` and locked in `MODULE.bazel.lock`, so the hermetic graph is
@@ -60,9 +62,10 @@ A common pipeline shape — and the one rules_tf2 is designed around:
    version, native-test, and **policy** checks with no network and no cloud.
    This is fast, cacheable, and remote-executable.
 2. **Package:** the same run produces the module bundle (sources + nested
-   modules + generated lockfile). `tf_publish_registry` / `tf_publish_oci`
-   package exactly the Bazel-exposed files — no stray files, no build
-   artifacts.
+   modules + docs). `tf_publish_registry` / `tf_publish_oci` package exactly
+   the Bazel-exposed files — no stray files, no build artifacts. (The
+   generated lockfile is deliberately *not* bundled — see the
+   `*_no_lockfile_test`.)
 3. **Non-hermetic plan (optional):** hand the packaged module to a
    plan/policy platform. `tf_cloud_workspace`'s `:name_tfc_plan` drives a
    remote plan on HCP Terraform / TFE via the TFE API; a TACOS platform that

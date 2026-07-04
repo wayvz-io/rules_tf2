@@ -56,8 +56,8 @@ When you define a `tf_module`, the macro creates these targets:
 - **Rule**: `tf_validate_test`
 - **Execution**:
   1. Copies module files to temp directory
-  2. Runs `terraform init -backend=false -upgrade=false`
-     - Using the filesystem provider mirror (`-plugin-dir`) so no network access is needed
+  2. Runs `terraform init -backend=false -upgrade=false -lockfile=readonly`
+     - Provider resolution is pointed at the filesystem mirror through a generated `.terraformrc` (`filesystem_mirror`, exported via `TF_CLI_CONFIG_FILE`) so no network access is needed
   3. Runs `terraform validate -no-color`
 - **Output**: 
   - "Terraform has been successfully initialized!"
@@ -81,7 +81,7 @@ Providers are declared centrally in `versions.json` and consumed through the `tf
 - **Execution**:
   1. Each provider/platform is downloaded into its own repository on demand
   2. Providers are assembled into a filesystem mirror
-  3. Terraform init uses the mirror via `-plugin-dir` (no network access during builds)
+  3. Terraform init uses the mirror via a generated `.terraformrc` `filesystem_mirror` block (`TF_CLI_CONFIG_FILE`), so there is no network access during builds
 
 ## Test Execution Summary
 

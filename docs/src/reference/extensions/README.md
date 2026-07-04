@@ -62,8 +62,8 @@ sub-sections) and referenced as `@tf_module_registry//:vpc_aws_5`.
     "terraform-docs": "0.20.0"
   },
   "providers": {
-    "aws": "5.0.0",
-    "random": "3.0.0"
+    "hashicorp/aws": ["5.0.0"],
+    "hashicorp/random": ["3.0.0"]
   },
   "tflint_plugins": {
     "aws": "0.30.0"

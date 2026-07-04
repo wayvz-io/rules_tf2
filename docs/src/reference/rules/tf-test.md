@@ -10,7 +10,7 @@ load("@rules_tf2//tf2:def.bzl", "tf_test")
 tf_test(
     name = "my_test",
     module = ":my_module",
-    test_files = glob(["*.tftest.hcl"]),
+    test_files = ["main.tftest.hcl"],
 )
 ```
 
