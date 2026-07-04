@@ -74,6 +74,17 @@ git_override(
     strip_prefix = "toolchains/java",
 )
 
+# Default hermetic CC toolchain (LLVM) — the stock, no-Nix path. It is
+# downloaded, so it works on a bare Ubuntu runner or in the dev Dockerfile
+# without any host gcc/clang. Opt into the Nix CC instead with `--config=nix`
+# (see .bazelrc). Registered as dev-only: consumers of rules_tf2 bring their
+# own CC toolchain, exactly as they did under the previous Nix setup.
+bazel_dep(name = "toolchains_llvm", version = "1.8.0")
+
+llvm = use_extension("@toolchains_llvm//toolchain/extensions:llvm.bzl", "llvm", dev_dependency = True)
+llvm.toolchain(llvm_version = "19.1.7")
+use_repo(llvm, "llvm_toolchain")
+
 # Nixpkgs setup - only when rules_tf2 is the root module (for development)
 nixpkgs_repo_ext = use_extension("@rules_nixpkgs_core//extensions:repository.bzl", "nix_repo", dev_dependency = True)
 nixpkgs_repo_ext.flake(
@@ -97,18 +108,22 @@ use_repo(non_module_deps, "nixpkgs_java_runtime")
 use_repo(non_module_deps, "nixpkgs_java_runtime_toolchain")
 use_repo(non_module_deps, "nixpkgs_java_jdk_toolchain")
 
-# mdbook for documentation generation
-use_repo(non_module_deps, "nixpkgs_mdbook")
+# mdbook for documentation generation (downloaded binary; no Nix required)
+use_repo(non_module_deps, "mdbook")
 
-# Go SDK configuration for development (only when rules_tf2 is root module)
+# Go SDK configuration for development (only when rules_tf2 is root module).
+# Downloaded (hermetic) rather than host, so no host Go / Nix is required.
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk", dev_dependency = True)
-go_sdk.host()  # Use host Go SDK for development
+go_sdk.download(version = "1.25.3")
 
-# Register development-only toolchains when this is the root module
+# Default (stock/hermetic) toolchains — used unless `--config=nix` is passed.
+# The Nix CC/Java toolchains are deliberately NOT registered here; they are
+# opted into at build time via `build:nix --extra_toolchains=...` in .bazelrc.
+# Because a default build never references the Nix repos, it never fetches them
+# and therefore needs no Nix installed. The remote JDK (rules_java) and the Go
+# SDK register themselves; only the LLVM CC toolchain needs registering here.
 register_toolchains(
-    "@nixpkgs_config_cc_toolchains//:all",
-    "@nixpkgs_java_runtime_toolchain//:all",
-    "@nixpkgs_java_jdk_toolchain//:all",
+    "@llvm_toolchain//:all",
     dev_dependency = True,
 )
 

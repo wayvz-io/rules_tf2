@@ -16,7 +16,7 @@ sh_binary(
         "//tf2:tf_runner_docs",
         "//tf2:tf_test_docs",
         "//tf2:tf_variables_docs",
-        "@nixpkgs_mdbook//:bin/mdbook",
+        "@mdbook",
     ] + glob(["src/**/*.md"]),
     visibility = ["//visibility:public"],
 )
@@ -66,7 +66,7 @@ genrule(
         add_banner $(location //tf2:extensions_docs) > $$WORK_DIR/src/reference/extensions/README.md
 
         # Run mdbook build from working directory
-        $(execpath @nixpkgs_mdbook//:bin/mdbook) build $$WORK_DIR -d $$BOOK_OUT
+        $(execpath @mdbook//:mdbook) build $$WORK_DIR -d $$BOOK_OUT
 
         # Create tarball of the output
         tar -czf $@ -C $$BOOK_OUT .
@@ -74,6 +74,6 @@ genrule(
         # Cleanup
         rm -rf $$BOOK_OUT $$WORK_DIR
     """,
-    tools = ["@nixpkgs_mdbook//:bin/mdbook"],
+    tools = ["@mdbook"],
     visibility = ["//visibility:public"],
 )
