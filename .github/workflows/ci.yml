@@ -109,6 +109,7 @@ jobs:
         run: |
           bazel test --config=remote \
             --remote_executor="$RBE_EXECUTOR" \
+            --remote_cache="$RBE_EXECUTOR" \
             --bes_backend="$BES_BACKEND" \
             --bes_results_url="$BES_RESULTS_URL" \
             //...
