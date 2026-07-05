@@ -53,7 +53,9 @@ def _download_opa_impl(repository_ctx):
     )
 
     # Create BUILD file
-    build_content = '''package(default_visibility = ["//visibility:public"])
+    build_content = '''load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+package(default_visibility = ["//visibility:public"])
 
 exports_files(["{binary_name}"])
 

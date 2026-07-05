@@ -1,6 +1,7 @@
 # Integration tests for TFC agent image building
 # These tests are marked manual because they require Docker and are slow
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tf2:def.bzl", "tfc_agent_image")
 
 # Test building a minimal agent image with a single provider

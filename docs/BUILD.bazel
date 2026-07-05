@@ -1,5 +1,7 @@
 """Documentation generation for rules_tf2 using mdbook"""
 
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
 # Serve documentation locally with live reload
 sh_binary(
     name = "serve",

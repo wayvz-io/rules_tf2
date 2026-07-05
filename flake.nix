@@ -31,16 +31,8 @@
           config.allowUnfree = true;
         };
 
-        # Patch bazel_8 to version 8.5.0
-        bazel_8_5 = (pkgs-unstable.bazel_8.override {
-          version = "8.5.0";
-        }).overrideAttrs (oldAttrs: {
-          src = pkgs.fetchzip {
-            url = "https://github.com/bazelbuild/bazel/releases/download/8.5.0/bazel-8.5.0-dist.zip";
-            hash = "sha256-L8gnWpQAeHMUbydrrEtZ6WGIzhunDBWCNWMA+3dAKT0=";
-            stripRoot = false;
-          };
-        });
+        # Bazel 9 from nixpkgs-unstable (matches .bazelversion / CI).
+        bazel_9 = pkgs-unstable.bazel_9;
 
       in
       {
@@ -50,7 +42,7 @@
             name = "rules_tf2-dev";
 
             packages = [
-              bazel_8_5
+              bazel_9
               bazel-buildtools
               bazel-gazelle
               bazel-watcher
@@ -98,10 +90,10 @@
               # Enable Bazel tab completion
               if [ -n "$BASH" ]; then
                 # For Bash shell
-                source ${bazel_8_5}/share/bash-completion/completions/bazel.bash
+                source ${bazel_9}/share/bash-completion/completions/bazel.bash
               elif [ -n "$ZSH_VERSION" ]; then
                 # For Zsh shell - use native Zsh completion
-                fpath=(${bazel_8_5}/share/zsh/site-functions $fpath)
+                fpath=(${bazel_9}/share/zsh/site-functions $fpath)
                 autoload -U compinit && compinit
                 # Force reload of bazel completion
                 autoload -U _bazel

@@ -1,4 +1,6 @@
 # Test that tflint --fix can update provider versions
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 sh_test(
     name = "tflint_fix_versions_test",
     size = "small",

@@ -1,5 +1,6 @@
 # Unit tests for TFC agent image building
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load(":terraformrc_test.bzl", "terraformrc_test_suite")
 
 # Individual test suites
