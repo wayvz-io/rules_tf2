@@ -55,19 +55,19 @@ else
     copy_stardoc "$STARDOC_DIR/tf_test.md" "$WORK_DIR/src/reference/rules/tf-test.md"
     copy_stardoc "$STARDOC_DIR/tf_variables.md" "$WORK_DIR/src/reference/rules/tf-variables.md"
     copy_stardoc "$STARDOC_DIR/tf_file_export.md" "$WORK_DIR/src/reference/rules/tf-file-export.md"
-    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tf-cloud-workspace.md"
+    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tfc-workspace.md"
     copy_stardoc "$STARDOC_DIR/provider_mirror.md" "$WORK_DIR/src/reference/providers/provider-mirror.md"
-    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/publishing/tf-publish-registry.md"
-    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/publishing/tf-publish-oci.md"
+    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/cloud/tfc-publish-registry.md"
+    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/flux/tf-publish-oci-flux.md"
     copy_stardoc "$STARDOC_DIR/extensions.md" "$WORK_DIR/src/reference/extensions/README.md"
 fi
 
-# Find mdbook (handle various runfiles layouts)
+# Find the downloaded @mdbook binary (handle various runfiles layouts)
 MDBOOK=""
 for path in \
-    "$RUNFILES/nixpkgs_mdbook/bin/mdbook" \
-    "$RUNFILES/_main~non_module_deps~nixpkgs_mdbook/bin/mdbook" \
-    "$RUNFILES/rules_tf2_docs~non_module_deps~nixpkgs_mdbook/bin/mdbook"; do
+    "$RUNFILES/_main+non_module_deps+mdbook/mdbook" \
+    "$RUNFILES/rules_tf2_docs+non_module_deps+mdbook/mdbook" \
+    "$RUNFILES/mdbook/mdbook"; do
     if [[ -x "$path" ]]; then
         MDBOOK="$path"
         break

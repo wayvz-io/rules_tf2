@@ -400,7 +400,7 @@ echo "Successfully pushed Terraform stack to $IMAGE"
         ),
     ]
 
-tf_publish_oci = rule(
+tf_publish_oci_flux = rule(
     implementation = _tf_module_push_oci_impl,
     attrs = {
         "module": attr.label(
@@ -452,7 +452,7 @@ tf_publish_oci = rule(
             ...
         )
 
-        tf_publish_oci(
+        tf_publish_oci_flux(
             name = "hub_push",
             module = ":hub",
             stack_name = "aws/hub",

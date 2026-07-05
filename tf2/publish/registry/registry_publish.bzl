@@ -375,7 +375,7 @@ echo "  }}"
         ),
     ]
 
-tf_publish_registry = rule(
+tfc_publish_registry = rule(
     implementation = _tf_module_publish_impl,
     attrs = {
         "module": attr.label(
@@ -422,7 +422,7 @@ tf_publish_registry = rule(
             ...
         )
 
-        tf_publish_registry(
+        tfc_publish_registry(
             name = "my_module_publish",
             module = ":my_module",
             organization = "my-org",

@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+#
+# Bazel-in-a-container shim.
+#
+# WORKAROUND — why this exists:
+#   The nix dev-shell provides its own `bazel` (nixpkgs `bazel_9`), but that
+#   binary is not usable with our remote build execution (RBE): nix-launched
+#   actions resolve to /nix/store paths and leak the host closure into the
+#   sandbox, which a vanilla RBE worker (no /nix/store) can't reproduce, and a
+#   few rules break under it. So instead of nix's bazel we run Bazel inside the
+#   `rules_tf2-dev` container (see //Dockerfile) — bare ubuntu + bazelisk, the
+#   same stock/hermetic toolchains CI and RBE use. Local builds then match CI.
+#
+#   This shim is placed on PATH by .envrc (direnv) so it shadows the nix bazel.
+#   Drop it and remove the PATH_add in .envrc once nix's bazel works with RBE.
+#
+# Overrides (env):
+#   RULES_TF2_CONTAINER_ENGINE   container engine (default: podman)
+#   RULES_TF2_IMAGE              image tag         (default: rules_tf2-dev)
+set -euo pipefail
+
+ENGINE="${RULES_TF2_CONTAINER_ENGINE:-podman}"
+IMAGE="${RULES_TF2_IMAGE:-rules_tf2-dev}"
+
+# Repo root + caller's path relative to it, so `bazel` works from any subdir.
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+REL="$(realpath --relative-to="$REPO_ROOT" "$PWD")"
+
+# Build the image on first use.
+if ! "$ENGINE" image exists "$IMAGE" 2>/dev/null; then
+    echo "[bazel] building $IMAGE image (first run only)…" >&2
+    "$ENGINE" build -t "$IMAGE" "$REPO_ROOT" >&2
+fi
+
+# Allocate stdin/tty only when the caller has them (keeps CI/pipes working).
+flags=()
+[ -t 0 ] && flags+=(-i)
+[ -t 1 ] && flags+=(-t)
+
+# One named volume persists everything under ~/.cache across runs: the bazelisk
+# binary, Bazel's output base (external repos), and the --disk_cache from
+# .bazelrc (~/.cache/bazel-disk). HOME is /root in the container.
+exec "$ENGINE" run --rm "${flags[@]}" \
+    -v "$REPO_ROOT":/workspace \
+    -v rules_tf2_cache:/root/.cache \
+    -w "/workspace/$REL" \
+    "$IMAGE" \
+    bazel "$@"

@@ -43,9 +43,9 @@ Anything that must reach a real backend, real state, or the network is a
 `bazel run` target, deliberately kept **out** of the hermetic test graph:
 
 - `tf_runner` — run arbitrary Terraform commands against a real backend
-- `tf_cloud_workspace` — `:name_tfc_plan` / `:name_tfc_apply` execute remote
+- `tfc_workspace` — `:name_tfc_plan` / `:name_tfc_apply` execute remote
   runs on HCP Terraform / Terraform Enterprise
-- `tf_publish_registry` / `tf_publish_oci` — push the packaged module to a
+- `tfc_publish_registry` / `tf_publish_oci_flux` — push the packaged module to a
   registry (network)
 
 This split is the answer to "when do you break hermeticity?": you break it on
@@ -55,65 +55,33 @@ purpose, at `bazel run`, for the operations that inherently can't be hermetic
 ## Toolchains & execution environments
 
 Hermeticity is only as good as the toolchains that build the graph. rules_tf2
-supports two toolchain paths, and the choice affects nothing about *what*
-`bazel test` checks — only *where the build tools come from* and, for remote
-execution, *what a worker must have installed*.
+builds entirely from **stock, downloaded toolchains** — no host compiler, JDK,
+Go, or nix is required. A plain machine with Bazel is enough:
 
-### Default path: stock, hermetic toolchains (no nix)
-
-Out of the box, the build uses toolchains Bazel downloads for itself. No host
-compiler, JDK, or Go is required — a plain machine with Bazel is enough:
-
-- **C/C++:** a hermetic downloaded CC toolchain (`toolchains_llvm`), so the
-  build doesn't depend on the host's system compiler.
+- **C/C++:** a hermetic downloaded LLVM CC toolchain (`toolchains_llvm`) with a
+  pinned sysroot, so the build never touches the host's system compiler.
 - **Java:** the default remote JDK from `rules_java` — no host Java needed.
 - **Go:** the Go SDK is fetched hermetically via `rules_go`
-  (`go_sdk.download(...)`), not taken from the host `PATH`. This is what builds
-  the ruleset's own Go pieces (e.g. the `tf2` TFLint ruleset).
-- **mdbook** (docs generation): a downloaded release binary. Note the download
-  is a glibc `linux x86_64` build, so it won't run on a NixOS host — NixOS
-  contributors build the book with the `mdbook` from the `flake.nix` dev-shell
-  instead.
-- **Terraform / TFLint / terraform-docs:** already downloaded hermetically by
-  the ruleset's own module extensions. This was **always** the case — these
-  tools have never come from nix, and consuming projects get them the same way
-  regardless of the toolchain path.
+  (`go_sdk.download(...)`), not from the host `PATH`. This builds the ruleset's
+  own Go pieces (e.g. the `tf2` TFLint ruleset).
+- **mdbook** (docs generation): a downloaded release binary (`@mdbook`).
+- **Terraform / TFLint / terraform-docs:** downloaded hermetically by the
+  ruleset's own module extensions. Consuming projects get them the same way.
 
-A committed `Dockerfile` (a system `gcc`/JDK on top of the pinned Bazel from
-`.bazelversion`) is available if you want a reproducible local dev/CI parity
-container, but it is an *option*, not a requirement. CI runs on a bare
-`ubuntu-latest` runner using exactly these stock toolchains.
-
-### Opt-in path: nix (`--config=nix`)
-
-nix is fully supported but **optional**. Building with `--config=nix` swaps in
-the nixpkgs host platform, a nix-provided Java runtime, and nix CC / Go /
-mdbook toolchains instead of the downloaded ones. The `flake.nix` dev-shell
-remains for contributors who prefer to work inside a nix environment. Choose
-this path when you want your toolchains pinned by nixpkgs rather than by
-Bazel's downloads; otherwise the default path needs no extra flags.
+> A `flake.nix` dev-shell is available for contributors who prefer to work
+> inside nix (it provides `terraform`, `tflint`, `terraform-docs`, and a pinned
+> Bazel), but it is a convenience only — nothing in the build depends on nix,
+> and CI runs on a bare `ubuntu-latest` runner using exactly these stock
+> toolchains.
 
 ### What this means for remote execution (RBE)
 
-The hermetic tests are cacheable and remote-executable, but remote execution
-adds one requirement the local case hides: **a remote executor must have the
-action's toolchain closure available.** How that closure gets to the worker
-depends entirely on which path above you build with:
-
-- **Stock toolchains (default):** the CC, Java, Go, and mdbook toolchains are
-  ordinary Bazel external repositories, so Bazel ships them to workers as part
-  of the action inputs. No special worker preparation is needed — any generic
-  RBE worker can run the actions.
-- **nix toolchains (`--config=nix`):** the toolchains live under `/nix/store`,
-  which is *not* shipped as action inputs. Each worker must have the matching
-  `/nix/store` closure synced ahead of time. This is exactly why the local
-  Buildbarn smoke test in `tools/rbe-local` bind-mounts `/nix/store` into the
-  worker.
-
-This reconciles the earlier behaviour where "RBE needs the nix store" seemed
-inherent: it was never inherent to rules_tf2. Remote execution needed the nix
-store *only because the build was using nix toolchains*. On the default stock
-path, RBE needs no nix store at all.
+The hermetic tests are cacheable and remote-executable. Because the CC, Java,
+Go, and mdbook toolchains are ordinary Bazel external repositories, Bazel ships
+them to workers as part of the action inputs — so any generic RBE worker can run
+the actions with **no special preparation**: no host toolchains, and no
+`/nix/store` closure to sync. The local Buildbarn smoke test in
+`tools/rbe-local` runs on a vanilla container for exactly this reason.
 
 ## Mapping onto CI and CD
 
@@ -125,12 +93,12 @@ A common pipeline shape — and the one rules_tf2 is designed around:
    version, native-test, and **policy** checks with no network and no cloud.
    This is fast, cacheable, and remote-executable.
 2. **Package:** the same run produces the module bundle (sources + nested
-   modules + docs). `tf_publish_registry` / `tf_publish_oci` package exactly
+   modules + docs). `tfc_publish_registry` / `tf_publish_oci_flux` package exactly
    the Bazel-exposed files — no stray files, no build artifacts. (The
    generated lockfile is deliberately *not* bundled — see the
    `*_no_lockfile_test`.)
 3. **Non-hermetic plan (optional):** hand the packaged module to a
-   plan/policy platform. `tf_cloud_workspace`'s `:name_tfc_plan` drives a
+   plan/policy platform. `tfc_workspace`'s `:name_tfc_plan` drives a
    remote plan on HCP Terraform / TFE via the TFE API; a TACOS platform that
    exposes the TFE-compatible API (e.g. Scalr, Terrakube) is the same shape,
    though rules_tf2 only exercises HCP/TFE directly.
@@ -148,7 +116,7 @@ A common pipeline shape — and the one rules_tf2 is designed around:
    (`org.opencontainers.image.source`/`revision`), so a GitOps controller can
    watch for new versions.
 2. **Apply centrally:** applies run where your state and credentials live —
-   `tf_cloud_workspace`'s `:name_tfc_apply` (remote on HCP/TFE), or your own
+   `tfc_workspace`'s `:name_tfc_apply` (remote on HCP/TFE), or your own
    system subscribing to new artifact versions and triggering the apply.
 
 rules_tf2's job ends at producing a **hermetic, versioned, policy-checked
@@ -173,7 +141,7 @@ too, by baking the filesystem mirror into the agent image.
 ## See Also
 
 - [Architecture](architecture.md) — component layout
-- [`tf_cloud_workspace`](../reference/cloud/tf-cloud-workspace.md) — remote plan/apply
+- [`tfc_workspace`](../reference/cloud/tfc-workspace.md) — remote plan/apply
 - [`tfc_agent_image`](../reference/cloud/tfc-agent-image.md) — provider-hermetic agents
-- [Publishing](../reference/publishing/README.md) — registry and OCI artifacts
+- [Flux publishing](../reference/flux/README.md) — module OCI artifacts for GitOps
 - [Sentinel](sentinel.md) / [OPA](opa.md) — hermetic policy tests
