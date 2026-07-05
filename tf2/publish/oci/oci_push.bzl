@@ -42,17 +42,11 @@ fi"""
 _PUSH_TEMPLATE = """#!/usr/bin/env bash
 set -euo pipefail
 
-# Resolve revision if it contains shell commands
+# Bash command-substitutes $(...) in these double-quoted assignments at push
+# time, so a literal SHA and a computed value like $(git rev-parse HEAD) both
+# resolve correctly.
 REVISION="{revision}"
-if [[ "$REVISION" == *'$$('* ]]; then
-    REVISION=$(eval "echo $REVISION")
-fi
-
-# Resolve image tag if it contains shell commands
 IMAGE="{image}"
-if [[ "$IMAGE" == *'$$('* ]]; then
-    IMAGE=$(eval "echo $IMAGE")
-fi
 
 REGISTRY="{registry}"
 SOURCE_URL="{source_url}"
@@ -267,7 +261,7 @@ oci_push = rule(
             srcs = [":stack"],
             image = "ghcr.io/org/repo/tf/stack:latest",
             source_url = "git@github.com:org/repo.git",
-            revision = "$(COMMIT_SHA)",
+            revision = "$(git rev-parse HEAD)",
         )
     """,
 )
@@ -289,7 +283,7 @@ def _tf_module_push_oci_impl(ctx):
     image = "{}/{}/tf/{}:{}".format(registry, repository, ctx.attr.stack_name, tag)
 
     source_url = ctx.attr.source_url or "git@github.com:{}.git".format(repository)
-    revision = ctx.attr.revision or "$$(git rev-parse HEAD)"
+    revision = ctx.attr.revision or "$(git rev-parse HEAD)"
     path = ctx.attr.path or ctx.label.package
 
     return _build_flux_push(
