@@ -5,8 +5,8 @@ build --enable_workspace=false
 # Enable isolated extension usages for conditional nixpkgs setup
 build --experimental_isolated_extension_usages
 
-# Use local disk cache
-build --disk_cache=~/.cache/bazel-disk-cache
+# Local disk cache at setup-bazel's default path, so local and CI agree.
+build --disk_cache=~/.cache/bazel-disk
 
 # Show test errors
 test --test_output=errors
@@ -45,6 +45,12 @@ build --host_cxxopt=-std=c++23
 # Build Go in pure mode (no cgo); avoids the LLVM toolchain's redacted_dates.h
 # force-include, which clang can't resolve from the cgo stdlib builder.
 build --@rules_go//go/config:pure=true
+
+# Download the protoc bundled in protobuf 33.4 instead of compiling it from
+# source, which otherwise costs stardoc (//docs) a ~35 min build on a cold RBE
+# worker. Starlark flag: keep it off `common` (would break `mod`/`version`);
+# `test` inherits it from `build`.
+build --@protobuf//bazel/toolchains:prefer_prebuilt_protoc
 
 # ----------------------------------------------------------------------------
 # Remote Build Execution (RBE)
