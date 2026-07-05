@@ -18,9 +18,10 @@ No providers.
 | Name | Source | Version |
 |------|--------|---------|
 | <a name="module_another"></a> [another](#module\_another) | ../another_module | n/a |
-| <a name="module_git_module"></a> [git\_module](#module\_git\_module) | git::https://github.com/terraform-aws-modules/terraform-aws-iam.git | v5.0.0 |
+| <a name="module_git_module"></a> [git\_module](#module\_git\_module) | github.com/terraform-aws-modules/terraform-aws-iam//modules/iam-account | n/a |
+| <a name="module_git_root"></a> [git\_root](#module\_git\_root) | github.com/cloudposse/terraform-null-label | n/a |
 | <a name="module_simple"></a> [simple](#module\_simple) | ../simple_module | n/a |
-| <a name="module_vpc"></a> [vpc](#module\_vpc) | terraform-aws-modules/vpc/aws | ~> 5.0 |
+| <a name="module_vpc"></a> [vpc](#module\_vpc) | terraform-aws-modules/vpc/aws | n/a |
 
 ## Resources
 
@@ -35,5 +36,5 @@ No inputs.
 | Name | Description |
 |------|-------------|
 | <a name="output_simple_module_output"></a> [simple\_module\_output](#output\_simple\_module\_output) | Output from the simple module |
-| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | VPC ID from remote module |
+| <a name="output_vpc_id"></a> [vpc\_id](#output\_vpc\_id) | VPC ID from the external vpc module |
 <!-- END_TF_DOCS -->

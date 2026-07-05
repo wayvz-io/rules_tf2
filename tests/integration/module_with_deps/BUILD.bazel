@@ -13,6 +13,9 @@ tf_module(
     modules = [
         "//tests/integration/simple_module:tf_module",
         "//tests/integration/another_module:tf_module",
+        "@tf_module_registry//:vpc_aws_5",
+        "@tf_module_registry//:terraform_aws_modules_aws_iam_5_0_0",
+        "@tf_module_registry//:cloudposse_null_label_0_25_0",
     ],
     providers = [
         "@tf_provider_registry//:aws_5",

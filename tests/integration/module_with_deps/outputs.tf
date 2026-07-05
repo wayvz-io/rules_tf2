@@ -4,6 +4,6 @@ output "simple_module_output" {
 }
 
 output "vpc_id" {
-  description = "VPC ID from remote module"
+  description = "VPC ID from the external vpc module"
   value       = module.vpc.vpc_id
 }

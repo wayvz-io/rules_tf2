@@ -5,18 +5,23 @@ module "simple" {
   # Pass through any required variables
 }
 
-# Also test remote module (should not require dependency)
+# External registry module (version pinned in versions.json)
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"
+  source = "terraform-aws-modules/vpc/aws"
 
   name = "test-vpc"
   cidr = "10.0.0.0/16"
 }
 
-# Git module (should not require dependency)
+# External git submodule (//subpath)
 module "git_module" {
-  source = "git::https://github.com/terraform-aws-modules/terraform-aws-iam.git?ref=v5.0.0"
+  source        = "github.com/terraform-aws-modules/terraform-aws-iam//modules/iam-account"
+  account_alias = "example-account-alias"
+}
+
+# External git module with a real root module
+module "git_root" {
+  source = "github.com/cloudposse/terraform-null-label"
 }
 
 # Another relative module
