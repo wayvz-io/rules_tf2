@@ -59,8 +59,13 @@ excluded).
    Pushes `{registry}/{repository}/tf/{stack_name}:{tag}` (defaults:
    `ghcr.io`, tag `unstable`) via ORAS, with Flux CNCF media types and the
    `org.opencontainers.image.source` / `revision` annotations a Flux
-   `OCIRepository` watches. If the `gh` CLI is logged in, `GH_USERNAME`/`GH_TOKEN`
-   are picked up automatically; otherwise set them (or `username_env`/`password_env`).
+   `OCIRepository` watches. Authentication follows the ambient OCI credential
+   chain, like `rules_oci`: ORAS reads `~/.docker/config.json` (plus any
+   credential helpers), so a prior `docker login <registry>` / `oras login
+   <registry>` — or `docker/login-action` in CI — is enough. Alternatively set
+   `OCI_USERNAME`/`OCI_PASSWORD` (or the vars named by `username_env`/`password_env`)
+   and the push logs in for you. For `ghcr.io`, that's your GitHub username plus a
+   PAT or `GITHUB_TOKEN` — no `gh` CLI required.
 
 ## Verification
 
