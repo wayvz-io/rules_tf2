@@ -85,7 +85,11 @@ jobs:
       - name: Build and test on RBE
         env:
           USE_BAZEL_VERSION: "9.1.1"
-        run: bazel test //... --config=rbe_local
+        # //docs is excluded: it compiles all of protobuf from source (for
+        # stardoc), which is slow on a single fresh Buildbarn worker with no
+        # cross-run CAS cache. No test needs it; docs is built in the `local`
+        # job. This job proves the ruleset's tests run remotely.
+        run: bazel test --config=rbe_local -- //... -//docs/...
 
       - name: Buildbarn logs (on failure)
         if: failure()
