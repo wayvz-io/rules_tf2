@@ -1,35 +1,31 @@
 # Execution platforms for Remote Build Execution (RBE).
 #
-# These platforms carry `nix-support: true` because the ruleset's action
-# toolchains resolve to /nix/store paths - RBE workers must have those store
-# paths available (e.g. by building the worker image from the same Nix closure,
-# or by mounting the host /nix/store into the worker). See //.bazelrc (config rbe)
-# and //tools/rbe-local for a local podman-based Buildbarn example.
+# The stock toolchains are all downloaded (LLVM CC, remote JDK, Go), so Bazel
+# ships them to the workers as ordinary external repositories. A vanilla Ubuntu
+# worker executes the actions with no special preparation — no /nix/store, no
+# custom toolchain image. See //.bazelrc (config rbe / rbe_local) and
+# //tools/rbe-local for a local podman-based Buildbarn example.
 
-# Platform for a remote Buildbarn cluster. Set `container-image` to your own
-# Nix-provisioned worker image.
+# Platform for a remote Buildbarn (or other) cluster. Point `container-image` at
+# a plain Ubuntu worker image; the toolchains ride along as action inputs.
 platform(
-    name = "rbe_nix_platform",
+    name = "rbe_platform",
     constraint_values = [
-        "@platforms//cpu:aarch64",
+        "@platforms//cpu:x86_64",
         "@platforms//os:linux",
     ],
     exec_properties = {
         "OSFamily": "linux",
-        "cpu": "aarch64",
-        # Replace with your own RBE worker image (must contain the required
-        # /nix/store paths, or mount the host store into the worker).
-        "container-image": "docker://ghcr.io/your-org/rbe-worker:latest",
-        "nix-support": "true",
+        "container-image": "docker://docker.io/library/ubuntu:24.04",
     },
     visibility = ["//visibility:public"],
 )
 
-# Platform for the local podman Buildbarn smoke test (//tools/rbe-local).
-# The exec_properties MUST match the properties advertised by the stock Buildbarn
-# hardlinking worker (config/worker-hardlinking-ubuntu22-04.jsonnet), otherwise the
-# scheduler will not dispatch actions to it. That worker is a vanilla Ubuntu image
-# with NO /nix/store - so only Nix-free actions (e.g. a plain genrule) will execute.
+# Platform for the local podman Buildbarn (//tools/rbe-local). The exec_properties
+# MUST match the properties advertised by the stock Buildbarn hardlinking worker
+# (config/worker-hardlinking-ubuntu22-04.jsonnet), otherwise the scheduler will
+# not dispatch actions to it. That worker is a vanilla Ubuntu image with no
+# /nix/store — with the stock (downloaded) toolchains, the full build runs on it.
 # Use with `--config=rbe_local` and instance name "hardlinking".
 platform(
     name = "rbe_local_platform",

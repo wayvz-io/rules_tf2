@@ -13,7 +13,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  # Local mode: the default stock/hermetic toolchains on a bare runner.
+  local:
+    name: Test (local)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -39,6 +41,56 @@ jobs:
       - name: Build and test
         env:
           # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
-          # latest and ignores .bazelversion. Bazel 9 is a planned follow-up.
-          USE_BAZEL_VERSION: "8.5.0"
+          # latest and ignores .bazelversion (setup-bazel does not honor it).
+          USE_BAZEL_VERSION: "9.1.1"
         run: bazel test //...
+
+  # RBE mode: the same build executed remotely on a vanilla Ubuntu Buildbarn
+  # worker (docker compose). Proves the stock toolchains ship to a worker with
+  # no /nix/store and no special preparation.
+  rbe:
+    name: Test (RBE)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          sudo docker image prune --all --force || true
+          df -h /
+
+      - uses: bazel-contrib/setup-bazel@0.15.0
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Start local Buildbarn (docker compose)
+        run: |
+          tools/rbe-local/run.sh up -d
+          echo "waiting for the Buildbarn frontend on :8980 ..."
+          for i in $(seq 1 60); do
+            if (exec 3<>/dev/tcp/localhost/8980) 2>/dev/null; then
+              echo "frontend is up"; break
+            fi
+            sleep 2
+          done
+          docker compose -f tools/rbe-local/docker-compose.yml ps
+
+      - name: Build and test on RBE
+        env:
+          USE_BAZEL_VERSION: "9.1.1"
+        run: bazel test //... --config=rbe_local
+
+      - name: Buildbarn logs (on failure)
+        if: failure()
+        run: docker compose -f tools/rbe-local/docker-compose.yml logs --tail=200 || true
+
+      - name: Tear down Buildbarn
+        if: always()
+        run: tools/rbe-local/run.sh down || true

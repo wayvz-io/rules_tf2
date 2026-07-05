@@ -34,8 +34,8 @@ jobs:
       - name: Run tests before release
         env:
           # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
-          # latest and ignores .bazelversion. Bazel 9 is a planned follow-up.
-          USE_BAZEL_VERSION: "8.5.0"
+          # latest and ignores .bazelversion (setup-bazel does not honor it).
+          USE_BAZEL_VERSION: "9.1.1"
         run: |
           echo "Running tests to ensure release quality..."
           bazel test //...
