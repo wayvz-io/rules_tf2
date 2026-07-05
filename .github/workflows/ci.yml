@@ -65,6 +65,12 @@ jobs:
       contents: read
     env:
       RBE_EXECUTOR: grpc://bb.lab.wayvz.io:8980
+      # bes_backend is the gateway's plaintext gRPC BES listener on :8082
+      # (Tailscale-encrypted, like the RBE :8980 endpoint — no TLS cert needed).
+      # results_url is the human-facing https UI link. Needs the tailnet ACL to
+      # also allow tag:ci-server -> gateway:8082.
+      BES_BACKEND: grpc://bb-portal.lab.wayvz.io:8082
+      BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
       - uses: actions/checkout@v5
 
@@ -100,4 +106,9 @@ jobs:
         env:
           USE_BAZEL_VERSION: "9.1.1"
         # //docs builds fast on a cold worker now via prefer_prebuilt_protoc (.bazelrc).
-        run: bazel test --config=remote --remote_executor="$RBE_EXECUTOR" //...
+        run: |
+          bazel test --config=remote \
+            --remote_executor="$RBE_EXECUTOR" \
+            --bes_backend="$BES_BACKEND" \
+            --bes_results_url="$BES_RESULTS_URL" \
+            //...

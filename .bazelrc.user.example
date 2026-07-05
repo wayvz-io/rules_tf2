@@ -13,5 +13,11 @@
 #
 # Then:  bazel build --config=remote //...
 #
+# Optionally report invocations to a BES backend (e.g. bb-portal / BuildBuddy)
+# for a browsable build UI:
+#
+#   build --bes_backend=grpc://bb-portal.example.internal:8082    # gRPC, not https
+#   build --bes_results_url=https://bb-portal.example.internal/bazel-invocations/
+#
 # The `remote_platform` exec_properties in //tools/remote-toolchains must match
 # the queue the cluster's scheduler advertises, or actions queue with no worker.
