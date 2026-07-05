@@ -82,30 +82,17 @@ def _process_external_module_files(_, module, module_name):
     files_to_copy = []
     module_info = module[TfExternalModuleInfo]
 
-    # Get the repository name from the module label to compute relative paths
-    # External modules come from repositories like @tf_module_label_null_0
-    repo_name = module.label.workspace_name
-
     for src_file in module_info.files.to_list():
-        # Compute relative path within the external module
-        # File paths look like: external/<repo_name>/path/to/file.tf
-        # or for short_path: ../<repo_name>/path/to/file.tf
-        src_path = src_file.path
-
-        # Find the repository root in the path and extract relative path
-        relative_path = src_file.basename  # Default fallback
-
-        # Try to extract relative path from full path
-        # Pattern: .../external/<repo_name>/<relative_path>
-        if repo_name and repo_name in src_path:
-            idx = src_path.find(repo_name)
-            if idx != -1:
-                # Skip past repo_name and the following /
-                after_repo = src_path[idx + len(repo_name):]
-                if after_repo.startswith("/"):
-                    relative_path = after_repo[1:]
-                elif after_repo == "":
-                    relative_path = src_file.basename
+        # Derive the module-relative path from short_path to preserve submodule
+        # directories. Flattening to basename collides files (e.g. a submodule's
+        # variables.tf over the root's).
+        short_path = src_file.short_path
+        if short_path.startswith("../"):
+            after_repo = short_path[3:]
+            parts = after_repo.split("/", 1)
+            relative_path = parts[1] if len(parts) > 1 else src_file.basename
+        else:
+            relative_path = short_path
 
         dest_path = paths.join("modules", module_name, relative_path)
         files_to_copy.append((src_file, dest_path))
@@ -141,7 +128,10 @@ def _rewrite_terraform_file(ctx, src_file, dest_path, module_mappings):
         # Escape special characters for sed
         old_escaped = old_source.replace("/", "\\/").replace(".", "\\.")
         new_escaped = new_source.replace("/", "\\/")
-        sed_commands.append('s/source\\s*=\\s*"{}"/source = "{}"/g'.format(old_escaped, new_escaped))
+
+        # Match the exact source or a "<source>//<subdir>" reference, keeping the
+        # //subdir so external submodules resolve to the vendored copy.
+        sed_commands.append('s/source\\s*=\\s*"{}\\(\\/\\/[^"]*\\)\\?"/source = "{}\\1"/g'.format(old_escaped, new_escaped))
 
     # Use sed to rewrite the file
     sed_expr = "; ".join(sed_commands)
@@ -260,17 +250,11 @@ def process_nested_modules(ctx, parent_srcs, modules):
             module_name_to_label[module_name] = str(module.label)
             module_names.append(module_name)
 
-            # Create mapping for the external module
-            # Map the source URL to ./modules/<alias>
+            # Map the source URL to ./modules/<alias>. A "<source>//<subdir>"
+            # reference is handled by _rewrite_terraform_file, which keeps the
+            # //subdir.
             new_source = "./modules/" + module_name
             module_mappings[module_info.source_url] = new_source
-
-            # Also map common reference patterns
-            # For registry modules: terraform-aws-modules/vpc/aws -> ./modules/vpc_aws_5
-            if module_info.source_type == "registry":
-                # Map with version constraint
-                versioned_source = "{}//{}".format(module_info.source_url, module_info.version)
-                module_mappings[versioned_source] = new_source
 
             # Process external module files
             module_files = _process_external_module_files(ctx, module, module_name)

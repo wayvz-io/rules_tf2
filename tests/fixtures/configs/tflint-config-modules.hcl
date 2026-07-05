@@ -55,3 +55,8 @@ rule "terraform_unused_declarations" {
 rule "terraform_module_version" {
   enabled = false
 }
+
+# Disabled because git sources are pinned via versions.json, not a ?ref in source
+rule "terraform_module_pinned_source" {
+  enabled = false
+}

@@ -1,5 +1,6 @@
 """Integration test for per-module provider caching"""
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tf2/macros:tf_module.bzl", "tf_module")
 
 # Module that uses only the null provider

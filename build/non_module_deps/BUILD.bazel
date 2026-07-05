@@ -7,9 +7,4 @@ bzl_library(
     name = "non_module_deps",
     srcs = ["non_module_deps.bzl"],
     visibility = ["//visibility:public"],
-    deps = [
-        "@rules_nixpkgs_cc//:cc",
-        "@rules_nixpkgs_core//:nixpkgs",
-        "@rules_nixpkgs_java//:java",
-    ],
 )

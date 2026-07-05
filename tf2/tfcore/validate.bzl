@@ -77,6 +77,7 @@ mkdir -p '{staging_dir}'
                 # short_path for external repos: ../+tf_providers+tf_provider_registry/mirror_linux_arm64/...
                 # Runfiles path: +tf_providers+tf_provider_registry/mirror_linux_arm64
                 path = f.short_path
+
                 # Strip leading ../ for external repos
                 if path.startswith("../"):
                     path = path[3:]
@@ -130,52 +131,13 @@ export TF_INPUT=false
 # Run terraform init with backend disabled for validation
 $TERRAFORM_BIN init -backend=false -upgrade=false -lockfile=readonly -no-color
 
-# Run terraform validate with JSON output to detect warnings
-VALIDATE_OUTPUT=$($TERRAFORM_BIN validate -json -no-color 2>&1) || true
-
-# Check if we got valid JSON
-if ! echo "$VALIDATE_OUTPUT" | jq -e . >/dev/null 2>&1; then
-    echo "ERROR: Terraform validate did not return valid JSON"
-    echo "Output was:"
-    echo "$VALIDATE_OUTPUT"
+# Validity is terraform's exit code (non-zero only on errors). Warnings are
+# printed but do not fail the test; tflint owns warning strictness.
+if ! $TERRAFORM_BIN validate -no-color; then
     exit 1
 fi
 
-VALIDATE_VALID=$(echo "$VALIDATE_OUTPUT" | jq -r '.valid // "false"')
-
-# Filter out known acceptable warnings:
-# - "Redundant empty provider block" is expected for modules with provider aliases
-FILTERED_WARNINGS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]? | select(.severity == "warning") | select(.summary != "Redundant empty provider block")]')
-VALIDATE_WARNINGS=$(echo "$FILTERED_WARNINGS" | jq 'length')
-VALIDATE_ERRORS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]? | select(.severity == "error")] | length')
-
-# Show any diagnostics (including filtered ones for visibility)
-ALL_DIAGNOSTICS=$(echo "$VALIDATE_OUTPUT" | jq '[.diagnostics[]?] | length')
-if [ "$ALL_DIAGNOSTICS" -gt 0 ]; then
-    echo "Terraform validation diagnostics:"
-    echo "$VALIDATE_OUTPUT" | jq -r '.diagnostics[] | "  \\(.severity | ascii_upcase): \\(.summary)\\n    \\(.detail // "No details")\\n    at \\(.range.filename // "unknown"):\\(.range.start.line // 0)"'
-
-    # Note if we filtered any warnings
-    SKIPPED=$((ALL_DIAGNOSTICS - VALIDATE_WARNINGS - VALIDATE_ERRORS))
-    if [ "$SKIPPED" -gt 0 ]; then
-        echo ""
-        echo "Note: $SKIPPED warning(s) were skipped (known acceptable patterns)"
-    fi
-fi
-
-# Fail on errors
-if [ "$VALIDATE_VALID" != "true" ]; then
-    echo "ERROR: Terraform validation failed with errors"
-    exit 1
-fi
-
-# Fail on actionable warnings (after filtering)
-if [ "$VALIDATE_WARNINGS" -gt 0 ]; then
-    echo "ERROR: Terraform validation produced $VALIDATE_WARNINGS actionable warning(s)"
-    exit 1
-fi
-
-echo "Terraform validation passed (no errors or warnings)"
+echo "Terraform validation passed"
 """.format(
         staging_basename = staging_dir.basename,
         terraform_bin = terraform_bin,

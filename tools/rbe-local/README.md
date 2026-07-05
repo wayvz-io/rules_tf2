@@ -1,44 +1,57 @@
-# Local Buildbarn (RBE) smoke test
+# Local Buildbarn (RBE) cluster
 
 A minimal [Buildbarn](https://github.com/buildbarn/bb-deployments) cluster you can
-run locally with **podman** to smoke-test Bazel Remote Build Execution against
+run locally with **podman** (or docker) to run Bazel Remote Build Execution against
 `rules_tf2`. Adapted from the upstream
 [`bb-deployments/docker-compose`](https://github.com/buildbarn/bb-deployments/tree/main/docker-compose)
 example, trimmed to the non-privileged hardlinking worker (friendlier to rootless
 podman than the FUSE worker).
 
+The topology is a small set of pods the Bazel CLI connects to:
+
+```
+bazel (CLI)  ──grpc:8980──▶  frontend ──▶ storage-0/1 (CAS + action cache)
+                                      └──▶ scheduler ──▶ worker ──▶ runner (Ubuntu)
+```
+
 ## Why this exists
 
-`rules_tf2` was developed against an internal Buildbarn cluster whose workers were
-built from the **same Nix images** as the dev shell. Action toolchains resolve to
-`/nix/store` paths, so a worker must have those paths to execute builds. This local
-cluster uses a **stock Ubuntu worker**, and the runner container **bind-mounts the
-host `/nix/store` read-only** (see `docker-compose.yml`) — the local equivalent of
-"sync the Nix images onto the RBE workers". That is what lets a Nix-toolchain action
-actually run on a generic Ubuntu worker; without it the action fails with
-`fork/exec /nix/store/...-bash: no such file or directory`. On a non-Nix host you
-would instead bake the required store paths into the worker image.
+It lets you run — and CI validate — the **whole build remotely** on a **vanilla
+Ubuntu worker**. The stock toolchains (LLVM CC, remote JDK, Go, mdbook) are all
+downloaded and shipped to the worker as ordinary action inputs, so the runner needs
+no special preparation: no `/nix/store`, no custom toolchain image. (Earlier the
+ruleset resolved toolchains to `/nix/store` paths and this cluster had to bind-mount
+the host store into the worker; dropping the Nix toolchains removed that entirely.)
 
-Verified locally: `bazel build --config=rbe_local //tools/rbe-local:remote_smoke`
-reports `1 remote` — the action is dispatched to and executed by the podman worker.
+Verified: `bazel build --config=rbe_local //go/tflint_ruleset:tflint-ruleset-tf2`
+reports `181 remote` — the Go toolchain and the whole ruleset compile on the podman
+worker with no `/nix/store`.
 
 ## Usage
 
 ```bash
-# Terminal 1 - start the cluster (foreground)
+# Terminal 1 — start the cluster (foreground)
 tools/rbe-local/run.sh up
 
-# Terminal 2 - run the smoke test
-tools/rbe-local/smoke_test.sh
+# Terminal 2 — run a build/test remotely
+bazel test //... --config=rbe_local          # full suite on the worker
+tools/rbe-local/smoke_test.sh                # or just the quick plumbing check
 
 # When done
 tools/rbe-local/run.sh down
 ```
 
-`smoke_test.sh` builds `//tools/rbe-local:remote_smoke` (a trivial genrule) with
-`--config=rbe_local`, which points Bazel at `grpc://localhost:8980`, instance name
+`--config=rbe_local` points Bazel at `grpc://localhost:8980`, instance name
 `hardlinking`, and the matching execution platform
-`//tools/remote-toolchains:rbe_local_platform`.
+`//tools/remote-toolchains:rbe_local_platform`. That platform's `exec_properties`
+(`OSFamily`, `container-image`) must match the properties the worker advertises in
+`config/worker-hardlinking-ubuntu22-04.jsonnet`, or the scheduler will not dispatch.
+
+If the runner stays in `Created` under podman-compose (it has no `depends_on`):
+
+```bash
+podman start rbe-local_runner-hardlinking-ubuntu22-04_1
+```
 
 ## Requirements
 

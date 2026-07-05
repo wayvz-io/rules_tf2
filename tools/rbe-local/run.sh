@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Bring up (or tear down) a local Buildbarn cluster with podman for RBE smoke tests.
+# Bring up (or tear down) a local Buildbarn cluster with podman for RBE.
 #
 #   ./run.sh up      # create volume dirs and start the cluster (foreground)
+#   ./run.sh up -d   # ... detached (used by CI)
 #   ./run.sh down    # stop and remove the cluster
 #
 # Requires: podman + podman-compose (or docker + docker compose).
@@ -32,7 +33,11 @@ setup_volumes() {
 case "${1:-up}" in
     up)
         setup_volumes
-        exec ${COMPOSE} up
+        if [ "${2:-}" = "-d" ]; then
+            exec ${COMPOSE} up -d
+        else
+            exec ${COMPOSE} up
+        fi
         ;;
     down)
         ${COMPOSE} down || true

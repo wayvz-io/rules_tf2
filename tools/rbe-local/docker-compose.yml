@@ -80,17 +80,13 @@ services:
     - sh
     - -c
     - while ! test -f /bb/installed; do sleep 1; done; exec /bb/bb_runner /config/runner-ubuntu22-04.jsonnet
+    # No network — the build (incl. terraform init) runs fully offline.
     network_mode: none
     volumes:
     - ./config:/config
     - ./volumes/bb:/bb
     - ./volumes/worker-hardlinking-ubuntu22-04:/worker
-    # rules_tf2 actions resolve toolchains to /nix/store paths, which a vanilla
-    # Ubuntu worker does not have. Mounting the host store read-only is the local
-    # equivalent of "sync the Nix images onto the RBE workers". Without this, real
-    # builds fail with: fork/exec /nix/store/...-bash: no such file or directory.
-    - /nix/store:/nix/store:ro
-    # NOTE: no `depends_on` - podman-compose can leave a dependent of a one-shot
-    # (runner-installer) stuck in "Created". The `while test -f /bb/installed`
-    # loop above already handles ordering. If the runner does not start, run:
+    # No /nix/store mount: stock toolchains ship to the worker as action inputs.
+    # No `depends_on` - podman-compose can leave the runner stuck in "Created";
+    # the `while test -f /bb/installed` loop handles ordering. If it doesn't start:
     #   podman start rbe-local_runner-hardlinking-ubuntu22-04_1

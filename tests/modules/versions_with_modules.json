@@ -16,11 +16,13 @@
   "modules": {
     "registry": {
       "registry.terraform.io": {
-        "cloudposse/label/null": ["0.25.0"]
+        "cloudposse/label/null": ["0.25.0"],
+        "terraform-aws-modules/vpc/aws": ["5.0.0"]
       }
     },
     "git": {
-      "github.com/cloudposse/terraform-null-label": ["0.25.0"]
+      "github.com/cloudposse/terraform-null-label": ["0.25.0"],
+      "github.com/terraform-aws-modules/terraform-aws-iam": ["v5.0.0"]
     }
   }
 }

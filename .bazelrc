@@ -42,58 +42,40 @@ build --tool_java_runtime_version=remotejdk_21
 build --cxxopt=-std=c++23
 build --host_cxxopt=-std=c++23
 
-# Build Go in pure mode (no cgo). The ruleset's Go code and its dependencies are
-# pure Go, and pure mode avoids the hermetic LLVM toolchain's force-included
-# redacted_dates.h header, which clang cannot resolve when rules_go invokes it
-# from the cgo stdlib builder.
+# Build Go in pure mode (no cgo); avoids the LLVM toolchain's redacted_dates.h
+# force-include, which clang can't resolve from the cgo stdlib builder.
 build --@rules_go//go/config:pure=true
 
 # ----------------------------------------------------------------------------
-# Optional Nix toolchains — opt in with `--config=nix`.
+# Remote Build Execution (RBE)
 #
-# By default rules_tf2 builds with stock/hermetic toolchains (LLVM CC, remote
-# JDK, downloaded Go + mdbook) and needs no Nix. `--config=nix` swaps in the
-# Nix-provided CC + Java toolchains from the flake dev-shell. The Nix repos are
-# referenced ONLY here (via --extra_toolchains), so they are fetched only when
-# this config is active; a default build never needs Nix installed.
+# Stock toolchains are downloaded and shipped to workers as external repos, so a
+# vanilla Ubuntu worker needs no special prep. --config=rbe targets a remote
+# executor; --config=rbe_local targets the local podman Buildbarn (//tools/rbe-local).
+# The shell/PATH pins make actions use the worker's tools, not the host's (a Nix
+# dev-shell would otherwise leak /nix/store paths into remote actions).
 # ----------------------------------------------------------------------------
-build:nix --host_platform=@rules_nixpkgs_core//platforms:host
-build:nix --extra_toolchains=@nixpkgs_config_cc_toolchains//:all,@nixpkgs_java_runtime_toolchain//:all,@nixpkgs_java_jdk_toolchain//:all
-build:nix --java_runtime_version=nixpkgs_java
-build:nix --tool_java_runtime_version=nixpkgs_java
-
-# Remote Build Execution (RBE) Configuration
-#
-# With the DEFAULT (stock/hermetic) toolchains, actions resolve to downloaded
-# toolchain repos (LLVM CC, remote JDK, Go) that Bazel ships to the workers like
-# any other external repository — a vanilla Ubuntu RBE worker needs no special
-# preparation.
-#
-# With `--config=nix`, action toolchains resolve to /nix/store paths instead, so
-# each worker must have the matching /nix/store closure synced (a vanilla worker
-# lacks /nix/store and will fail). The local Buildbarn smoke test demonstrates
-# this by bind-mounting the host store into the worker (see //tools/rbe-local).
-# Point --config=rbe at your own executor.
-#
-# For a local Buildbarn smoke test (podman), see //tools/rbe-local and use
-# `--config=rbe_local` (endpoint grpc://localhost:8980).
 startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
+
 build:rbe --remote_executor=grpc://localhost:8980  # replace with your RBE endpoint
 build:rbe --remote_instance_name=default
-build:rbe --extra_execution_platforms=//tools/remote-toolchains:rbe_nix_platform
+build:rbe --extra_execution_platforms=//tools/remote-toolchains:rbe_platform
+build:rbe --shell_executable=/bin/bash
+build:rbe --action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+build:rbe --host_action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 build:rbe --jobs=64
 build:rbe --remote_timeout=3600
 build:rbe --incompatible_strict_action_env
 build:rbe --remote_download_toplevel
-build:rbe --action_env=PATH
 build:rbe --verbose_failures
 
-# Local Buildbarn smoke test (see //tools/rbe-local). Standalone (does NOT inherit
-# --config=rbe) so it can target a local podman-hosted Buildbarn cleanly. The stock
-# hardlinking worker registers under the instance name "hardlinking".
+# Local podman Buildbarn (//tools/rbe-local); standalone, does not inherit :rbe.
 build:rbe_local --remote_executor=grpc://localhost:8980
 build:rbe_local --remote_instance_name=hardlinking
 build:rbe_local --extra_execution_platforms=//tools/remote-toolchains:rbe_local_platform
+build:rbe_local --shell_executable=/bin/bash
+build:rbe_local --action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+build:rbe_local --host_action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 build:rbe_local --incompatible_strict_action_env
 build:rbe_local --remote_download_toplevel
 build:rbe_local --verbose_failures
