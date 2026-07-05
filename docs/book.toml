@@ -6,3 +6,10 @@ src = "src"
 
 [build]
 build-dir = "book"
+
+[output.html]
+# Base URL the book is hosted at. mdbook uses this only to fix the 404 page's
+# navigation and script/css links so they resolve when the site is served from
+# a subpath (https://<org>.github.io/rules_tf2/); regular pages use relative
+# links and work regardless. Set to "/" if hosting at a domain root via CNAME.
+site-url = "/rules_tf2/"

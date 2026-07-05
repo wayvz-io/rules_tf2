@@ -1,0 +1,69 @@
+name: Docs
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Grant the deploy-pages action permission to publish.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only one concurrent Pages deploy; don't cancel a running one mid-publish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build book
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Reclaim preinstalled runner bloat as insurance — a Bazel build pulls
+      # large external repos (toolchains, protoc). Mirrors the main CI job;
+      # cheap even if this lighter docs-only build doesn't strictly need it.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          sudo docker image prune --all --force || true
+          df -h /
+
+      # checkout/setup-bazel pins match the rest of .github/workflows (repo
+      # standardized on these; checkout has a newer v7, bumped repo-wide separately).
+      - uses: bazel-contrib/setup-bazel@0.19.0
+        with:
+          bazelisk-cache: true
+          disk-cache: true
+          repository-cache: true
+
+      - name: Build the book
+        env:
+          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
+          # latest and ignores .bazelversion.
+          USE_BAZEL_VERSION: "9.1.1"
+        run: bazel build //docs:book
+
+      - name: Unpack rendered site
+        run: |
+          mkdir -p _site
+          tar -xzf bazel-bin/docs/book.tar.gz -C _site
+
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+  deploy:
+    name: Deploy to Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5
