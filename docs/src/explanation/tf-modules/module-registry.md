@@ -14,10 +14,10 @@ Only Bazel-exposed files are included. No stray files, no build artifacts. The
 generated `.terraform.lock.hcl` is intentionally *not* bundled (consumers
 resolve providers themselves) — consistent with the `*_no_lockfile_test`.
 
-## tf_publish_registry
+## tfc_publish_registry
 
 ```starlark
-tf_publish_registry(
+tfc_publish_registry(
     name = "publish",
     module = ":my_module",
     organization = "my-org",
@@ -57,4 +57,4 @@ bazel run //path/to:publish -- --version 2.0.0
 
 ## See Also
 
-- [tf_publish_registry Reference](../../reference/publishing/tf-publish-registry.md)
+- [tfc_publish_registry Reference](../../reference/cloud/tfc-publish-registry.md)

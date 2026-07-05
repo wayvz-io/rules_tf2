@@ -2,7 +2,7 @@
 
 load("//tf2/tfcore:tf_runner.bzl", "tf_runner")
 
-def tf_cloud_workspace(
+def tfc_workspace(
         name,
         module,
         workspace_name,
@@ -26,7 +26,7 @@ def tf_cloud_workspace(
 
     # Organization is required - there is no sensible default.
     if not organization:
-        fail("tf_cloud_workspace requires an 'organization' (your Terraform Cloud/Enterprise org name).")
+        fail("tfc_workspace requires an 'organization' (your Terraform Cloud/Enterprise org name).")
 
     # Main runner target - can run any terraform command
     if auto_backend:

@@ -22,21 +22,21 @@ Core Bazel rules for Terraform modules:
 
 Terraform Cloud and Enterprise integration:
 
-- [tf_cloud_workspace](cloud/tf-cloud-workspace.md) - Create TFC runner targets
-- [tfc_agent_image](cloud/tfc-agent-image.md) - Build custom TFC agent Docker images
+- [tfc_workspace](cloud/tfc-workspace.md) - Create TFC/TFE runner targets
+- [tfc_publish_registry](cloud/tfc-publish-registry.md) - Publish to the TFC/TFE private registry
+- [tfc_agent_image](cloud/tfc-agent-image.md) - Build TFC agent images with providers baked in
+
+### [Flux (GitOps)](flux/README.md)
+
+Publish modules as OCI artifacts for Flux:
+
+- [tf_publish_oci_flux](flux/tf-publish-oci-flux.md) - Push a module as a Flux-compatible OCI artifact
 
 ### [Providers](providers/README.md)
 
 Provider management:
 
 - [provider_mirror](providers/provider-mirror.md) - Create provider filesystem mirrors
-
-### [Publishing](publishing/README.md)
-
-Module publishing:
-
-- [tf_publish_registry](publishing/tf-publish-registry.md) - Publish to Terraform Registry
-- [tf_publish_oci](publishing/tf-publish-oci.md) - Push to OCI registries
 
 ### [Module Extensions](extensions/README.md)
 

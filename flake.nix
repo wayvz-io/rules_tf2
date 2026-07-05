@@ -42,6 +42,10 @@
             name = "rules_tf2-dev";
 
             packages = [
+              # Builds run via the rules_tf2-dev container (see tools/dev/bazel),
+              # not this bazel — it's kept only for shell completion and as a
+              # non-RBE fallback. buildifier/gazelle/ibazel remain host-side
+              # conveniences.
               bazel_9
               bazel-buildtools
               bazel-gazelle
@@ -68,19 +72,6 @@
               jq
               ripgrep
               tree
-
-              # Documentation tools
-              mdbook
-
-              # Tools for running pre-compiled binaries in Nix environment
-              # Terraform providers are distributed as pre-compiled binaries
-              # that expect standard FHS library locations
-              patchelf
-
-              # Standard libraries that providers might need
-              stdenv.cc.cc.lib  # Provides libstdc++.so.6 and other C++ libs
-              zlib              # Common compression library
-              glibc             # Standard C library
             ];
 
             shellHook = ''
@@ -100,9 +91,9 @@
               fi
 
               echo "rules_tf2 development environment"
-              echo "Bazel version: $(bazel --version)"
               echo "Go version: $(go version)"
-              echo "Note: Terraform tools are now managed by Bazel (terraform, tflint, terraform-docs)"
+              echo "Note: 'bazel' runs in the rules_tf2-dev container (podman); see tools/dev/bazel"
+              echo "Note: Terraform tools are managed by Bazel (terraform, tflint, terraform-docs)"
 
               # Don't mess with library paths - let providers use system libraries
               # The Terraform providers are standard Linux binaries that should work

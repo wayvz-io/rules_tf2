@@ -30,7 +30,9 @@ All user-facing rules/macros:
 - `tf_module` - Main macro for Terraform modules with auto-generated tests
 - `tf_runner` - Run arbitrary terraform commands
 - `tf_test` - Explicit test targets
-- `tf_cloud_workspace` - Terraform Cloud integration
+- `tfc_workspace` - Terraform Cloud workspace runner targets (plan/apply)
+- `tfc_publish_registry` - Publish a module to the TFC/TFE private registry
+- `tf_publish_oci_flux` - Publish a module as a Flux-compatible OCI artifact
 - `tfc_agent_image` - Build custom TFC agent Docker images with bundled providers
 - `provider_mirror` - Custom provider management
 

@@ -61,10 +61,10 @@ genrule(
         add_banner $(location //tf2:tf_test_docs) > $$WORK_DIR/src/reference/rules/tf-test.md
         add_banner $(location //tf2:tf_variables_docs) > $$WORK_DIR/src/reference/rules/tf-variables.md
         add_banner $(location //tf2:tf_file_export_docs) > $$WORK_DIR/src/reference/rules/tf-file-export.md
-        add_banner $(location //tf2:tf_cloud_docs) > $$WORK_DIR/src/reference/cloud/tf-cloud-configuration.md
+        add_banner $(location //tf2:tf_cloud_docs) > $$WORK_DIR/src/reference/cloud/tfc-workspace.md
         add_banner $(location //tf2:provider_mirror_docs) > $$WORK_DIR/src/reference/providers/provider-mirror.md
-        add_banner $(location //tf2:tf_publish_docs) > $$WORK_DIR/src/reference/publishing/tf-module-publish.md
-        add_banner $(location //tf2:tf_oci_docs) > $$WORK_DIR/src/reference/publishing/tf-module-push-oci.md
+        add_banner $(location //tf2:tf_publish_docs) > $$WORK_DIR/src/reference/cloud/tfc-publish-registry.md
+        add_banner $(location //tf2:tf_oci_docs) > $$WORK_DIR/src/reference/flux/tf-publish-oci-flux.md
         add_banner $(location //tf2:extensions_docs) > $$WORK_DIR/src/reference/extensions/README.md
 
         # Run mdbook build from working directory

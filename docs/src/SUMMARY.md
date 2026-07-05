@@ -2,13 +2,18 @@
 
 [Introduction](README.md)
 
-# Tutorials
-
-- [Getting Started](tutorials/README.md)
-
 # How-to Guides
 
 - [Guides Overview](guides/README.md)
+  - [Create and test a module](guides/create-and-test-a-module.md)
+  - [Write native Terraform tests](guides/write-native-tests.md)
+  - [Test policies (OPA & Sentinel)](guides/test-policies.md)
+  - [Add or update a provider](guides/add-a-provider.md)
+  - [Use an external module](guides/use-an-external-module.md)
+  - [Generate BUILD files with Gazelle](guides/generate-build-files.md)
+  - [Run Terraform through Bazel](guides/run-terraform.md)
+  - [Run against Terraform Cloud](guides/terraform-cloud.md)
+  - [Publish a module](guides/publish-a-module.md)
 
 # Explanation
 
@@ -43,13 +48,13 @@
     - [tf_sentinel](reference/rules/tf-sentinel.md)
     - [tf_opa](reference/rules/tf-opa.md)
   - [Cloud Integration](reference/cloud/README.md)
-    - [tf_cloud_workspace](reference/cloud/tf-cloud-workspace.md)
+    - [tfc_workspace](reference/cloud/tfc-workspace.md)
+    - [tfc_publish_registry](reference/cloud/tfc-publish-registry.md)
     - [tfc_agent_image](reference/cloud/tfc-agent-image.md)
+  - [Flux](reference/flux/README.md)
+    - [tf_publish_oci_flux](reference/flux/tf-publish-oci-flux.md)
   - [Providers](reference/providers/README.md)
     - [provider_mirror](reference/providers/provider-mirror.md)
-  - [Publishing](reference/publishing/README.md)
-    - [tf_publish_registry](reference/publishing/tf-publish-registry.md)
-    - [tf_publish_oci](reference/publishing/tf-publish-oci.md)
   - [Module Extensions](reference/extensions/README.md)
 - [Gazelle]()
   - [Gazelle Extension](reference/gazelle/README.md)

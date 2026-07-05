@@ -2,25 +2,56 @@
 
 Bazel rules for managing Terraform infrastructure. `rules_tf2` manages Terraform modules through Bazel, with integrated testing, provider/tool management, external module support, policy testing, and Terraform Cloud/Enterprise integration.
 
-> [!WARNING]
-> **This project is unmaintained.** It was extracted from an internal repository and is published as-is for reference and reuse. It works (the test suite passes), but it is **alpha-quality, the APIs may change, and it is not actively developed or supported.** Fork it if you want to build on it. See [Contributing](#contributing).
+## Background
 
-## Status
+I built rules_tf2 to simplify and speed up creating large volumes of Terraform
+modules across consulting engagements. I'm not currently working in that space,
+so the project is **parked**. It's open source because a few people asked how to
+run Terraform in a monorepo — this is how I did it.
 
-- **Alpha** - core functionality works; APIs may change.
-- **Policy testing** - OPA and Sentinel format/test rules are implemented and tested (`tf_opa_test`, `tf_sentinel_test`).
-- **Publishing** - OCI and Terraform-registry publishing (`tf_publish_oci`, `tf_publish_registry`) are implemented but rougher than the rest.
+I may come back to improve it, but for now treat it as **unmaintained** and free
+to fork.
+
+> [!NOTE]
+> The documentation was a best-effort brain-dump — mostly voice-to-text context
+> captured with Claude — so it's uneven in places and not perfect. It's enough
+> to get the shape of how things work, not a polished manual.
+
+## Documentation
+
+**📖 [wayvz-io.github.io/rules_tf2](https://wayvz-io.github.io/rules_tf2/)** — start here.
+
+The site is the source of truth for how to use rules_tf2: a getting-started
+walkthrough, how-to guides, the full rule/macro reference, and explanations of
+the architecture, hermeticity model, and versioning. It follows the
+[Diataxis](https://diataxis.fr/) framework.
 
 ## Features
 
-- Terraform module management through Bazel
-- Terraform Cloud/Enterprise integration
-- Provider management with automatic downloading and caching
-- Run arbitrary terraform commands through Bazel
-- Comprehensive testing (format, lint, validate, docs)
-- Tool integration (terraform, tflint, terraform-docs)
+- Terraform module management through Bazel (`tf_module`)
+- Provider and tool management with automatic downloading, hashing, and caching
+- Comprehensive per-module tests (format, lint, validate, docs, versions)
+- Run arbitrary terraform commands through Bazel (`tf_runner`)
+- Policy testing — OPA (`tf_opa_test`) and Sentinel (`tf_sentinel_test`)
+- Terraform Cloud / Enterprise — remote plan/apply, private-registry publish, provider-baked agent images (`tfc_workspace`, `tfc_publish_registry`, `tfc_agent_image`)
+- Flux GitOps — publish modules as OCI artifacts (`tf_publish_oci_flux`)
 
-## Project Structure
+## Status
+
+- **Alpha** — core functionality works; APIs may change.
+- **Policy testing** — OPA and Sentinel format/test rules are implemented and tested.
+- **Publishing** — OCI and Terraform-registry publishing are implemented but rougher than the rest.
+
+## Roadmap
+
+If I come back to this, the things I'd want to tackle:
+
+- [ ] Publish OCI artifacts via `rules_oci` instead of the current `gh`-based path
+- [ ] Move auto-updates to Renovate
+- [ ] Review the docs for consistency
+- [ ] Add a reference pattern for integrating rules_tf2 with Flux + OpenTofu (GitOps)
+
+## Project structure
 
 ```
 tf2/
@@ -41,108 +72,29 @@ tf2/
 └── def.bzl            # Public API exports
 ```
 
-## Quick Start
-
-### 1. Add to MODULE.bazel
-
-`rules_tf2` is **not** published to the Bazel Central Registry, so an override is
-required. Use a `git_override` pinned to a tag (or commit):
-
-```starlark
-bazel_dep(name = "rules_tf2", version = "0.1.0")
-
-git_override(
-    module_name = "rules_tf2",
-    remote = "https://github.com/wayvz-io/rules_tf2.git",
-    tag = "v0.1.0",
-)
-
-# Providers and tools are configured from a versions.json file.
-# Configure providers
-tf_providers = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_providers")
-tf_providers.download(
-    versions_file = "//path/to:versions.json",
-)
-use_repo(tf_providers, "tf_provider_registry")
-
-# Configure tools (terraform, tflint, terraform-docs)
-tf_tools = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_tools")
-tf_tools.from_versions_json(
-    versions_file = "//path/to:versions.json",
-)
-use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
-```
-
-### 2. Define a Terraform Module
-
-```starlark
-load("@rules_tf2//tf2:def.bzl", "tf_module")
-
-tf_module(
-    name = "vpc",
-    # Always list .tf files explicitly - do not use glob().
-    srcs = [
-        "main.tf",
-        "outputs.tf",
-        "terraform.tf",
-        "variables.tf",
-        "README.md",
-    ],
-    providers = [
-        "@tf_provider_registry//:aws_6",
-    ],
-)
-```
-
-This generates test targets:
-- `:vpc_format_test` - Checks formatting
-- `:vpc_lint_test` - Runs tflint
-- `:vpc_validate_test` - Validates configuration
-- `:vpc_doc_test` - Checks documentation
-
-### 3. Run Terraform Commands
-
-```starlark
-load("@rules_tf2//tf2:def.bzl", "tf_runner")
-
-tf_runner(
-    name = "terraform",
-    stack = ":vpc",
-)
-```
-
-Then run any terraform command:
-```bash
-bazel run //infrastructure:terraform -- init
-bazel run //infrastructure:terraform -- plan
-bazel run //infrastructure:terraform -- apply
-```
-
 ## Examples
 
-See the `examples/` directory for usage examples:
-- `basic_module` - Simple Terraform module
-- `module_with_dependencies` - Module composition
-- `parent_module` / `child_with_nested_dep` / `nested_dependency_test` - Module dependency graphs
-- `parent_with_explicit_deps` - Explicit dependency declaration
-- `opa_policy` / `sentinel_policy` - Policy testing
+Working, tested configurations live in [`examples/`](examples/) — from a basic
+module to nested dependency graphs and policy testing. Run any example's full
+suite with `bazel test //examples/<name>:all`.
 
-## Testing
+## Development
 
-Run all tests:
+Builds run under Bazel 9 (pinned in `.bazelversion`) on stock, downloaded
+toolchains — no host compiler, JDK, Go, or nix required. A `.envrc` (direnv)
+runs `bazel` inside the `rules_tf2-dev` container (see `tools/dev/bazel` and the
+[Hermeticity & toolchains](https://wayvz-io.github.io/rules_tf2/explanation/hermeticity.html)
+docs); an optional `flake.nix` dev-shell is available for contributors who use
+nix. Run the whole check suite with:
+
 ```bash
 bazel test //...
 ```
 
-## Development
-
-This project uses Nix for development tooling. Run `nix develop` to enter the development shell with all required tools.
-
 ## Contributing
 
-This repository is **unmaintained** and provided as-is. Issues and pull requests
-are not actively monitored and may not receive a response. You are welcome to
-**fork** it and build on it under the terms of the licence.
+Issues and pull requests aren't actively monitored and may not get a response.
+Fork it and build on it under the terms of the licence — see [Background](#background).
 
 ## License
 
