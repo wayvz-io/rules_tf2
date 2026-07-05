@@ -68,6 +68,16 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # RBE keeps compilation off the runner, but Bazel still fetches and
+      # extracts the full external-repo/toolchain set locally (LLVM ~2.5GB, Go
+      # SDK, protobuf) to build the action graph and upload inputs. Reclaim
+      # preinstalled bloat so that plus the repository cache fits on /.
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
+            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          df -h /
+
       - name: Connect to Tailscale (OIDC, ephemeral node)
         uses: tailscale/github-action@v4
         with:
