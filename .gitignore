@@ -48,3 +48,6 @@ result-*
 
 # Local Buildbarn runtime volumes
 tools/rbe-local/volumes/
+
+# Local Bazel connection overrides (RBE endpoint, instance name, etc.)
+.bazelrc.user

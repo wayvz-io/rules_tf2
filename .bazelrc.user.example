@@ -1,0 +1,17 @@
+# Local Bazel overrides — copy to `.bazelrc.user` (gitignored) and edit.
+#
+# `.bazelrc` try-imports `.bazelrc.user` last, so anything here wins over the
+# committed config. Use it for environment-specific values that shouldn't be
+# checked in — most commonly the RBE endpoint for `--config=remote`.
+#
+# Example: point `--config=remote` at a Buildbarn cluster you can reach
+# (e.g. the lab cluster over Tailscale). The endpoint is plaintext gRPC because
+# the transport (WireGuard/Tailscale) already encrypts it.
+#
+#   build:remote --remote_executor=grpc://bb.example.internal:8980
+#   build:remote --remote_instance_name=
+#
+# Then:  bazel build --config=remote //...
+#
+# The `remote_platform` exec_properties in //tools/remote-toolchains must match
+# the queue the cluster's scheduler advertises, or actions queue with no worker.
