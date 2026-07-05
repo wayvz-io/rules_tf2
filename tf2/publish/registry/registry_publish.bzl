@@ -105,6 +105,10 @@ mkdir -p '{staging_dir}'
     registry_name = REGISTRY_CONFIG["registry_name"]
     api_base = REGISTRY_CONFIG["api_base_path"]
 
+    # Hermetic jq from the jq.bzl toolchain
+    jq_bin = ctx.toolchains["@jq.bzl//jq/toolchain:type"].jqinfo.bin
+    jq_runfiles_path = jq_bin.short_path[3:] if jq_bin.short_path.startswith("../") else "_main/" + jq_bin.short_path
+
     # Create publish script
     publish_script_content = '''#!/usr/bin/env bash
 set -euo pipefail
@@ -118,6 +122,9 @@ REGISTRY_NAME="{registry_name}"
 API_BASE="{api_base}"
 NAMESPACE="{namespace}"
 VERSION_INCREMENT="{version_increment}"
+
+# Hermetic jq binary from runfiles (jq.bzl toolchain)
+JQ="${{RUNFILES_DIR:-$0.runfiles}}/{jq_runfiles_path}"
 
 # Parse command-line arguments
 while [[ $# -gt 0 ]]; do
@@ -235,7 +242,7 @@ if [[ -z "$MODULE_RESPONSE" ]] || echo "$MODULE_RESPONSE" | grep -q '"errors"'; 
 
     if echo "$CREATE_RESPONSE" | grep -q '"errors"'; then
         echo "Error creating module:"
-        echo "$CREATE_RESPONSE" | jq .
+        echo "$CREATE_RESPONSE" | "$JQ" .
         exit 1
     fi
 
@@ -250,7 +257,7 @@ else
 
     if [[ -n "$MODULE_RESPONSE" ]] && ! echo "$MODULE_RESPONSE" | grep -q '"errors"'; then
         # Extract versions from version-statuses array
-        CURRENT_VERSION=$(echo "$MODULE_RESPONSE" | jq -r '.data.attributes["version-statuses"][].version' 2>/dev/null | sort -rV | head -1)
+        CURRENT_VERSION=$(echo "$MODULE_RESPONSE" | "$JQ" -r '.data.attributes["version-statuses"][].version' 2>/dev/null | sort -rV | head -1)
 
         if [[ -z "$CURRENT_VERSION" ]] || [[ "$CURRENT_VERSION" == "null" ]]; then
             CURRENT_VERSION="0.0.0"
@@ -262,7 +269,7 @@ else
         MODULES_RESPONSE=$(api_call GET "$MODULES_ENDPOINT" 2>/dev/null || true)
 
         if [[ -n "$MODULES_RESPONSE" ]] && ! echo "$MODULES_RESPONSE" | grep -q '"errors"'; then
-            CURRENT_VERSION=$(echo "$MODULES_RESPONSE" | jq -r ".data[] | select(.attributes.name == \"$MODULE_NAME\" and .attributes.provider == \"$PROVIDER\") | .attributes[\"version-statuses\"][].version" 2>/dev/null | sort -rV | head -1)
+            CURRENT_VERSION=$(echo "$MODULES_RESPONSE" | "$JQ" -r ".data[] | select(.attributes.name == \"$MODULE_NAME\" and .attributes.provider == \"$PROVIDER\") | .attributes[\"version-statuses\"][].version" 2>/dev/null | sort -rV | head -1)
 
             if [[ -z "$CURRENT_VERSION" ]] || [[ "$CURRENT_VERSION" == "null" ]]; then
                 CURRENT_VERSION="0.0.0"
@@ -303,16 +310,16 @@ VERSION_RESPONSE=$(api_call POST "$VERSION_ENDPOINT" "$VERSION_DATA")
 
 if echo "$VERSION_RESPONSE" | grep -q '"errors"'; then
     echo "Error creating version:"
-    echo "$VERSION_RESPONSE" | jq .
+    echo "$VERSION_RESPONSE" | "$JQ" .
     exit 1
 fi
 
 # Extract upload URL
-UPLOAD_URL=$(echo "$VERSION_RESPONSE" | jq -r '.data.links.upload')
+UPLOAD_URL=$(echo "$VERSION_RESPONSE" | "$JQ" -r '.data.links.upload')
 
 if [[ -z "$UPLOAD_URL" ]] || [[ "$UPLOAD_URL" == "null" ]]; then
     echo "Error: No upload URL in response"
-    echo "$VERSION_RESPONSE" | jq .
+    echo "$VERSION_RESPONSE" | "$JQ" .
     exit 1
 fi
 
@@ -327,7 +334,7 @@ UPLOAD_RESPONSE=$(curl -s -X PUT "$UPLOAD_URL" \\
 if [[ -n "$UPLOAD_RESPONSE" ]]; then
     if echo "$UPLOAD_RESPONSE" | grep -q '"errors"'; then
         echo "Error uploading module:"
-        echo "$UPLOAD_RESPONSE" | jq . 2>/dev/null || echo "$UPLOAD_RESPONSE"
+        echo "$UPLOAD_RESPONSE" | "$JQ" . 2>/dev/null || echo "$UPLOAD_RESPONSE"
         exit 1
     fi
 fi
@@ -351,6 +358,7 @@ echo "  }}"
         namespace = ctx.attr.namespace or ctx.attr.organization,
         version_increment = ctx.attr.version_increment or REGISTRY_CONFIG["default_version_increment"],
         tarball_basename = tarball.basename,
+        jq_runfiles_path = jq_runfiles_path,
     )
 
     ctx.actions.write(
@@ -363,6 +371,7 @@ echo "  }}"
         DefaultInfo(
             files = depset([tarball, publish_script, staging_dir]),
             executable = publish_script,
+            runfiles = ctx.runfiles(files = [jq_bin]),
         ),
     ]
 
@@ -398,7 +407,7 @@ tf_publish_registry = rule(
         ),
     },
     executable = True,
-    toolchains = [SH_TOOLCHAIN_TYPE],
+    toolchains = [SH_TOOLCHAIN_TYPE, "@jq.bzl//jq/toolchain:type"],
     doc = """Publish Terraform modules to Terraform Registry (HCP Terraform/TFE).
 
     This rule packages a tf_module and publishes it to a Terraform Registry using

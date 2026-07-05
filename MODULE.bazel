@@ -29,6 +29,14 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")  # Required for oci_pul
 # resolve the @package_metadata loads that rules_oci 2.3 emits.
 bazel_dep(name = "package_metadata", version = "0.0.6")
 
+# Hermetic jq for the registry publish flow (tf_publish).
+bazel_dep(name = "jq.bzl", version = "0.6.1")
+
+jq = use_extension("@jq.bzl//jq:extensions.bzl", "toolchains")
+use_repo(jq, "jq_toolchains")
+
+register_toolchains("@jq_toolchains//:all")
+
 # Go support
 bazel_dep(name = "rules_go", version = "0.61.1")
 bazel_dep(name = "gazelle", version = "0.51.3")
