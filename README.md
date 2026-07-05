@@ -46,7 +46,6 @@ the architecture, hermeticity model, and versioning. It follows the
 
 If I come back to this, the things I'd want to tackle:
 
-- [ ] Publish OCI artifacts via `rules_oci` instead of the current `gh`-based path
 - [ ] Move auto-updates to Renovate
 - [ ] Review the docs for consistency
 - [ ] Add a reference pattern for integrating rules_tf2 with Flux + OpenTofu (GitOps)

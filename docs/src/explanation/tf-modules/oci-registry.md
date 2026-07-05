@@ -32,11 +32,20 @@ bazel run //path/to:push_oci
 
 ## Authentication
 
-Uses standard container registry authentication:
+The push follows the ambient OCI credential chain, the same model `rules_oci`
+uses. By default the generated push script does not log in at all: ORAS resolves
+credentials from the Docker config chain (`~/.docker/config.json` plus any
+configured credential helpers), so whatever populated that config — `docker
+login`, `oras login`, `docker/login-action` in CI, or a cloud credential helper
+for ECR/ACR/GCR — is honoured transparently.
 
-- Environment variables (`GITHUB_TOKEN`, `AWS_ACCESS_KEY_ID`, etc.)
-- Docker config (`~/.docker/config.json`)
-- Credential helpers
+For self-contained targets you can instead have the script log in explicitly by
+setting the `OCI_USERNAME`/`OCI_PASSWORD` environment variables (the names are
+configurable per target via `username_env`/`password_env`). When both are set the
+script performs an `oras login`; otherwise it falls through to the ambient
+credentials. This keeps the rules registry-agnostic and free of any dependency on
+the GitHub CLI. See [Publish a module](../../guides/publish-a-module.md) for the
+step-by-step flow.
 
 ## Flux Integration
 
