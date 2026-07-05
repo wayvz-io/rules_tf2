@@ -102,7 +102,12 @@ build:remote --action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin
 build:remote --host_action_env=PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 build:remote --incompatible_strict_action_env
 build:remote --remote_timeout=3600
-build:remote --jobs=4
+# --jobs is Bazel's client-side concurrency (cache lookups + in-flight actions),
+# NOT the cluster's execution-slot count. Keep it high so the many cache-hit
+# actions fan out in parallel; the scheduler queues executions beyond the
+# worker slots. A low value here serialises the whole build behind a few slow
+# actions.
+build:remote --jobs=64
 build:remote --verbose_failures
 
 # Build without the Bytes: keep action outputs in the cluster's CAS instead of
