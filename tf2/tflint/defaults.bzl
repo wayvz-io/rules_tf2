@@ -11,6 +11,8 @@ TERRAFORM_BASE_RULES = {
     "terraform_documented_outputs": {"enabled": True},
     "terraform_documented_variables": {"enabled": True},
     "terraform_empty_list_equality": {"enabled": True},
+    "terraform_module_pinned_source": {"enabled": False},  # rules_tf2 pins external modules via versions.json
+    "terraform_module_version": {"enabled": False},  # rules_tf2 pins external modules via versions.json
     "terraform_naming_convention": {"enabled": True},
     "terraform_required_providers": {"enabled": False},  # Replaced by tf2 plugin version
     "terraform_required_version": {"enabled": True},
