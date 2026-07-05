@@ -53,8 +53,8 @@ jobs:
   #
   # Requires (configured out of band, not in this repo):
   #   - secrets.TS_OAUTH_CLIENT_ID / secrets.TS_AUDIENCE — Tailscale OIDC client.
-  #   - Tailnet ACL allowing tag:ci to reach the gateway on :8980 (and :53 for
-  #     MagicDNS). See the cluster runbook in the iac repo.
+  #   - Tailnet ACL allowing tag:ci-server to reach the gateway on :8980 (and :53
+  #     for MagicDNS). See the cluster runbook in the iac repo.
   # The endpoint lives here (the committed .bazelrc never carries it; local dev
   # uses .bazelrc.user instead).
   rbe:
@@ -80,7 +80,7 @@ jobs:
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:ci
+          tags: tag:ci-server
           use-cache: true
           # Pull the tailnet DNS config so the RBE hostname resolves to the gateway.
           args: --accept-dns=true
