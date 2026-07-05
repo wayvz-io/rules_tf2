@@ -68,13 +68,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
-          sudo docker image prune --all --force || true
-          df -h /
-
       - name: Connect to Tailscale (OIDC, ephemeral node)
         uses: tailscale/github-action@v4
         with:
@@ -84,14 +77,6 @@ jobs:
           use-cache: true
           # Pull the tailnet DNS config so the RBE hostname resolves to the gateway.
           args: --accept-dns=true
-
-      - name: Sanity — reach the RBE endpoint
-        run: |
-          HOSTPORT="${RBE_EXECUTOR#grpc://}"; HOSTPORT="${HOSTPORT#grpcs://}"
-          HOST="${HOSTPORT%%:*}"; PORT="${HOSTPORT##*:}"
-          tailscale status || true
-          getent hosts "$HOST" || true
-          timeout 5 bash -c "</dev/tcp/$HOST/$PORT" && echo "RBE $HOST:$PORT reachable"
 
       - uses: bazel-contrib/setup-bazel@0.19.0
         with:
