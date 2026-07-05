@@ -21,7 +21,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
       # bloat so it fits on the runner's root disk.
@@ -32,7 +32,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: bazel-contrib/setup-bazel@0.15.0
+      - uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
           disk-cache: true
@@ -55,7 +55,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Free disk space
         run: |
@@ -64,10 +64,12 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: bazel-contrib/setup-bazel@0.15.0
+      - uses: bazel-contrib/setup-bazel@0.19.0
         with:
           bazelisk-cache: true
-          disk-cache: true
+          # No action cache persisted across runs, so this job keeps proving
+          # actions execute on a cold worker (bazelisk/repo downloads still cached).
+          disk-cache: false
           repository-cache: true
 
       - name: Start local Buildbarn (docker compose)

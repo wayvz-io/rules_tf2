@@ -5,8 +5,8 @@ build --enable_workspace=false
 # Enable isolated extension usages for conditional nixpkgs setup
 build --experimental_isolated_extension_usages
 
-# Use local disk cache
-build --disk_cache=~/.cache/bazel-disk-cache
+# Local disk cache at setup-bazel's default path, so local and CI agree.
+build --disk_cache=~/.cache/bazel-disk
 
 # Show test errors
 test --test_output=errors
