@@ -1,0 +1,141 @@
+name: Renovate lockfile
+
+# Renovate bumps bazel_dep versions in MODULE.bazel but is (correctly) blocked
+# from regenerating MODULE.bazel.lock: `bazel mod deps` evaluates the module
+# graph, which runs repository rules / module extensions — arbitrary code — and
+# we don't allow that in the Renovate runner. So we refresh the lock here.
+#
+# Security shape (see PR discussion): the scary part is *executing* the graph,
+# not saving the lock. So:
+#   * only Renovate-APP-authored PRs trigger this (author check, NOT the branch
+#     name, which anyone can spoof) — a human can't reach this privileged path;
+#     the residual is supply-chain only (a dep Renovate bumps).
+#   * the untrusted execution (job `refresh-lock`) runs with NO write token;
+#   * the write token (job `commit-lock`) runs on a stock runner, checks out
+#     nothing, executes no PR code — it only moves the produced lock bytes into a
+#     verified commit on the PR's own branch.
+# Follow-up (not in this PR): harden bb-ci-worker — ephemeral runners + an egress
+# NetworkPolicy — to shrink the blast radius of the execution itself, which is
+# shared with the existing `rbe` test job.
+
+on:
+  pull_request:
+    branches: [main]
+    # Only when the module manifest changed — leaves go.mod / docker / actions PRs alone.
+    paths:
+      - MODULE.bazel
+
+permissions: {}
+
+concurrency:
+  group: renovate-lockfile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---- Execution: UNPRIVILEGED. Runs untrusted PR bazel; holds no write token. ----
+  refresh-lock:
+    # Gate on the PR *author* being the Renovate app (a Bot), not the branch name.
+    if: github.event.pull_request.user.login == 'wayvzrenovate[bot]'
+    name: Regenerate MODULE.bazel.lock (RBE)
+    runs-on: bb-ci-worker
+    permissions:
+      contents: read
+    outputs:
+      changed: ${{ steps.diff.outputs.changed }}
+      oid: ${{ steps.head.outputs.oid }}
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ github.head_ref }}
+
+      # Our own lock commit re-fires this workflow (the PR still touches
+      # MODULE.bazel); bail before spending an RBE run on a guaranteed no-op.
+      - name: Skip if the lock was already refreshed here
+        id: guard
+        run: |
+          if git log -1 --pretty=%s | grep -qF 'chore(deps): refresh MODULE.bazel.lock'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture branch head (optimistic-lock for the commit)
+        if: steps.guard.outputs.skip != 'true'
+        id: head
+        run: echo "oid=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # bb-clientd's warm repo cache keeps module resolution fast (the path that
+      # speeds up as clientd matures). --lockfile_mode=update rewrites the lock.
+      - name: Regenerate MODULE.bazel.lock
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" mod deps \
+            --lockfile_mode=update \
+            --repository_cache=/clientd/bazel-repo-cache
+
+      - name: Did the lock change?
+        if: steps.guard.outputs.skip != 'true'
+        id: diff
+        run: |
+          if git diff --quiet -- MODULE.bazel.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Hand the lock to the privileged job as opaque data — never as code.
+      - name: Upload refreshed lock
+        if: steps.diff.outputs.changed == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: module-bazel-lock
+          path: MODULE.bazel.lock
+          retention-days: 1
+          if-no-files-found: error
+
+  # ---- Commit: PRIVILEGED, but executes no PR code. Just files the bytes. ----
+  commit-lock:
+    needs: refresh-lock
+    if: needs.refresh-lock.outputs.changed == 'true'
+    name: Commit refreshed lock (verified)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # No repo checkout: download only the produced lock into an isolated dir,
+      # so a poisoned artifact can't overwrite trusted files.
+      - name: Download refreshed lock
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: module-bazel-lock
+          path: lock
+
+      # GraphQL commit → GitHub signs it (verified), satisfying the ruleset. The
+      # artifact is read as opaque bytes and committed to the PR's OWN branch —
+      # something the PR author could already do — so malicious lock content buys
+      # nothing. Author github-actions[bot] is in renovate.json gitIgnoredAuthors.
+      - name: Commit via API (verified signature)
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          BRANCH: ${{ github.head_ref }}
+          EXPECTED_OID: ${{ needs.refresh-lock.outputs.oid }}
+        with:
+          script: |
+            const fs = require('fs');
+            const contents = fs.readFileSync('lock/MODULE.bazel.lock').toString('base64');
+            await github.graphql(
+              `mutation($input: CreateCommitOnBranchInput!) {
+                 createCommitOnBranch(input: $input) { commit { oid } }
+               }`,
+              {
+                input: {
+                  branch: {
+                    repositoryNameWithOwner: `${context.repo.owner}/${context.repo.repo}`,
+                    branchName: process.env.BRANCH,
+                  },
+                  message: { headline: 'chore(deps): refresh MODULE.bazel.lock' },
+                  fileChanges: {
+                    additions: [{ path: 'MODULE.bazel.lock', contents }],
+                  },
+                  expectedHeadOid: process.env.EXPECTED_OID,
+                },
+              }
+            );
