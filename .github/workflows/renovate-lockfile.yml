@@ -1,0 +1,103 @@
+name: Renovate lockfile
+
+# Renovate bumps bazel_dep versions in MODULE.bazel but is (correctly) blocked
+# from regenerating MODULE.bazel.lock: `bazel mod deps` evaluates the module
+# graph, which fetches + executes repository rules / module extensions, and we
+# do NOT allow that untrusted execution inside the Renovate runner. So we refresh
+# the lock here — on our own trusted in-cluster RBE runner — for Renovate's PRs
+# only, and commit it back via the API so the commit is signed/verified (the repo
+# ruleset requires verified signatures; a plain `git push` from a runner is not).
+on:
+  pull_request:
+    branches: [main]
+    # Only when the module manifest actually changed — leaves go.mod / docker /
+    # actions Renovate PRs untouched.
+    paths:
+      - MODULE.bazel
+
+permissions:
+  contents: write
+
+concurrency:
+  group: renovate-lockfile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  refresh-lock:
+    # Renovate's own branches only; ignore everyone else's MODULE.bazel edits.
+    if: startsWith(github.head_ref, 'renovate/')
+    name: Refresh MODULE.bazel.lock (RBE)
+    # Same in-cluster ARC runner as the CI `rbe` job: bb-clientd is started by the
+    # runner's job hook and keeps a warm repo cache on PVC, so external-module
+    # resolution stays fast (this is the path that gets quicker as clientd matures).
+    runs-on: bb-ci-worker
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ github.head_ref }}
+
+      # Our own lock commit re-fires this workflow (the PR still touches
+      # MODULE.bazel); bail before spending an RBE run on a guaranteed no-op.
+      - name: Skip if the lock was already refreshed here
+        id: guard
+        run: |
+          if git log -1 --pretty=%s | grep -qF 'chore(deps): refresh MODULE.bazel.lock'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture branch head (optimistic-lock for the API commit)
+        if: steps.guard.outputs.skip != 'true'
+        id: head
+        run: echo "oid=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # `bazel mod deps` resolves the module graph on the client (no remote
+      # execution), so it needs only the warm repo cache + BCR reachability, both
+      # present on this runner. --lockfile_mode=update rewrites MODULE.bazel.lock.
+      - name: Regenerate MODULE.bazel.lock
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" mod deps \
+            --lockfile_mode=update \
+            --repository_cache=/clientd/bazel-repo-cache
+
+      - name: Did the lock change?
+        if: steps.guard.outputs.skip != 'true'
+        id: diff
+        run: |
+          if git diff --quiet -- MODULE.bazel.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Commit via GraphQL so GitHub signs it (verified) — satisfies the
+      # signed-commit ruleset. Author is github-actions[bot], which renovate.json
+      # lists in gitIgnoredAuthors so Renovate keeps managing the branch.
+      - name: Commit refreshed lock (verified)
+        if: steps.guard.outputs.skip != 'true' && steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          BRANCH: ${{ github.head_ref }}
+          EXPECTED_OID: ${{ steps.head.outputs.oid }}
+        with:
+          script: |
+            const fs = require('fs');
+            const contents = fs.readFileSync('MODULE.bazel.lock').toString('base64');
+            await github.graphql(
+              `mutation($input: CreateCommitOnBranchInput!) {
+                 createCommitOnBranch(input: $input) { commit { oid } }
+               }`,
+              {
+                input: {
+                  branch: {
+                    repositoryNameWithOwner: `${context.repo.owner}/${context.repo.repo}`,
+                    branchName: process.env.BRANCH,
+                  },
+                  message: { headline: 'chore(deps): refresh MODULE.bazel.lock' },
+                  fileChanges: {
+                    additions: [{ path: 'MODULE.bazel.lock', contents }],
+                  },
+                  expectedHeadOid: process.env.EXPECTED_OID,
+                },
+              },
+            );
