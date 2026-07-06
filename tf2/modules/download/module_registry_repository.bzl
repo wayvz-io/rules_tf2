@@ -34,6 +34,7 @@ def _extract_download_url(json_content):
     The Terraform Registry API returns a JSON response that we need to parse
     to find the actual download URL.
     """
+
     # Look for download_url in the JSON
     for line in json_content.split("\n"):
         line = line.strip()
@@ -87,10 +88,14 @@ def resolve_registry_download(ctx, source, version, source_type, registry_host):
     curl_args = [
         "curl",
         "-s",  # Silent mode
-        "-D", "-",  # Dump headers to stdout
-        "-o", "/dev/null",  # Discard body
-        "--connect-timeout", "30",
-        "--max-time", "60",
+        "-D",
+        "-",  # Dump headers to stdout
+        "-o",
+        "/dev/null",  # Discard body
+        "--connect-timeout",
+        "30",
+        "--max-time",
+        "60",
         "-f",  # Fail on HTTP errors (4xx, 5xx)
         api_url,
     ]

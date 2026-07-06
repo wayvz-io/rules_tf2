@@ -13,9 +13,11 @@ def _parse_git_source(source):
     Returns:
         Tuple of (git_url, owner, repo)
     """
+
     # Handle git:: prefix (Terraform-style)
     if source.startswith("git::"):
         url = source[5:]  # Remove git:: prefix
+
         # Parse owner/repo from URL
         # https://github.com/owner/repo.git -> owner, repo
         parts = url.replace(".git", "").split("/")
@@ -191,6 +193,7 @@ def _module_git_repository_impl(repository_ctx):
         for f in result.stdout.strip().split("\n"):
             if f.startswith("./"):
                 f = f[2:]
+
             # Exclude example and test directories
             if not f.startswith("examples/") and not f.startswith("tests/") and not f.startswith("test/"):
                 tf_files.append(f)

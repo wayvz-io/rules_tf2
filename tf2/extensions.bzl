@@ -1,6 +1,7 @@
 """Module extensions for tf2"""
 
 load("@rules_oci//oci:pull.bzl", "oci_pull")
+load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "resolve_single_hash", "tofu_hash")
 load("//tf2/modules/download:module_git_repository.bzl", "git_module_archive_url", "module_git_repository")
 load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository", "resolve_registry_download")
 load("//tf2/modules/registry:alias.bzl", "generate_module_alias", "generate_repo_name")
@@ -9,7 +10,6 @@ load("//tf2/providers/download:provider_download_repository.bzl", "provider_down
 load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_provider_key")
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
-load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "resolve_single_hash", "tofu_hash")
 load("//tf2/tools/download:opa.bzl", "download_opa", "opa_fetch_spec")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:sentinel.bzl", "download_sentinel", "sentinel_fetch_spec")

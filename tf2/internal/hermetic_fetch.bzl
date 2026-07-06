@@ -109,6 +109,37 @@ def resolve_platform_hashes(module_ctx, facts, key, sums_url, platform_files):
 
     return {"sha256": hashes, "source": _SOURCE_UPSTREAM}, False
 
+def resolve_per_file_hashes(module_ctx, facts, key, platform_sums):
+    """Resolve `{platform: sha256}` from per-asset checksum files.
+
+    Some publishers (e.g. OPA) ship one `<asset>.sha256` file per artifact
+    rather than a single combined SHA256SUMS. Each is fetched and parsed.
+
+    Args:
+        module_ctx: the module extension context.
+        facts: existing `module_ctx.facts` (or None).
+        key: facts key identifying this artifact+version.
+        platform_sums: `{platform: struct(url = <sums url>, filename = <asset>)}`.
+
+    Returns:
+        (record, cached): same shape as `resolve_platform_hashes`.
+    """
+    cached = facts.get(key, None) if facts else None
+    if cached and type(cached) == "dict" and cached.get("sha256", None):
+        return cached, True
+
+    hashes = {}
+    for platform in platform_sums:
+        entry = platform_sums[platform]
+        out = module_ctx.path("_sums_" + _slug(key + "_" + platform))
+        res = module_ctx.download(url = entry.url, output = out, allow_fail = True)
+        if res.success:
+            digest = parse_sums_file(module_ctx.read(out), entry.filename)
+            if digest:
+                hashes[platform] = digest
+
+    return {"sha256": hashes, "source": _SOURCE_UPSTREAM}, False
+
 def tofu_hash(module_ctx, key, url, headers = {}):
     """Trust-on-first-use: download `url` and return its sha256.
 
