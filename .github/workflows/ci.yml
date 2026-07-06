@@ -21,7 +21,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
       # bloat so it fits on the runner's root disk.
@@ -67,7 +67,7 @@ jobs:
       # Human-facing https UI link Bazel prints for the invocation.
       BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
-      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Build and test on RBE (via bb-clientd)
         # The runner's job hook starts bb-clientd — a local caching proxy whose
