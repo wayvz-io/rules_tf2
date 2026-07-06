@@ -60,24 +60,24 @@ jobs:
     name: Test (RBE)
     runs-on: bb-ci-worker
     env:
-      # In-cluster Service DNS (buildbarn namespace). frontend = the RBE gRPC
-      # frontend; bb-portal = the BES backend (plaintext, in-cluster).
-      RBE_EXECUTOR: grpc://frontend.buildbarn:8980
       BES_BACKEND: grpc://bb-portal.buildbarn:8082
       # Human-facing https UI link Bazel prints for the invocation.
       BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build and test on RBE
-        # bazel is preinstalled on the runner image (bazelisk, defaults to the
-        # pinned 9.1.1 from .bazelversion). Keep Bazel's output base on the
-        # runner's dedicated work volume rather than the container root fs.
-        # //docs builds fast on a cold worker via prefer_prebuilt_protoc (.bazelrc).
+      - name: Build and test on RBE (via bb-clientd)
+        # The runner's job hook starts bb-clientd — a local caching proxy whose
+        # CAS lives on a persistent PVC (warm across runs). Bazel talks to its
+        # unix socket; clientd forwards to the in-cluster frontend, selected by
+        # --remote_instance_name (its config's cluster key). The repository cache
+        # sits on the same PVC so external repos (LLVM/Go SDK) stay warm too.
         run: |
           bazel --output_user_root="${RUNNER_TEMP}/bazel" test --config=remote \
-            --remote_executor="$RBE_EXECUTOR" \
-            --remote_cache="$RBE_EXECUTOR" \
+            --remote_executor=unix:///clientd/bb_clientd/grpc \
+            --remote_cache=unix:///clientd/bb_clientd/grpc \
+            --remote_instance_name=frontend.buildbarn \
+            --repository_cache=/clientd/bazel-repo-cache \
             --bes_backend="$BES_BACKEND" \
             --bes_results_url="$BES_RESULTS_URL" \
             //...
