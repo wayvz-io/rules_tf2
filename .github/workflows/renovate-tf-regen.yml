@@ -91,7 +91,7 @@ jobs:
       # renovate.json lists in gitIgnoredAuthors so Renovate keeps managing the branch.
       - name: Commit regenerated config (verified)
         if: steps.guard.outputs.skip != 'true' && steps.diff.outputs.changed == 'true'
-        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
           BRANCH: ${{ github.head_ref }}
           EXPECTED_OID: ${{ steps.head.outputs.oid }}
