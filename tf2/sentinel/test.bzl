@@ -1,4 +1,9 @@
-"""Sentinel test rule implementations"""
+"""Rules for testing and formatting Sentinel policies.
+
+See the [Test policies guide](../../guides/test-policies.md) for how to use these
+rules, and [Sentinel](../../explanation/sentinel.md) for background on the policy
+model.
+"""
 
 load("//tf2/tools/runners:sentinel.bzl", "create_sentinel_fmt", "create_sentinel_fmt_check", "create_sentinel_test")
 
@@ -44,7 +49,22 @@ tf_sentinel_test = rule(
         ),
     },
     test = True,
-    doc = "Tests Sentinel policies using sentinel test framework with user-provided mocks",
+    doc = """Tests Sentinel policies with the `sentinel test` framework and user-provided mocks.
+
+```starlark
+load("@rules_tf2//tf2:def.bzl", "tf_sentinel_test")
+
+tf_sentinel_test(
+    name = "require_tags_test",
+    srcs = ["require_tags.sentinel"],
+    tests = [
+        "test/require_tags/pass.hcl",
+        "test/require_tags/fail.hcl",
+        "mocks/mock-tfplan-pass.sentinel",
+    ],
+)
+```
+""",
 )
 
 def _tf_sentinel_fmt_test_impl(ctx):

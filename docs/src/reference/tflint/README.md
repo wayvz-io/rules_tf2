@@ -2,6 +2,11 @@
 
 Custom TFLint plugin with rules for enforcing Terraform conventions.
 
+> These are **TFLint rules**, not Bazel rules. They ship as a TFLint plugin
+> (`tflint-ruleset-tf2`, built on the `tflint-plugin-sdk`) and are configured as
+> HCL `rule "..." {}` blocks in a `.tflint.hcl` file — `tf_module`'s lint tests
+> run them automatically. See [Linting](../../explanation/tf-modules/linting.md).
+
 ## Rules
 
 ### tf2_terraform_required_providers

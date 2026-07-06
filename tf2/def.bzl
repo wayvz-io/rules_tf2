@@ -5,7 +5,7 @@ load(
     _tf_module = "tf_module",
 )
 load(
-    "//tf2/opa:test.bzl",
+    "//tf2/modules/opa:test.bzl",
     _tf_opa_fmt = "tf_opa_fmt",
     _tf_opa_fmt_test = "tf_opa_fmt_test",
     _tf_opa_test = "tf_opa_test",

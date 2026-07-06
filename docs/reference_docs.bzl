@@ -14,9 +14,9 @@ The page -> Stardoc mapping lives ONLY in the `pages` dict below. Consumers
 reconstruct each page's destination from the generated file's own `gen/<path>`
 location, so nothing has to repeat the mapping.
 
-Module-extension and hand-curated pages are intentionally absent: their `.bzl`
-sources do not Stardoc into anything better than the prose maintained by hand
-(e.g. `src/reference/extensions/README.md`).
+Hand-curated pages are intentionally absent: the section overview READMEs, and
+`reference/cloud/tfc-agent-image.md` (whose `.bzl` transitively loads
+`@rules_pkg//pkg:tar.bzl`, which exposes no `bzl_library` for `starlark_doc_extract`).
 """
 
 def generated_reference_pages(name, banner, pages):

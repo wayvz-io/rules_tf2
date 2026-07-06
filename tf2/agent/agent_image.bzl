@@ -132,60 +132,50 @@ def tfc_agent_image(
         tag = "latest",
         tags = None,
         visibility = None):
-    """Build a custom TFC agent Docker image with bundled providers.
+    """Build a custom TFC agent OCI image with providers baked in.
 
-    Creates a multi-architecture OCI image containing:
-    - TFC agent base image (hashicorp/tfc-agent)
-    - Terraform binary
-    - Provider filesystem mirror
-    - .terraformrc configuration
+    Produces a `hashicorp/tfc-agent` image bundling the Terraform binary, a
+    provider filesystem mirror, and a matching `.terraformrc`, so ephemeral
+    agents don't re-download providers on cold start.
 
-    Provider Selection:
-    - If neither `providers` nor `module` is specified, includes ALL providers
-      from @tf_provider_registry
-    - If `providers` is specified, creates a filtered mirror with only those providers
-    - If `module` is specified, extracts providers from that tf_module's dependencies
+    Provider selection: with neither `providers` nor `module`, all providers from
+    `@tf_provider_registry` are bundled; `providers` bundles an explicit list;
+    `module` extracts them from a `tf_module`'s dependencies.
+
+    For the end-to-end how-to (MODULE.bazel setup, build & push), see
+    [Bake providers into an ephemeral agent image](../../guides/terraform-cloud.md).
 
     Args:
-        name: Target name for the image
-        providers: List of provider aliases (e.g., ["aws_6", "random_3"]) or
-                   provider labels (e.g., ["@tf_provider_registry//:aws_6"]).
-                   If None and module is None, uses all providers.
-        module: tf_module label to extract providers from (mutually exclusive with providers)
-        platforms: List of target platforms (default: ["linux_amd64"]). NOTE:
-                   "linux_arm64" is only usable if the upstream hashicorp/tfc-agent
-                   base image publishes an arm64 manifest for the pinned version -
-                   many versions are amd64-only, so arm64 is opt-in and untested.
-        include_terraform: Include terraform binary (default: True)
-        registry: OCI registry hostname (default: ghcr.io)
-        repository: Repository path for push target (e.g., "org/image-name")
-        tag: Image tag (default: "latest")
-        tags: Bazel tags for the targets
-        visibility: Target visibility
+        name: Target name for the image.
+        providers: Provider aliases (e.g. `["aws_6"]`) or labels (e.g.
+            `["@tf_provider_registry//:aws_6"]`). Mutually exclusive with `module`;
+            if both are None, all providers are bundled.
+        module: `tf_module` label to extract providers from. Mutually exclusive
+            with `providers`.
+        platforms: Target platforms (default `["linux_amd64"]`). `"linux_arm64"`
+            only works when the upstream `hashicorp/tfc-agent` base image publishes
+            an arm64 manifest for the pinned version -- many are amd64-only, so
+            arm64 is opt-in and untested.
+        include_terraform: Include the terraform binary (default `True`).
+        registry: OCI registry hostname (default `ghcr.io`).
+        repository: Repository path for the push target (e.g. `"org/image-name"`).
+        tag: Image tag (default `"latest"`).
+        tags: Bazel tags for the generated targets.
+        visibility: Target visibility.
 
     Example:
-        # All providers from versions.json
-        tfc_agent_image(
-            name = "full_agent",
-            repository = "my-org/tfc-agent-full",
-        )
-
-        # Specific providers only
         tfc_agent_image(
             name = "aws_agent",
-            providers = [
-                "@tf_provider_registry//:aws_6",
-                "@tf_provider_registry//:random_3",
-            ],
+            providers = ["@tf_provider_registry//:aws_6"],
             repository = "my-org/tfc-agent-aws",
         )
 
     Generated Targets:
-        :{name} - Multi-arch OCI image index
-        :{name}_linux_amd64 - AMD64 platform image
-        :{name}_linux_arm64 - ARM64 platform image
-        :{name}_push - Push target (if repository specified)
-        :{name}_terraformrc - Generated .terraformrc file
+        :{name} - OCI image index (single-arch unless multiple `platforms` given)
+        :{name}_linux_amd64 - amd64 platform image
+        :{name}_linux_arm64 - arm64 platform image (only if "linux_arm64" in platforms)
+        :{name}_push - push target (only when `repository` is set)
+        :{name}_terraformrc - generated .terraformrc
     """
     if providers and module:
         fail("Cannot specify both 'providers' and 'module' - they are mutually exclusive")

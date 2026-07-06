@@ -46,7 +46,7 @@ You list every provider and tool version in a single `versions.json`:
 }
 ```
 
-A Bazel [module extension](reference/extensions/README.md) reads this file,
+A Bazel [module extension](reference/extensions/) reads this file,
 downloads each provider and tool, and generates provider hashes into
 `MODULE.bazel.lock` — so the whole graph is byte-for-byte reproducible and no
 build ever pulls a provider from the network. Providers are aliased by major
@@ -156,7 +156,7 @@ Plans, applies, and publishing are deliberately **not** in the test suite — th
 run as `bazel run` targets against a real backend. See
 [`tf_runner`](reference/rules/tf-runner.md),
 [`tfc_workspace`](reference/cloud/tfc-workspace.md), and
-[Flux publishing](reference/flux/README.md).
+[Flux publishing](reference/flux/).
 
 ## Learn from the examples
 
@@ -181,8 +181,8 @@ bazel test //examples/basic_module:all
 
 This documentation follows the [Diataxis](https://diataxis.fr/) framework:
 
-- **[How-to Guides](guides/README.md)**: Task-oriented instructions for specific goals
-- **[Reference](reference/README.md)**: Technical descriptions of rules, macros, and APIs
+- **[How-to Guides](guides/)**: Task-oriented instructions for specific goals
+- **[Reference](reference/rules/)**: Technical descriptions of rules, macros, and APIs
 - **[Explanation](explanation/architecture.md)**: Understanding-oriented discussions of concepts
 
 ## Status

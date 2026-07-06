@@ -1,4 +1,9 @@
-"""Module extensions for tf2"""
+"""Bazel module extensions for configuring rules_tf2 in `MODULE.bazel`.
+
+See the [Module Extensions overview](./) for how these fit together, and the
+[Versioning](../../explanation/versioning/) explanation for the
+`versions.json` schema.
+"""
 
 load("@rules_oci//oci:pull.bzl", "oci_pull")
 load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "resolve_single_hash", "tofu_hash")

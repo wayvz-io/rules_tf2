@@ -1,14 +1,14 @@
 """Documentation generation for rules_tf2 using mdbook"""
 
+load("@bazel_skylib//rules:build_test.bzl", "build_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load(":reference_docs.bzl", "generated_reference_pages")
 
 # Reference pages generated from source-code docstrings via Stardoc.
 #
-# These are build outputs, not committed files. `//docs:book` and `//docs:serve`
-# drop them into the mdbook source tree at build time, so editing a rule/macro
-# docstring and rebuilding is all it takes to refresh the docs. The page -> Stardoc
-# mapping lives here and nowhere else; extension/hand-curated pages are excluded.
+# These are build outputs, not committed files. The page -> Stardoc mapping lives
+# here and nowhere else; section-overview READMEs and tfc-agent-image (blocked by
+# rules_pkg lacking a bzl_library) stay hand-written.
 generated_reference_pages(
     name = "reference_pages",
     banner = ":reference_banner.md",
@@ -18,59 +18,109 @@ generated_reference_pages(
         "reference/rules/tf-test.md": "//tf2:tf_test_docs",
         "reference/rules/tf-variables.md": "//tf2:tf_variables_docs",
         "reference/rules/tf-file-export.md": "//tf2:tf_file_export_docs",
+        "reference/rules/tf-opa.md": "//tf2:tf_opa_docs",
+        "reference/rules/tf-sentinel.md": "//tf2:tf_sentinel_docs",
         "reference/cloud/tfc-workspace.md": "//tf2:tf_cloud_docs",
         "reference/cloud/tfc-publish-registry.md": "//tf2:tf_publish_docs",
         "reference/flux/tf-publish-oci-flux.md": "//tf2:tf_oci_docs",
         "reference/providers/provider-mirror.md": "//tf2:provider_mirror_docs",
+        "reference/extensions/tf-providers.md": "//tf2:tf_providers_docs",
+        "reference/extensions/tf-tools.md": "//tf2:tf_tools_docs",
+        "reference/extensions/tf-modules.md": "//tf2:tf_modules_docs",
+        "reference/extensions/tf-agent-base.md": "//tf2:tf_agent_base_docs",
     },
 )
 
-# Serve documentation locally with live reload.
-sh_binary(
-    name = "serve",
-    srcs = ["serve.sh"],
-    data = [
-        "book.toml",
-        ":reference_pages",
-        "@mdbook",
-    ] + glob(["src/**/*.md"]),
-    visibility = ["//visibility:public"],
-)
-
+# The assembled book source: static src/ + the Stardoc-generated reference pages
+# overlaid at their in-book paths. This is the single source of truth that `book`,
+# `link_check`, and `serve` all consume -- nothing re-assembles it independently.
 genrule(
-    name = "book",
+    name = "book_src",
     srcs = [
         "book.toml",
         ":reference_pages",
     ] + glob(["src/**/*.md"]),
-    outs = ["book.tar.gz"],
+    outs = ["book_src.tar.gz"],
     cmd = """
-        # Create temp directory for mdbook output
-        BOOK_OUT=$$(mktemp -d)
-
-        # Create working copy of docs directory with write permissions
         WORK_DIR=$$(mktemp -d)
         DOCS_DIR=$$(dirname $(location book.toml))
         cp -rL $$DOCS_DIR/* $$WORK_DIR/
-        chmod -R u+w $$WORK_DIR/
 
-        # Drop the Stardoc-generated reference pages into the book source tree.
-        # Each page's destination is the part of its path after "gen/".
+        # Overlay each Stardoc-generated page at the path after "gen/".
         for f in $(locations :reference_pages); do
             rel="$${f##*/gen/}"
             mkdir -p "$$WORK_DIR/src/$$(dirname "$$rel")"
             cp "$$f" "$$WORK_DIR/src/$$rel"
         done
 
-        # Run mdbook build from working directory
-        $(execpath @mdbook//:mdbook) build $$WORK_DIR -d $$BOOK_OUT
+        tar -czf $@ -C $$WORK_DIR .
+        rm -rf $$WORK_DIR
+    """,
+)
 
-        # Create tarball of the output
-        tar -czf $@ -C $$BOOK_OUT .
-
-        # Cleanup
-        rm -rf $$BOOK_OUT $$WORK_DIR
+# Render the assembled source to an HTML book with mdbook.
+genrule(
+    name = "book",
+    srcs = [":book_src"],
+    outs = ["book.tar.gz"],
+    cmd = """
+        SRC=$$(mktemp -d)
+        OUT=$$(mktemp -d)
+        tar -xzf $(location :book_src) -C $$SRC
+        chmod -R u+w $$SRC
+        $(execpath @mdbook//:mdbook) build $$SRC -d $$OUT
+        tar -czf $@ -C $$OUT .
+        rm -rf $$SRC $$OUT
     """,
     tools = ["@mdbook"],
+    visibility = ["//visibility:public"],
+)
+
+# Validate the same assembled source the book is built from. Two layers:
+#   1. Source lint -- inline links to README.md render to a dangling README.html
+#      (rust-lang/mdBook#1253: mdbook only rewrites README->index for SUMMARY.md).
+#      mdbook-linkcheck can't see this (the source README.md exists), so we grep.
+#   2. mdbook-linkcheck --standalone -- flags links whose target page is missing.
+genrule(
+    name = "link_check_run",
+    srcs = [":book_src"],
+    outs = ["link_check.ok"],
+    cmd = """
+        set -e
+        SRC=$$(mktemp -d)
+        tar -xzf $(location :book_src) -C $$SRC
+
+        # Ignore "incomplete link" warnings -- false positives on code/tables that
+        # contain [brackets] (e.g. `["main.tf"]`). Errors (missing pages, orphaned
+        # pages not in SUMMARY) still fail. Applied only to this check's copy, not
+        # the published book.
+        printf '\n[output.linkcheck]\nwarning-policy = "ignore"\n' >> $$SRC/book.toml
+
+        if grep -rn 'README[.]md)' $$SRC/src | grep -v 'SUMMARY[.]md:'; then
+            echo 'ERROR: inline links to README.md render to a dangling README.html (mdBook#1253).' >&2
+            echo 'Link to the directory instead, e.g. (../reference/gazelle/).' >&2
+            exit 1
+        fi
+        $(execpath @mdbook_linkcheck//:mdbook-linkcheck) --standalone $$SRC
+        touch $@
+        rm -rf $$SRC
+    """,
+    tools = ["@mdbook_linkcheck//:mdbook-linkcheck"],
+)
+
+# `bazel test //docs:link_check` (and `bazel test //...`) fails on dead links.
+build_test(
+    name = "link_check",
+    targets = [":link_check_run"],
+)
+
+# Serve locally with live reload -- extracts the same assembled source.
+sh_binary(
+    name = "serve",
+    srcs = ["serve.sh"],
+    data = [
+        ":book_src",
+        "@mdbook",
+    ],
     visibility = ["//visibility:public"],
 )
