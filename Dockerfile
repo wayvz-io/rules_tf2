@@ -15,7 +15,7 @@
 # nix is optional in this ruleset; the default build path needs none of it,
 # which is why this image ships no nix at all.
 
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Toolchain prerequisites:
 #   build-essential      - gcc/g++/make for the C/C++ hermetic toolchain
