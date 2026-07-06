@@ -7,8 +7,8 @@ module(
 )
 
 # Core Dependencies
-bazel_dep(name = "bazel_skylib", version = "1.8.2")
-bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
+bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.9.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_license", version = "1.0.0")
 bazel_dep(name = "rules_shell", version = "0.8.0")
@@ -18,7 +18,7 @@ bazel_dep(name = "stardoc", version = "0.8.1")
 
 # Pinned direct so the @protobuf//bazel/toolchains:prefer_prebuilt_protoc flag
 # (.bazelrc) is addressable from the root module's repo mapping.
-bazel_dep(name = "protobuf", version = "33.4")
+bazel_dep(name = "protobuf", version = "33.6")
 
 # Hermetic buildifier for the BUILD-file lint test (//:buildifier_test). Replaces
 # the nix dev-shell's buildifier so the lint test runs on a bare runner.
