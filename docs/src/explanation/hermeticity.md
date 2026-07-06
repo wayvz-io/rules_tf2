@@ -34,8 +34,42 @@ Hermetic operations:
   sources, nested modules, and docs)
 
 Provider, tool, and (optionally) external-module versions are pinned in
-`versions.json` and locked in `MODULE.bazel.lock`, so the hermetic graph is
-byte-for-byte reproducible.
+`versions.json`, and every artifact they resolve to is checksum-verified on
+download (see [Download integrity](#download-integrity) below), so the hermetic
+graph is byte-for-byte reproducible.
+
+## Download integrity
+
+Pinning a *version* is not the same as pinning the *bytes*: a moved tag or a
+tampered mirror can serve different content for the same version string. So
+every artifact rules_tf2 fetches is verified against a sha256, and the resolved
+checksums are cached in `MODULE.bazel.lock` facts (Bazel 8.5+) so later builds
+reuse them instead of re-resolving.
+
+How the sha256 is obtained depends on what the publisher offers:
+
+- **Providers** — `terraform providers lock` generates the `h1:`/`zh:` hashes
+  for every platform; downloads are verified against the `zh:` (sha256) entries.
+- **Tools** (Terraform, Sentinel, TFLint + plugins, terraform-docs, OPA) — the
+  publisher's checksums file is fetched and every platform's hash is locked from
+  it: HashiCorp `*_SHA256SUMS`, GitHub-release `checksums.txt`, terraform-docs'
+  `*.sha256sum`, or OPA's per-asset `*.sha256`. This verifies against the
+  *publisher*, and locking all platforms at once keeps the lockfile portable.
+- **External modules** — registries and Git hosts publish no checksums file, so
+  the sha256 is recorded on first download (trust-on-first-use) and enforced
+  thereafter. Git modules on GitHub are fetched as a checksum-verified
+  `archive/<ref>.tar.gz` tarball rather than an unverifiable `git clone`. If a
+  tag is later moved, the next fetch fails the checksum instead of silently
+  changing the build.
+
+Because the checksums live in the lockfile's `facts`, the module extensions that
+resolve them are marked `reproducible`, which also makes their repositories
+eligible for Bazel's repository-contents cache.
+
+> `MODULE.bazel.lock` is not committed in this repository (it is `.gitignore`d),
+> so these facts are cached per-environment rather than shared through Git.
+> Verification against the resolved sha256 still happens on every fetch; commit
+> the lockfile if you want a single reviewed pin shared across the team and CI.
 
 ## The non-hermetic side (`bazel run`)
 
