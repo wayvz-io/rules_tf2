@@ -2,9 +2,6 @@
 bazel-*
 .bazelversion
 
-# Module lock file (can be regenerated)
-MODULE.bazel.lock
-
 # IDE
 .idea/
 *.iml
