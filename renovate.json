@@ -112,6 +112,16 @@
       ],
       "groupName": "terraform provider mirror",
       "automerge": false
+    },
+    {
+      "description": "Enable updates for indirect (transitive) Go deps. Renovate disables these by default (the gomod parser sets enabled=false on any `// indirect` line), and osvVulnerabilityAlerts only covers DIRECT deps - so transitive CVEs (e.g. golang.org/x/net GHSA, alerts #3/#4) were never fixed. go.mod here is tooling-only (Bazel builds from MODULE.bazel), so the extra churn is low-stakes and folds into the auto-merging group:allNonMajor bulk PR.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
     }
   ]
 }
