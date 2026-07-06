@@ -21,7 +21,7 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
       # bloat so it fits on the runner's root disk.
@@ -32,7 +32,7 @@ jobs:
           sudo docker image prune --all --force || true
           df -h /
 
-      - uses: bazel-contrib/setup-bazel@0.19.0
+      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
         with:
           bazelisk-cache: true
           disk-cache: true
@@ -64,7 +64,7 @@ jobs:
       # Human-facing https UI link Bazel prints for the invocation.
       BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Build and test on RBE (via bb-clientd)
         # The runner's job hook starts bb-clientd — a local caching proxy whose
