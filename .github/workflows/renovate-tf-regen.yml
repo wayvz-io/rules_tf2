@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # dispatch ci.yml on the regenerated head (workflow_dispatch)
 
 concurrency:
   group: renovate-tf-regen-${{ github.ref }}
@@ -144,3 +145,17 @@ jobs:
                 },
               },
             );
+
+      # CI (ci.yml) skips its own pull_request run for this branch (the raw bump
+      # is guaranteed-red until the regen commit above lands), so nothing has
+      # tested the regenerated head yet. The regen commit was pushed with
+      # GITHUB_TOKEN, which by design does NOT trigger push/pull_request workflows
+      # - but workflow_dispatch is the documented exception (it always creates a
+      # run, even from GITHUB_TOKEN). So kick CI explicitly: tests run exactly
+      # once, on the regenerated commit. Runs even on a no-op regen so the bump is
+      # still validated. --ref resolves to the branch's current (regenerated) head.
+      - name: Run CI on the regenerated head
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run ci.yml --ref "${{ github.head_ref }}"

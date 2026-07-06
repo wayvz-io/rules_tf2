@@ -16,6 +16,13 @@ jobs:
   # Local mode: the default stock/hermetic toolchains on a bare runner.
   local:
     name: Test (local)
+    # Skip the guaranteed-red pre-regen run: a Renovate versions.json bump lands
+    # .tf/lock out of sync until renovate-tf-regen.yml commits the regenerated
+    # files, so testing the raw bump always fails. That workflow re-runs CI via
+    # workflow_dispatch on the regenerated head, so tests run exactly once, green.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.head_ref != 'renovate/terraform-provider-mirror'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -58,6 +65,11 @@ jobs:
   # endpoint; local dev uses .bazelrc.user.
   rbe:
     name: Test (RBE)
+    # See the local job: skip the guaranteed-red pre-regen run on the mirror
+    # branch; renovate-tf-regen.yml dispatches CI on the regenerated head.
+    if: >-
+      github.event_name != 'pull_request' ||
+      github.head_ref != 'renovate/terraform-provider-mirror'
     runs-on: bb-ci-worker
     # Cap runaway/wedged jobs. Without this GitHub's default is 6h, so a stuck
     # self-hosted runner blocks the (single) queue slot for hours.
