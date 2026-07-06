@@ -177,5 +177,5 @@ too, by baking the filesystem mirror into the agent image.
 - [Architecture](architecture.md) — component layout
 - [`tfc_workspace`](../reference/cloud/tfc-workspace.md) — remote plan/apply
 - [`tfc_agent_image`](../reference/cloud/tfc-agent-image.md) — provider-hermetic agents
-- [Flux publishing](../reference/flux/README.md) — module OCI artifacts for GitOps
+- [Flux publishing](../reference/flux/) — module OCI artifacts for GitOps
 - [Sentinel](sentinel.md) / [OPA](opa.md) — hermetic policy tests

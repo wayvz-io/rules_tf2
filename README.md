@@ -42,6 +42,12 @@ the architecture, hermeticity model, and versioning. It follows the
 - **Policy testing** — OPA and Sentinel format/test rules are implemented and tested.
 - **Publishing** — OCI and Terraform-registry publishing are implemented but rougher than the rest.
 
+## Why TF2?
+
+~Because I havent met anybody who played the original tf~
+
+Because rules_tf already exists, and if I publish this to bcr, figured it shouldnt conflict.
+
 ## Roadmap
 
 If I come back to this, the things I'd want to tackle:
@@ -98,3 +104,7 @@ Fork it and build on it under the terms of the licence — see [Background](#bac
 ## License
 
 Licensed under the [MIT License](LICENSE).
+
+## Credits
+
+Thanks to @Yanndegat for the original rules_tf that kicked this work off. 

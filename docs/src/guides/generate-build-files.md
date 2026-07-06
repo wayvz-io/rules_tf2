@@ -6,7 +6,7 @@ Terraform files, instead of hand-writing `BUILD.bazel`.
 ## Prerequisites
 
 - A Gazelle binary that includes the rules_tf2 `terraform` language plugin, wired
-  to a `gazelle` target. See the [Gazelle Extension reference](../reference/gazelle/README.md)
+  to a `gazelle` target. See the [Gazelle Extension reference](../reference/gazelle/)
   for the `gazelle_binary` setup.
 
 ## Steps
@@ -45,5 +45,5 @@ The generated `BUILD.bazel` builds and tests: `bazel test //path/to:all`.
 
 ## See also
 
-- [Gazelle Extension reference](../reference/gazelle/README.md)
+- [Gazelle Extension reference](../reference/gazelle/)
 - [Gazelle versioning](../explanation/versioning/gazelle.md)

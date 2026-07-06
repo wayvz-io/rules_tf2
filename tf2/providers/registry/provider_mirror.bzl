@@ -95,6 +95,28 @@ def _provider_mirror_impl(ctx):
     ]
 
 provider_mirror = rule(
+    doc = """Creates a Terraform provider filesystem mirror at build time.
+
+Aggregates individual provider binaries into the directory layout Terraform
+expects for a `filesystem_mirror`, so a module can resolve providers hermetically
+without reaching out to a network registry. Most users get a mirror implicitly via
+`tf_module`'s `providers` attribute; use `provider_mirror` directly only to
+assemble a custom mirror.
+
+Example:
+
+```starlark
+load("@rules_tf2//tf2:def.bzl", "provider_mirror")
+
+provider_mirror(
+    name = "custom_mirror",
+    providers = [
+        "hashicorp/aws:5.0.0",
+        "hashicorp/random:3.0.0",
+    ],
+)
+```
+    """,
     implementation = _provider_mirror_impl,
     attrs = {
         "providers": attr.string_list(

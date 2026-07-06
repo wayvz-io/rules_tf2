@@ -92,4 +92,4 @@ Run Gazelle after:
 - Updating provider versions (to refresh provider declarations)
 - Structural changes to module directories
 
-For module structure and dependency details, see [Terraform Modules](../tf-modules/README.md).
+For module structure and dependency details, see [Terraform Modules](../tf-modules/).

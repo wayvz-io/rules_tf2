@@ -77,10 +77,10 @@ sysroot(
     urls = ["https://commondatastorage.googleapis.com/chrome-linux-sysroot/toolchain/2202c161310ffde63729f29d27fe7bb24a0bc540/debian_stretch_amd64_sysroot.tar.xz"],
 )
 
-# Non-module dependencies (only when root module): the downloaded mdbook binary
-# used by the docs build.
+# Non-module dependencies (only when root module): the downloaded mdbook and
+# mdbook-linkcheck binaries used by the docs build.
 non_module_deps = use_extension("//build/non_module_deps:non_module_deps.bzl", "non_module_deps", dev_dependency = True)
-use_repo(non_module_deps, "mdbook")
+use_repo(non_module_deps, "mdbook", "mdbook_linkcheck")
 
 # Go SDK configuration for development (only when rules_tf2 is root module).
 # Downloaded (hermetic) rather than host, so no host Go is required.

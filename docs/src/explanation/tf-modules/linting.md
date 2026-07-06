@@ -48,7 +48,7 @@ The `tags` attribute on `tf_module` is forwarded to the generated Bazel test tar
 
 ## The tf2 Plugin
 
-rules_tf2 includes `tflint-ruleset-tf2` with enhanced rules. See [Reference: tflint-ruleset-tf2](../../reference/tflint/README.md) for available rules.
+rules_tf2 includes `tflint-ruleset-tf2` with enhanced rules. See [Reference: tflint-ruleset-tf2](../../reference/tflint/) for available rules.
 
 ## Formatting
 

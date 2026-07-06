@@ -1,7 +1,7 @@
 """Unit tests for OPA rules"""
 
 load("@bazel_skylib//lib:unittest.bzl", "analysistest", "asserts")
-load("//tf2/opa:test.bzl", "tf_opa_fmt_test", "tf_opa_test")
+load("//tf2/modules/opa:test.bzl", "tf_opa_fmt_test", "tf_opa_test")
 
 # Test that OPA test rule is created correctly
 def _tf_opa_test_creation_test_impl(ctx):

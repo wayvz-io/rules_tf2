@@ -2,7 +2,7 @@
 
 Publishing Terraform modules as OCI artifacts for a Flux-based GitOps workflow.
 
-Unlike the [Terraform Cloud](../cloud/README.md) path — where TFC/TFE runs the
+Unlike the [Terraform Cloud](../cloud/) path — where TFC/TFE runs the
 plan and apply — the Flux path packages a module as an **OCI artifact** that Flux
 pulls and a Terraform/OpenTofu controller reconciles against a cluster.
 

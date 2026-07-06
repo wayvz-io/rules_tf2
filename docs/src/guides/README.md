@@ -3,7 +3,7 @@
 Task-oriented recipes for common goals. Each assumes you know what you want to
 do; for the concepts behind them, follow the links into
 [Explanation](../explanation/architecture.md) and
-[Reference](../reference/README.md).
+[Reference](../reference/rules/).
 
 ## Modules & testing
 

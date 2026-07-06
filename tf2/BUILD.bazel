@@ -147,7 +147,8 @@ stardoc(
     deps = ["//tf2/publish/oci:oci_push"],
 )
 
-# Extensions documentation
+# Extensions documentation -- one page per extension (they all live in
+# extensions.bzl, so each target filters to a single symbol via symbol_names).
 stardoc(
     name = "extensions_docs",
     out = "docs/extensions.md",
@@ -156,6 +157,49 @@ stardoc(
     visibility = ["//visibility:public"],
     deps = [":extensions"],
 )
+
+[
+    stardoc(
+        name = "%s_docs" % ext,
+        out = "docs/%s.md" % ext,
+        input = "extensions.bzl",
+        symbol_names = [ext],
+        tags = ["manual"],
+        visibility = ["//visibility:public"],
+        deps = [":extensions"],
+    )
+    for ext in [
+        "tf_providers",
+        "tf_tools",
+        "tf_modules",
+        "tf_agent_base",
+    ]
+]
+
+# Policy rule documentation
+stardoc(
+    name = "tf_opa_docs",
+    out = "docs/tf_opa.md",
+    input = "//tf2/modules/opa:test.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/modules/opa:test"],
+)
+
+stardoc(
+    name = "tf_sentinel_docs",
+    out = "docs/tf_sentinel.md",
+    input = "//tf2/sentinel:test.bzl",
+    tags = ["manual"],
+    visibility = ["//visibility:public"],
+    deps = ["//tf2/sentinel:test"],
+)
+
+# NOTE: tfc_agent_image is intentionally NOT Stardoc'd. agent_image.bzl loads
+# @rules_pkg//pkg:tar.bzl, which rules_pkg does not expose a bzl_library for, so
+# starlark_doc_extract can't resolve it. Its reference page
+# (docs/src/reference/cloud/tfc-agent-image.md) is a blunt hand-written stub that
+# links to the how-to guide; the macro's own docstring holds the full API.
 
 # Filegroup for all documentation
 filegroup(

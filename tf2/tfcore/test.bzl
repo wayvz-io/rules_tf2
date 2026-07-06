@@ -227,8 +227,8 @@ test files to the working directory.
 Example:
     tf_module(
         name = "my_module",
-        srcs = glob(["*.tf"]) + ["README.md"],
-        providers = ["@tf_provider_registry//:aws_5"],
+        srcs = ["main.tf", "variables.tf", "outputs.tf", "README.md"],
+        providers = ["@tf_provider_registry//:aws_6"],
     )
 
     tf_test(

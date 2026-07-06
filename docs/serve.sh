@@ -1,90 +1,44 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Find runfiles directory
+# Serve the docs locally with live reload. Extracts the assembled book source
+# (//docs:book_src -- static src/ plus the Stardoc-generated reference pages) and
+# runs `mdbook serve` on it, so this shows exactly what //docs:book publishes.
+
 RUNFILES="${RUNFILES_DIR:-$0.runfiles}"
 if [[ ! -d "$RUNFILES" ]]; then
     RUNFILES="$(dirname "$0")/serve.runfiles"
 fi
 
-# Create working directory with write permissions
-WORK_DIR=$(mktemp -d)
-trap "rm -rf $WORK_DIR" EXIT
+WORK_DIR="$(mktemp -d)"
+trap 'rm -rf "$WORK_DIR"' EXIT
 
-# Copy docs structure
-cp -rL "$RUNFILES/rules_tf2_docs/docs"/* "$WORK_DIR/" 2>/dev/null || cp -rL "$RUNFILES/_main/docs"/* "$WORK_DIR/"
+# Locate the assembled source tarball (main repo runfiles, name may vary).
+BOOK_SRC=""
+for p in "$RUNFILES"/*/docs/book_src.tar.gz; do
+    [[ -e "$p" ]] && { BOOK_SRC="$p"; break; }
+done
+if [[ -z "$BOOK_SRC" ]]; then
+    echo "Error: book_src.tar.gz not found in runfiles" >&2
+    ls -la "$RUNFILES" >&2
+    exit 1
+fi
+tar -xzf "$BOOK_SRC" -C "$WORK_DIR"
 chmod -R u+w "$WORK_DIR"
 
-# Copy stardoc outputs over placeholder files
-STARDOC_DIR=""
-for prefix in "_main" "rules_tf2_docs"; do
-    if [[ -d "$RUNFILES/$prefix/tf2/docs" ]]; then
-        STARDOC_DIR="$RUNFILES/$prefix/tf2/docs"
-        break
-    fi
-done
-
-if [[ -z "$STARDOC_DIR" ]]; then
-    echo "Warning: Could not find stardoc outputs directory"
-    echo "Looked in: $RUNFILES/*/tf2/docs"
-    ls -la "$RUNFILES"
-else
-    echo "Found stardoc outputs in: $STARDOC_DIR"
-
-    # Function to copy stardoc file with auto-generated banner
-    copy_stardoc() {
-        local src="$1"
-        local dst="$2"
-        {
-            echo '> **Note**: This page is auto-generated from source code docstrings using [Stardoc](https://github.com/bazelbuild/stardoc). Do not edit directly.'
-            echo ''
-            cat "$src"
-        } > "$dst"
-        echo "Copied: $src -> $dst"
-    }
-
-    # Destination filenames must match the paths listed in src/SUMMARY.md, or the
-    # generated pages will not be linked into the book and never render.
-    #
-    # Note: no stardoc is generated for tf_sentinel or tf_opa even
-    # though they are part of the public API. Their reference pages under
-    # src/reference/rules/ are hand-maintained and are intentionally not
-    # overwritten here.
-    copy_stardoc "$STARDOC_DIR/tf_module.md" "$WORK_DIR/src/reference/rules/tf-module.md"
-    copy_stardoc "$STARDOC_DIR/tf_runner.md" "$WORK_DIR/src/reference/rules/tf-runner.md"
-    copy_stardoc "$STARDOC_DIR/tf_test.md" "$WORK_DIR/src/reference/rules/tf-test.md"
-    copy_stardoc "$STARDOC_DIR/tf_variables.md" "$WORK_DIR/src/reference/rules/tf-variables.md"
-    copy_stardoc "$STARDOC_DIR/tf_file_export.md" "$WORK_DIR/src/reference/rules/tf-file-export.md"
-    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tfc-workspace.md"
-    copy_stardoc "$STARDOC_DIR/provider_mirror.md" "$WORK_DIR/src/reference/providers/provider-mirror.md"
-    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/cloud/tfc-publish-registry.md"
-    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/flux/tf-publish-oci-flux.md"
-    copy_stardoc "$STARDOC_DIR/extensions.md" "$WORK_DIR/src/reference/extensions/README.md"
-fi
-
-# Find the downloaded @mdbook binary (handle various runfiles layouts)
+# Locate the downloaded mdbook binary (external-repo dir name is mangled).
 MDBOOK=""
-for path in \
-    "$RUNFILES/_main+non_module_deps+mdbook/mdbook" \
-    "$RUNFILES/rules_tf2_docs+non_module_deps+mdbook/mdbook" \
-    "$RUNFILES/mdbook/mdbook"; do
-    if [[ -x "$path" ]]; then
-        MDBOOK="$path"
-        break
-    fi
+for p in "$RUNFILES"/*mdbook/mdbook; do
+    [[ -x "$p" ]] && { MDBOOK="$p"; break; }
 done
-
 if [[ -z "$MDBOOK" ]]; then
-    echo "Error: Could not find mdbook binary"
-    echo "Searched in: $RUNFILES"
-    ls -la "$RUNFILES"
+    echo "Error: could not find mdbook binary" >&2
+    ls -la "$RUNFILES" >&2
     exit 1
 fi
 
-echo "Starting mdbook server..."
 echo "Documentation will be available at: http://$(hostname):3000"
 echo "Press Ctrl+C to stop"
 echo ""
-
 cd "$WORK_DIR"
 exec "$MDBOOK" serve --hostname 0.0.0.0 --port 3000

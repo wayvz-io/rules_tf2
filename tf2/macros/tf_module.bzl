@@ -322,19 +322,55 @@ def _tf_module_impl(
     )
 
 tf_module = macro(
-    doc = """Creates a Terraform module with comprehensive test suite.
+    doc = """Creates a Terraform module with a comprehensive, auto-generated test suite.
 
-    This macro creates multiple targets:
-    - name: The main module target
-    - name_deps: Module dependencies target (if deps specified)
-    - name_validate_test: Validation test (if not skip_validation)
-    - name_format_test: Format checking test
-    - name_doc_test: Documentation validation test (if README.md exists)
-    - name_lint_test: Linting test
-    - name_versions_check_test: Provider versions validation test
-    - name_generate_versions: Generate terraform.tf versions
-    - name_generate_docs: Generate README.md
-    - name_no_lockfile_test: Test that no committed lockfile exists
+`tf_module` is the primary entry point of rules_tf2. It stages a module's
+sources and wraps them in the full battery of validation, linting,
+formatting, documentation, and version checks that the ruleset provides.
+
+Example:
+
+```starlark
+load("@rules_tf2//tf2:def.bzl", "tf_module")
+
+tf_module(
+    name = "my_module",
+    srcs = [
+        "main.tf",
+        "outputs.tf",
+        "terraform.tf",
+        "variables.tf",
+        "README.md",
+    ],
+    providers = ["@tf_provider_registry//:aws_6"],
+)
+```
+
+Always list `srcs` explicitly &mdash; never use `glob()`. The explicit list
+keeps the source set auditable and is enforced by the generated
+`name_untracked_files_test`.
+
+Generated targets (each prefixed with `name`):
+
+| Target | Kind | Description |
+| --- | --- | --- |
+| `name` | build | The staged module |
+| `name_validate_test` | test | Runs `terraform validate` (skipped when `skip_validation`) |
+| `name_format_test` | test | Checks `terraform fmt` compliance |
+| `name_format` | run | Auto-fixes formatting |
+| `name_lint_test` | test | Runs TFLint |
+| `name_tflint_fix` | run | Auto-fixes TFLint findings |
+| `name_tflint_validate_test` | test | Validates against TFLint with providers |
+| `name_doc_test` | test | Checks README matches terraform-docs (when `README.md` present) |
+| `name_generate_docs` | run | Regenerates `README.md` |
+| `name_versions_check_test` | test | Validates provider version constraints |
+| `name_generate_versions` | run | Regenerates `terraform.tf` version blocks |
+| `name_deps_test` | test | Validates module dependencies are declared |
+| `name_untracked_files_test` | test | Checks every `.tf` file is listed in `srcs` |
+| `name_no_lockfile_test` | test | Checks no `.terraform.lock.hcl` is committed |
+| `name_reorganize` | run | Reorganizes files into the conventional layout |
+
+Run the whole suite for a package with `bazel test //path/to:all`.
     """,
     implementation = _tf_module_impl,
     attrs = {
@@ -342,7 +378,7 @@ tf_module = macro(
             mandatory = True,
             allow_files = True,
             configurable = False,
-            doc = "Source files (.tf files and README.md). Use glob([\"*.tf\"]) + [\"README.md\"]",
+            doc = "Source files: the module's `.tf` files plus its `README.md`. List every file explicitly &mdash; never use `glob()`. The generated `name_untracked_files_test` fails if any `.tf` file on disk is missing from this list.",
         ),
         "deps": attr.label_list(
             configurable = False,

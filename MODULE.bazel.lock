@@ -280,7 +280,7 @@
   "moduleExtensions": {
     "//build/non_module_deps:non_module_deps.bzl%non_module_deps": {
       "general": {
-        "bzlTransitiveDigest": "7lorZCAv/FgJq3XAU0Wu6fKI13jtEn9zyFxv6X9VuM4=",
+        "bzlTransitiveDigest": "K0WFrHUMFkb4a4uXSMfyRVP8W0tVA6KOzTK2NyygLVk=",
         "usagesDigest": "uChKNNhHLIUD6KP7Hh91PfNGDE/7vwk+roJ3B+DFHDQ=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -294,6 +294,19 @@
               ],
               "sha256": "c0b903f01dd8f4edc644372ad2b80b1fdddd12552d37b6a098657cbd8eddd768",
               "build_file_content": "exports_files([\"mdbook\"])"
+            }
+          },
+          "mdbook_linkcheck": {
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
+            "attributes": {
+              "urls": [
+                "https://github.com/Michael-F-Bryan/mdbook-linkcheck/releases/download/v0.7.7/mdbook-linkcheck.x86_64-unknown-linux-gnu.zip"
+              ],
+              "sha256": "18cebca9493804b307b39a44af2664cdfa881e84b8d92a94205d6c51572318ef",
+              "patch_cmds": [
+                "chmod +x mdbook-linkcheck"
+              ],
+              "build_file_content": "exports_files([\"mdbook-linkcheck\"])"
             }
           }
         }

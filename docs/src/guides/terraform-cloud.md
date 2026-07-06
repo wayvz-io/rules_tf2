@@ -78,5 +78,5 @@ agents boot and start planning faster.
 
 ## See also
 
-- [`tfc_agent_image` reference](../reference/cloud/tfc-agent-image.md) · [Cloud Integration](../reference/cloud/README.md)
+- [`tfc_agent_image` reference](../reference/cloud/tfc-agent-image.md) · [Cloud Integration](../reference/cloud/)
 - [Hermeticity, CI & CD](../explanation/hermeticity.md) — where plans/applies run vs the hermetic checks
