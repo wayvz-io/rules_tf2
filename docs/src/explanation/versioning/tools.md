@@ -8,6 +8,8 @@ The `tools` section of `versions.json` specifies versions for binaries:
     "terraform": "1.7.0",
     "tflint": "0.50.0",
     "terraform-docs": "0.17.0",
+    "opa": "1.4.2",
+    "sentinel": "0.40.0",
     "tfc-agent": "1.17.0"
   }
 }
@@ -21,7 +23,12 @@ Downloads come from:
 - **Terraform**: `releases.hashicorp.com`
 - **TFLint**: GitHub releases (`terraform-linters/tflint`)
 - **terraform-docs**: GitHub releases (`terraform-docs/terraform-docs`)
+- **OPA**: GitHub releases (`open-policy-agent/opa`)
+- **Sentinel**: `releases.hashicorp.com`
 - **tfc-agent**: Docker Hub (`hashicorp/tfc-agent`) - via `tf_agent_base` extension
+
+Each binary is verified against the publisher's checksums and the resolved
+sha256 is locked in `MODULE.bazel.lock` — see [Download integrity](../hermeticity.md#download-integrity).
 
 ## Registry Aliases
 
@@ -31,6 +38,8 @@ Tools are available through `@tf_tool_registry`:
 @tf_tool_registry//:terraform
 @tf_tool_registry//:tflint
 @tf_tool_registry//:terraform-docs
+@tf_tool_registry//:opa
+@tf_tool_registry//:sentinel
 ```
 
 These are `sh_binary` targets that resolve to the correct platform binary.
