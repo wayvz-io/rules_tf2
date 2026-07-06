@@ -29,14 +29,18 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Build the book on RBE
-        # --remote_download_toplevel overrides the .bazelrc :remote default
-        # (minimal) so book.tar.gz lands locally for packaging.
+      - name: Build the book on RBE (via bb-clientd)
+        # bb-clientd (started by the runner's job hook) is the local caching
+        # proxy with a warm PVC-backed CAS; it forwards to the in-cluster
+        # frontend. --remote_download_toplevel overrides the .bazelrc :remote
+        # default (minimal) so book.tar.gz lands locally for packaging.
         run: |
           bazel --output_user_root="${RUNNER_TEMP}/bazel" build //docs:book \
             --config=remote \
-            --remote_executor=grpc://frontend.buildbarn:8980 \
-            --remote_cache=grpc://frontend.buildbarn:8980 \
+            --remote_executor=unix:///clientd/bb_clientd/grpc \
+            --remote_cache=unix:///clientd/bb_clientd/grpc \
+            --remote_instance_name=frontend.buildbarn \
+            --repository_cache=/clientd/bazel-repo-cache \
             --remote_download_toplevel
 
       - name: Unpack rendered site
