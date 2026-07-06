@@ -31,7 +31,7 @@ bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")  # Required for oci_pul
 
 # Declared directly (not just transitively) so oci_pull'd base image repos can
 # resolve the @package_metadata loads that rules_oci 2.3 emits.
-bazel_dep(name = "package_metadata", version = "0.0.6")
+bazel_dep(name = "package_metadata", version = "0.0.13")
 
 # Hermetic jq for the registry publish flow (tf_publish).
 bazel_dep(name = "jq.bzl", version = "0.6.1")
