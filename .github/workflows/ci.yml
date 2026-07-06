@@ -106,10 +106,25 @@ jobs:
         env:
           USE_BAZEL_VERSION: "9.1.1"
         # //docs builds fast on a cold worker now via prefer_prebuilt_protoc (.bazelrc).
+        # EXPERIMENT (v2): --experimental_remote_repo_contents_cache (startup flag,
+        # Bazel 9) caches reproducible repo-rule outputs in the remote AC. The
+        # original trial saw no benefit because git modules used `git clone` (not
+        # reproducible). They now fetch a checksum-verified tarball and both module
+        # extensions are marked reproducible, and MODULE.bazel.lock is committed, so
+        # a warm cache may now let a fresh runner skip re-materialising external/.
         run: |
-          bazel test --config=remote \
+          bazel --experimental_remote_repo_contents_cache \
+            test --config=remote \
             --remote_executor="$RBE_EXECUTOR" \
             --remote_cache="$RBE_EXECUTOR" \
             --bes_backend="$BES_BACKEND" \
             --bes_results_url="$BES_RESULTS_URL" \
             //...
+
+      - name: Report external/ materialization (experiment metric)
+        if: always()
+        run: |
+          OB=$(bazel info output_base 2>/dev/null || true)
+          echo "output_base: $OB"
+          [ -n "$OB" ] && du -sh "$OB/external" 2>/dev/null || echo "(external not present — repo contents served from cache?)"
+          df -h / | tail -1
