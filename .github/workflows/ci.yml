@@ -45,71 +45,39 @@ jobs:
           USE_BAZEL_VERSION: "9.1.1"
         run: bazel test //...
 
-  # RBE mode: the same build executed remotely on the shared lab Buildbarn
-  # cluster, reached over Tailscale (ephemeral OIDC node — no long-lived key).
-  # Proves the stock toolchains ship to a vanilla Ubuntu worker with no
-  # /nix/store and no special preparation. The local podman cluster in
-  # //tools/rbe-local remains available for offline/self-contained runs.
+  # RBE mode: executed remotely on the lab Buildbarn cluster, driven by our
+  # self-hosted ARC runner (`bb-ci-worker`) which runs *inside* the cluster with
+  # Bazel 9.1.1 preinstalled. Because the runner is in-cluster it reaches
+  # Buildbarn directly over plain gRPC via Kubernetes Service DNS — no Tailscale,
+  # no gateway, no TLS, and none of the setup-bazel/free-disk dance a
+  # GitHub-hosted runner needed. The local podman cluster in //tools/rbe-local
+  # remains available for offline/self-contained runs.
   #
-  # Requires (configured out of band, not in this repo):
-  #   - secrets.TS_OAUTH_CLIENT_ID / secrets.TS_AUDIENCE — Tailscale OIDC client.
-  #   - Tailnet ACL allowing tag:ci-server to reach the gateway on :8980 (and :53
-  #     for MagicDNS). See the cluster runbook in the iac repo.
-  # The endpoint lives here (the committed .bazelrc never carries it; local dev
-  # uses .bazelrc.user instead).
+  # The runner + endpoints are defined in the iac repo (clusters/k3s-office/
+  # github-actions-runner + buildbarn). The committed .bazelrc never carries the
+  # endpoint; local dev uses .bazelrc.user.
   rbe:
     name: Test (RBE)
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write   # lets the Tailscale action mint a GitHub OIDC token
-      contents: read
+    runs-on: bb-ci-worker
     env:
-      RBE_EXECUTOR: grpc://bb.lab.wayvz.io:8980
-      # bes_backend is the gateway's plaintext gRPC BES listener on :8082
-      # (Tailscale-encrypted, like the RBE :8980 endpoint — no TLS cert needed).
-      # results_url is the human-facing https UI link. Needs the tailnet ACL to
-      # also allow tag:ci-server -> gateway:8082.
-      BES_BACKEND: grpc://bb-portal.lab.wayvz.io:8082
+      BES_BACKEND: grpc://bb-portal.buildbarn:8082
+      # Human-facing https UI link Bazel prints for the invocation.
       BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
       - uses: actions/checkout@v5
 
-      # RBE keeps compilation off the runner, but Bazel still fetches and
-      # extracts the full external-repo/toolchain set locally (LLVM ~2.5GB, Go
-      # SDK, protobuf) to build the action graph and upload inputs. Reclaim
-      # preinstalled bloat so that plus the repository cache fits on /.
-      - name: Free disk space
+      - name: Build and test on RBE (via bb-clientd)
+        # The runner's job hook starts bb-clientd — a local caching proxy whose
+        # CAS lives on a persistent PVC (warm across runs). Bazel talks to its
+        # unix socket; clientd forwards to the in-cluster frontend, selected by
+        # --remote_instance_name (its config's cluster key). The repository cache
+        # sits on the same PVC so external repos (LLVM/Go SDK) stay warm too.
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
-          df -h /
-
-      - name: Connect to Tailscale (OIDC, ephemeral node)
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:ci-server
-          use-cache: true
-          # Pull the tailnet DNS config so the RBE hostname resolves to the gateway.
-          args: --accept-dns=true
-
-      - uses: bazel-contrib/setup-bazel@0.19.0
-        with:
-          bazelisk-cache: true
-          # No action cache persisted across runs, so this job keeps proving
-          # actions execute on a cold worker (bazelisk/repo downloads still cached).
-          disk-cache: false
-          repository-cache: true
-
-      - name: Build and test on RBE
-        env:
-          USE_BAZEL_VERSION: "9.1.1"
-        # //docs builds fast on a cold worker now via prefer_prebuilt_protoc (.bazelrc).
-        run: |
-          bazel test --config=remote \
-            --remote_executor="$RBE_EXECUTOR" \
-            --remote_cache="$RBE_EXECUTOR" \
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" test --config=remote \
+            --remote_executor=unix:///clientd/bb_clientd/grpc \
+            --remote_cache=unix:///clientd/bb_clientd/grpc \
+            --remote_instance_name=frontend.buildbarn \
+            --repository_cache=/clientd/bazel-repo-cache \
             --bes_backend="$BES_BACKEND" \
             --bes_results_url="$BES_RESULTS_URL" \
             //...
