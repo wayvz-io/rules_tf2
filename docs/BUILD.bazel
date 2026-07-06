@@ -1,23 +1,37 @@
 """Documentation generation for rules_tf2 using mdbook"""
 
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load(":reference_docs.bzl", "generated_reference_pages")
 
-# Serve documentation locally with live reload
+# Reference pages generated from source-code docstrings via Stardoc.
+#
+# These are build outputs, not committed files. `//docs:book` and `//docs:serve`
+# drop them into the mdbook source tree at build time, so editing a rule/macro
+# docstring and rebuilding is all it takes to refresh the docs. The page -> Stardoc
+# mapping lives here and nowhere else; extension/hand-curated pages are excluded.
+generated_reference_pages(
+    name = "reference_pages",
+    banner = ":reference_banner.md",
+    pages = {
+        "reference/rules/tf-module.md": "//tf2:tf_module_docs",
+        "reference/rules/tf-runner.md": "//tf2:tf_runner_docs",
+        "reference/rules/tf-test.md": "//tf2:tf_test_docs",
+        "reference/rules/tf-variables.md": "//tf2:tf_variables_docs",
+        "reference/rules/tf-file-export.md": "//tf2:tf_file_export_docs",
+        "reference/cloud/tfc-workspace.md": "//tf2:tf_cloud_docs",
+        "reference/cloud/tfc-publish-registry.md": "//tf2:tf_publish_docs",
+        "reference/flux/tf-publish-oci-flux.md": "//tf2:tf_oci_docs",
+        "reference/providers/provider-mirror.md": "//tf2:provider_mirror_docs",
+    },
+)
+
+# Serve documentation locally with live reload.
 sh_binary(
     name = "serve",
     srcs = ["serve.sh"],
     data = [
         "book.toml",
-        "//tf2:extensions_docs",
-        "//tf2:provider_mirror_docs",
-        "//tf2:tf_cloud_docs",
-        "//tf2:tf_file_export_docs",
-        "//tf2:tf_module_docs",
-        "//tf2:tf_oci_docs",
-        "//tf2:tf_publish_docs",
-        "//tf2:tf_runner_docs",
-        "//tf2:tf_test_docs",
-        "//tf2:tf_variables_docs",
+        ":reference_pages",
         "@mdbook",
     ] + glob(["src/**/*.md"]),
     visibility = ["//visibility:public"],
@@ -27,17 +41,7 @@ genrule(
     name = "book",
     srcs = [
         "book.toml",
-        # Stardoc-generated API reference
-        "//tf2:tf_module_docs",
-        "//tf2:tf_runner_docs",
-        "//tf2:tf_test_docs",
-        "//tf2:tf_variables_docs",
-        "//tf2:tf_file_export_docs",
-        "//tf2:tf_cloud_docs",
-        "//tf2:provider_mirror_docs",
-        "//tf2:tf_publish_docs",
-        "//tf2:tf_oci_docs",
-        "//tf2:extensions_docs",
+        ":reference_pages",
     ] + glob(["src/**/*.md"]),
     outs = ["book.tar.gz"],
     cmd = """
@@ -50,22 +54,13 @@ genrule(
         cp -rL $$DOCS_DIR/* $$WORK_DIR/
         chmod -R u+w $$WORK_DIR/
 
-        # Copy stardoc outputs over placeholder files with auto-generated banner
-        add_banner() {
-            echo '> **Note**: This page is auto-generated from source code docstrings using [Stardoc](https://github.com/bazelbuild/stardoc). Do not edit directly.'
-            echo ''
-            cat "$$1"
-        }
-        add_banner $(location //tf2:tf_module_docs) > $$WORK_DIR/src/reference/rules/tf-module.md
-        add_banner $(location //tf2:tf_runner_docs) > $$WORK_DIR/src/reference/rules/tf-runner.md
-        add_banner $(location //tf2:tf_test_docs) > $$WORK_DIR/src/reference/rules/tf-test.md
-        add_banner $(location //tf2:tf_variables_docs) > $$WORK_DIR/src/reference/rules/tf-variables.md
-        add_banner $(location //tf2:tf_file_export_docs) > $$WORK_DIR/src/reference/rules/tf-file-export.md
-        add_banner $(location //tf2:tf_cloud_docs) > $$WORK_DIR/src/reference/cloud/tfc-workspace.md
-        add_banner $(location //tf2:provider_mirror_docs) > $$WORK_DIR/src/reference/providers/provider-mirror.md
-        add_banner $(location //tf2:tf_publish_docs) > $$WORK_DIR/src/reference/cloud/tfc-publish-registry.md
-        add_banner $(location //tf2:tf_oci_docs) > $$WORK_DIR/src/reference/flux/tf-publish-oci-flux.md
-        add_banner $(location //tf2:extensions_docs) > $$WORK_DIR/src/reference/extensions/README.md
+        # Drop the Stardoc-generated reference pages into the book source tree.
+        # Each page's destination is the part of its path after "gen/".
+        for f in $(locations :reference_pages); do
+            rel="$${f##*/gen/}"
+            mkdir -p "$$WORK_DIR/src/$$(dirname "$$rel")"
+            cp "$$f" "$$WORK_DIR/src/$$rel"
+        done
 
         # Run mdbook build from working directory
         $(execpath @mdbook//:mdbook) build $$WORK_DIR -d $$BOOK_OUT

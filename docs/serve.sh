@@ -15,51 +15,20 @@ trap "rm -rf $WORK_DIR" EXIT
 cp -rL "$RUNFILES/rules_tf2_docs/docs"/* "$WORK_DIR/" 2>/dev/null || cp -rL "$RUNFILES/_main/docs"/* "$WORK_DIR/"
 chmod -R u+w "$WORK_DIR"
 
-# Copy stardoc outputs over placeholder files
-STARDOC_DIR=""
-for prefix in "_main" "rules_tf2_docs"; do
-    if [[ -d "$RUNFILES/$prefix/tf2/docs" ]]; then
-        STARDOC_DIR="$RUNFILES/$prefix/tf2/docs"
-        break
-    fi
-done
+# Drop the Stardoc-generated reference pages (//docs:reference_pages) into the
+# book source tree. Each page ships under docs/gen/<in-book-path>; its
+# destination is the part of the path after "gen/". This mirrors what the
+# //docs:book genrule does, so `serve` shows exactly what gets published.
+found_pages=0
+while IFS= read -r f; do
+    rel="${f##*/gen/}"
+    mkdir -p "$WORK_DIR/src/$(dirname "$rel")"
+    cp "$f" "$WORK_DIR/src/$rel"
+    found_pages=1
+done < <(find "$RUNFILES" -path "*/docs/gen/*.md" 2>/dev/null)
 
-if [[ -z "$STARDOC_DIR" ]]; then
-    echo "Warning: Could not find stardoc outputs directory"
-    echo "Looked in: $RUNFILES/*/tf2/docs"
-    ls -la "$RUNFILES"
-else
-    echo "Found stardoc outputs in: $STARDOC_DIR"
-
-    # Function to copy stardoc file with auto-generated banner
-    copy_stardoc() {
-        local src="$1"
-        local dst="$2"
-        {
-            echo '> **Note**: This page is auto-generated from source code docstrings using [Stardoc](https://github.com/bazelbuild/stardoc). Do not edit directly.'
-            echo ''
-            cat "$src"
-        } > "$dst"
-        echo "Copied: $src -> $dst"
-    }
-
-    # Destination filenames must match the paths listed in src/SUMMARY.md, or the
-    # generated pages will not be linked into the book and never render.
-    #
-    # Note: no stardoc is generated for tf_sentinel or tf_opa even
-    # though they are part of the public API. Their reference pages under
-    # src/reference/rules/ are hand-maintained and are intentionally not
-    # overwritten here.
-    copy_stardoc "$STARDOC_DIR/tf_module.md" "$WORK_DIR/src/reference/rules/tf-module.md"
-    copy_stardoc "$STARDOC_DIR/tf_runner.md" "$WORK_DIR/src/reference/rules/tf-runner.md"
-    copy_stardoc "$STARDOC_DIR/tf_test.md" "$WORK_DIR/src/reference/rules/tf-test.md"
-    copy_stardoc "$STARDOC_DIR/tf_variables.md" "$WORK_DIR/src/reference/rules/tf-variables.md"
-    copy_stardoc "$STARDOC_DIR/tf_file_export.md" "$WORK_DIR/src/reference/rules/tf-file-export.md"
-    copy_stardoc "$STARDOC_DIR/tf_cloud.md" "$WORK_DIR/src/reference/cloud/tfc-workspace.md"
-    copy_stardoc "$STARDOC_DIR/provider_mirror.md" "$WORK_DIR/src/reference/providers/provider-mirror.md"
-    copy_stardoc "$STARDOC_DIR/tf_publish.md" "$WORK_DIR/src/reference/cloud/tfc-publish-registry.md"
-    copy_stardoc "$STARDOC_DIR/tf_oci.md" "$WORK_DIR/src/reference/flux/tf-publish-oci-flux.md"
-    copy_stardoc "$STARDOC_DIR/extensions.md" "$WORK_DIR/src/reference/extensions/README.md"
+if [[ "$found_pages" -eq 0 ]]; then
+    echo "Warning: no Stardoc-generated reference pages found under $RUNFILES/*/docs/gen"
 fi
 
 # Find the downloaded @mdbook binary (handle various runfiles layouts)

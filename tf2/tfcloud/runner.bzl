@@ -13,6 +13,24 @@ def tfc_workspace(
         **kwargs):
     """Creates Terraform Cloud runner targets for plan and apply operations.
 
+    Wires a `tf_module` to a Terraform Cloud / Enterprise workspace and generates
+    the `cloud` backend configuration automatically. Produces a runner target that
+    can execute any terraform command against the workspace, plus a local
+    `name_validate` target with no backend.
+
+    Example:
+
+    ```starlark
+    load("@rules_tf2//tf2:def.bzl", "tfc_workspace")
+
+    tfc_workspace(
+        name = "prod",
+        module = ":my_module",
+        workspace_name = "my-workspace-prod",
+        organization = "my-org",
+    )
+    ```
+
     Args:
         name: Base name for the targets
         module: The tf_module target to run against (replaces stack parameter)

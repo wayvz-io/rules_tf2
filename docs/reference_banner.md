@@ -1,0 +1,1 @@
+> **Note**: This page is generated from source-code docstrings by [Stardoc](https://github.com/bazelbuild/stardoc). Do not edit it here — edit the docstrings in the rule's `.bzl` source and rebuild the docs.

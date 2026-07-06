@@ -287,7 +287,7 @@ tf_file_export = rule(
     Example:
         tf_module(
             name = "my_module",
-            srcs = glob(["*.tf"]),
+            srcs = ["main.tf", "variables.tf", "outputs.tf"],
             providers = ["@tf_provider_registry//:aws_6"],
         )
 
