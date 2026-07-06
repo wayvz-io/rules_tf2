@@ -75,7 +75,7 @@ services:
     - ./volumes/worker-hardlinking-ubuntu22-04:/worker
 
   runner-hardlinking-ubuntu22-04:
-    image: ghcr.io/catthehacker/ubuntu:act-22.04@sha256:dd7654ffb01d5b7b54b23b9ce928a1f7f2d08c7b3d7e320b6574b55d7ccde78b
+    image: ghcr.io/catthehacker/ubuntu:act-22.04@sha256:6924a5846f59dbbbc18de7836ca031a01591a947246ae13a0cb37efff8968ecd
     command:
     - sh
     - -c
