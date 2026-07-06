@@ -26,6 +26,7 @@ jobs:
     # free-disk / setup-bazel / toolchain downloads. Runs on main only (trusted
     # push, no fork-PR exposure of the self-hosted runner).
     runs-on: bb-ci-worker
+    timeout-minutes: 30 # don't let a wedged runner hold the slot for GitHub's 6h default
     steps:
       - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
