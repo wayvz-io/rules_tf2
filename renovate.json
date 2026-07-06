@@ -7,5 +7,10 @@
   "postUpdateOptions": [
     "gomodTidy"
   ],
-  "osvVulnerabilityAlerts": true
+  "osvVulnerabilityAlerts": true,
+  "ignorePaths": [
+    "examples/**",
+    "**/fixtures/**",
+    ".claude/**"
+  ]
 }
