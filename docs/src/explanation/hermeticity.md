@@ -66,10 +66,10 @@ Because the checksums live in the lockfile's `facts`, the module extensions that
 resolve them are marked `reproducible`, which also makes their repositories
 eligible for Bazel's repository-contents cache.
 
-> `MODULE.bazel.lock` is not committed in this repository (it is `.gitignore`d),
-> so these facts are cached per-environment rather than shared through Git.
-> Verification against the resolved sha256 still happens on every fetch; commit
-> the lockfile if you want a single reviewed pin shared across the team and CI.
+> `MODULE.bazel.lock` is committed, so these facts are a single reviewed pin
+> shared across the team and CI: a fresh checkout reuses the resolved checksums
+> instead of re-resolving them, and any change to a pinned hash shows up in code
+> review.
 
 ## The non-hermetic side (`bazel run`)
 
