@@ -19,34 +19,29 @@ concurrency:
 jobs:
   build:
     name: Build book
-    runs-on: ubuntu-latest
+    # In-cluster self-hosted runner (Bazel 9.1.1 preinstalled). Building
+    # //docs:book over RBE offloads Stardoc/protoc/toolchains to the Buildbarn
+    # workers and — because the main CI job builds the same commit — is normally
+    # a remote *cache hit*, so this just fetches book.tar.gz and publishes. No
+    # free-disk / setup-bazel / toolchain downloads. Runs on main only (trusted
+    # push, no fork-PR exposure of the self-hosted runner).
+    runs-on: bb-ci-worker
     steps:
       - uses: actions/checkout@v5
 
-      # Reclaim preinstalled runner bloat as insurance — a Bazel build pulls
-      # large external repos (toolchains, protoc). Mirrors the main CI job;
-      # cheap even if this lighter docs-only build doesn't strictly need it.
-      - name: Free disk space
+      - name: Build the book on RBE (via bb-clientd)
+        # bb-clientd (started by the runner's job hook) is the local caching
+        # proxy with a warm PVC-backed CAS; it forwards to the in-cluster
+        # frontend. --remote_download_toplevel overrides the .bazelrc :remote
+        # default (minimal) so book.tar.gz lands locally for packaging.
         run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
-          sudo docker image prune --all --force || true
-          df -h /
-
-      # checkout/setup-bazel pins match the rest of .github/workflows (repo
-      # standardized on these; checkout has a newer v7, bumped repo-wide separately).
-      - uses: bazel-contrib/setup-bazel@0.19.0
-        with:
-          bazelisk-cache: true
-          disk-cache: true
-          repository-cache: true
-
-      - name: Build the book
-        env:
-          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
-          # latest and ignores .bazelversion.
-          USE_BAZEL_VERSION: "9.1.1"
-        run: bazel build //docs:book
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" build //docs:book \
+            --config=remote \
+            --remote_executor=unix:///clientd/bb_clientd/grpc \
+            --remote_cache=unix:///clientd/bb_clientd/grpc \
+            --remote_instance_name=frontend.buildbarn \
+            --repository_cache=/clientd/bazel-repo-cache \
+            --remote_download_toplevel
 
       - name: Unpack rendered site
         run: |
