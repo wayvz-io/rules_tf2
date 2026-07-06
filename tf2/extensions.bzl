@@ -870,17 +870,68 @@ tf_modules = module_extension(
 # tf_agent_base extension - TFC agent base image management
 # =============================================================================
 
+def _resolve_oci_digest(module_ctx, image, tag):
+    """Best-effort resolve a Docker Hub image:tag to its manifest-list digest.
+
+    Returns "sha256:..." or None (the caller falls back to a tag pull). Only
+    Docker Hub (index.docker.io) is handled; other registries return None.
+    Pulling by digest lets rules_oci cache the base image and drops the
+    "without an integrity hash" warning.
+    """
+    prefix = "index.docker.io/"
+    if not image.startswith(prefix):
+        return None
+    repo = image[len(prefix):]  # e.g. "hashicorp/tfc-agent"
+
+    # Anonymous pull token for the public image.
+    tok_out = module_ctx.path("_oci_token_" + repo.replace("/", "_"))
+    tok_res = module_ctx.download(
+        url = "https://auth.docker.io/token?service=registry.docker.io&scope=repository:{}:pull".format(repo),
+        output = tok_out,
+        allow_fail = True,
+    )
+    if not tok_res.success:
+        return None
+    token = json.decode(module_ctx.read(tok_out)).get("token", "")
+    if not token:
+        return None
+
+    # HEAD the manifest and read the Docker-Content-Digest header.
+    res = module_ctx.execute(
+        [
+            "curl",
+            "-sI",
+            "-H",
+            "Authorization: Bearer " + token,
+            "-H",
+            "Accept: application/vnd.oci.image.index.v1+json",
+            "-H",
+            "Accept: application/vnd.docker.distribution.manifest.list.v2+json",
+            "https://registry-1.docker.io/v2/{}/manifests/{}".format(repo, tag),
+        ],
+        timeout = 60,
+    )
+    if res.return_code != 0:
+        return None
+    for line in res.stdout.split("\n"):
+        if line.lower().startswith("docker-content-digest:"):
+            return line.split(":", 1)[1].strip()  # value is "sha256:..."
+    return None
+
 def _tf_agent_base_impl(module_ctx):
     """Implementation of tf_agent_base module extension.
 
     Reads the tfc-agent version from versions.json and pulls the base image
-    using rules_oci with dynamic versioning.
+    using rules_oci. The image tag is resolved to a manifest digest and pinned
+    (and cached in facts) so the pull is reproducible and cacheable; if digest
+    resolution fails it falls back to a tag pull.
 
-    This extension:
-    1. Reads versions.json to get the tfc-agent version
-    2. Calls oci_pull with that version to create the base image repositories
-    3. Creates repos: tfc_agent_base, tfc_agent_base_linux_amd64, tfc_agent_base_linux_arm64
+    Creates repos: tfc_agent_base, tfc_agent_base_linux_amd64, tfc_agent_base_linux_arm64.
     """
+    has_facts = hasattr(module_ctx, "facts")
+    facts = module_ctx.facts if has_facts else None
+    new_facts = {}
+
     for mod in module_ctx.modules:
         for config in mod.tags.from_versions_json:
             # Read versions.json to get tfc-agent version
@@ -889,30 +940,48 @@ def _tf_agent_base_impl(module_ctx):
             versions = json.decode(versions_content)
 
             agent_version = versions.get("tools", {}).get("tfc-agent", "1.17.0")
+            image = "index.docker.io/hashicorp/tfc-agent"
 
-            # Call oci_pull with the dynamic version
-            # This creates:
-            #   - tfc_agent_base (alias that selects platform)
-            #   - tfc_agent_base_linux_amd64
-            #   - tfc_agent_base_linux_arm64
-            oci_pull(
-                name = "tfc_agent_base",
-                image = "index.docker.io/hashicorp/tfc-agent",
-                platforms = [
-                    "linux/amd64",
-                    "linux/arm64",
-                ],
-                tag = agent_version,
-                reproducible = False,  # Tag-based pulls aren't reproducible
-                is_bzlmod = True,
+            # Resolve (or reuse from facts) the manifest digest so the pull is
+            # pinned and cacheable.
+            key = facts_key("oci", image, agent_version)
+            cached = facts.get(key, None) if facts else None
+            digest = cached.get("digest") if (cached and type(cached) == "dict") else None
+            if not digest:
+                digest = _resolve_oci_digest(module_ctx, image, agent_version)
+
+            platforms = ["linux/amd64", "linux/arm64"]
+            if digest:
+                new_facts[key] = {"digest": digest}
+                oci_pull(
+                    name = "tfc_agent_base",
+                    image = image,
+                    platforms = platforms,
+                    digest = digest,
+                    reproducible = True,
+                    is_bzlmod = True,
+                )
+            else:
+                # Digest resolution failed (e.g. offline); fall back to a tag
+                # pull. Not cacheable, but keeps the build working.
+                oci_pull(
+                    name = "tfc_agent_base",
+                    image = image,
+                    platforms = platforms,
+                    tag = agent_version,
+                    reproducible = False,
+                    is_bzlmod = True,
+                )
+
+            # Only process the first config.
+            return module_ctx.extension_metadata(
+                reproducible = digest != None,
+                facts = new_facts,
             )
 
-            # Only process the first config
-            return
-
-    # Return extension metadata
     return module_ctx.extension_metadata(
-        reproducible = False,
+        reproducible = True,
+        facts = new_facts,
     )
 
 # Tag class for agent base image configuration

@@ -299,61 +299,6 @@
         }
       }
     },
-    "//tf2:extensions.bzl%tf_agent_base": {
-      "general": {
-        "bzlTransitiveDigest": "c1e2fOnPJ/zYHO/uK1ENhnhGt1D1//1TfjcXMxZ/ulE=",
-        "usagesDigest": "OhQRu/WkFe/T2e6l2VvNLDf9B828xeyElrSPuo+Yb3M=",
-        "recordedInputs": [
-          "REPO_MAPPING:,rules_oci rules_oci+",
-          "REPO_MAPPING:rules_oci+,aspect_bazel_lib aspect_bazel_lib+",
-          "REPO_MAPPING:rules_oci+,bazel_skylib bazel_skylib+",
-          "REPO_MAPPING:rules_oci+,platforms platforms",
-          "FILE:@@//tests/providers/versions.json 3fda8c298ecae69d341f9dcc266e3b69eca5572236d288e38337f5535c599846"
-        ],
-        "generatedRepoSpecs": {
-          "tfc_agent_base_linux_amd64": {
-            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
-            "attributes": {
-              "scheme": "https",
-              "registry": "index.docker.io",
-              "repository": "hashicorp/tfc-agent",
-              "identifier": "1.17.0",
-              "platform": "linux/amd64",
-              "target_name": "tfc_agent_base_linux_amd64",
-              "bazel_tags": []
-            }
-          },
-          "tfc_agent_base_linux_arm64": {
-            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_pull",
-            "attributes": {
-              "scheme": "https",
-              "registry": "index.docker.io",
-              "repository": "hashicorp/tfc-agent",
-              "identifier": "1.17.0",
-              "platform": "linux/arm64",
-              "target_name": "tfc_agent_base_linux_arm64",
-              "bazel_tags": []
-            }
-          },
-          "tfc_agent_base": {
-            "repoRuleId": "@@rules_oci+//oci/private:pull.bzl%oci_alias",
-            "attributes": {
-              "target_name": "tfc_agent_base",
-              "scheme": "https",
-              "registry": "index.docker.io",
-              "repository": "hashicorp/tfc-agent",
-              "identifier": "1.17.0",
-              "platforms": {
-                "@@platforms//cpu:x86_64": "@tfc_agent_base_linux_amd64",
-                "@@platforms//cpu:arm64": "@tfc_agent_base_linux_arm64"
-              },
-              "bzlmod_repository": "tfc_agent_base",
-              "reproducible": false
-            }
-          }
-        }
-      }
-    },
     "@@rules_kotlin+//src/main/starlark/core/repositories:bzlmod_setup.bzl%rules_kotlin_extensions": {
       "general": {
         "bzlTransitiveDigest": "Ga4z8lQy1YQ5rAMy+dOl0dqcCEBnYNCXku8x3YQmDZI=",
@@ -631,6 +576,11 @@
     }
   },
   "facts": {
+    "//tf2:extensions.bzl%tf_agent_base": {
+      "oci:index.docker.io/hashicorp/tfc-agent:1.17.0": {
+        "digest": "sha256:0ba1bba68e69eb95fd8335382f5f42f565425c5a8fbe8985ff4e969ce2fae6ec"
+      }
+    },
     "//tf2:extensions.bzl%tf_modules": {
       "module:git:github.com/cloudposse/terraform-null-label:0.25.0": {
         "sha256": "7d9944b52fedec3c82ae59e2cf36ddba8f5ea4ec95e70f99f4d18ec741d608dc",
