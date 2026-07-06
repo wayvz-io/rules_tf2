@@ -20,5 +20,98 @@
   ],
   "terraform": {
     "enabled": false
-  }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Terraform providers pinned in versions.json (the source of truth). The .tf required_providers blocks + MODULE.bazel.lock are GENERATED from this by //:regenerate, so Renovate must bump the JSON, never the .tf. See renovate-tf-regen.yml.",
+      "managerFilePatterns": [
+        "/tests/providers/versions\\.json$/"
+      ],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        "\"(?<depName>[a-z0-9-]+/[a-z0-9-]+)\":\\s*\\[(?<inner>[^\\]]+)\\]",
+        "\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "datasourceTemplate": "terraform-provider",
+      "versioningTemplate": "hashicorp"
+    },
+    {
+      "customType": "regex",
+      "description": "terraform binary version in versions.json",
+      "managerFilePatterns": [
+        "/tests/providers/versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"terraform\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "hashicorp/terraform",
+      "packageNameTemplate": "hashicorp/terraform",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "tflint binary version in versions.json",
+      "managerFilePatterns": [
+        "/tests/providers/versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"tflint\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "terraform-linters/tflint",
+      "packageNameTemplate": "terraform-linters/tflint",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "terraform-docs binary version in versions.json",
+      "managerFilePatterns": [
+        "/tests/providers/versions\\.json$/"
+      ],
+      "matchStrings": [
+        "\"terraform-docs\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "depNameTemplate": "terraform-docs/terraform-docs",
+      "packageNameTemplate": "terraform-docs/terraform-docs",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    },
+    {
+      "customType": "regex",
+      "description": "TFLint plugins (aws/azurerm/google/opa) scoped to the tflint_plugins block; each maps to terraform-linters/tflint-ruleset-<name>.",
+      "managerFilePatterns": [
+        "/tests/providers/versions\\.json$/"
+      ],
+      "matchStringsStrategy": "recursive",
+      "matchStrings": [
+        "\"tflint_plugins\":\\s*\\{(?<inner>[^}]+)\\}",
+        "\"(?<depName>[a-z0-9-]+)\":\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""
+      ],
+      "packageNameTemplate": "terraform-linters/tflint-ruleset-{{{depName}}}",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^v?(?<version>.+)$"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "versions.json is the mirror source of truth. tf_upgrade_providers only ever bumps WITHIN the current major (a new major is reported, never applied), and the offline provider mirror only carries pinned majors. Disabling majors here keeps Renovate in lockstep and avoids the aws ['5.x','6.x'] two-majors-one-key collision.",
+      "matchDatasources": [
+        "terraform-provider"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Isolate versions.json bumps into their own PR (not the go/docker bulk PR) and hold automerge until the renovate-tf-regen.yml round-trip is proven. The regen workflow commits regenerated .tf/lock back onto the branch before this can merge.",
+      "matchFileNames": [
+        "tests/providers/versions.json"
+      ],
+      "groupName": "terraform provider mirror",
+      "automerge": false
+    }
+  ]
 }
