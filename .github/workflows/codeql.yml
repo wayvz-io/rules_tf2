@@ -1,0 +1,67 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "27 3 * * 1" # Mondays 03:27 UTC
+
+# Replaces GitHub code-scanning *default setup* (default + advanced can't
+# coexist; default setup is disabled via the API). Default setup ran Go through
+# autobuild, which builds only the root module's ./... and skips the nested
+# modules (go/, tf2/gazelle/) where the code lives - so Go analysis found 0
+# files. build-mode: manual with explicit `go build` per module fixes that.
+# (build-mode: none is not supported for Go.)
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write # upload SARIF
+      contents: read
+      actions: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: actions
+            build-mode: none
+          - language: go
+            build-mode: manual
+    steps:
+      - name: Checkout
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+
+      - name: Set up Go
+        if: matrix.build-mode == 'manual'
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: "1.25.x"
+          cache: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended # preserves the default-setup "extended" suite
+
+      # Manual build for the Go extractor: build EACH module. Nested modules are
+      # excluded from the root module's ./..., so build them explicitly. The root
+      # module holds only build-tagged tools.go (no analyzable code) and is
+      # skipped. tf2/gazelle has no committed go.sum (Bazel manages its deps), so
+      # -mod=mod lets `go build` resolve sums on the fly (ephemeral, not committed).
+      - name: Build Go modules (for CodeQL extraction)
+        if: matrix.build-mode == 'manual'
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd go && go build ./...)
+          (cd tf2/gazelle && GOFLAGS=-mod=mod go build ./...)
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@54f647b7e1bb85c95cddabcd46b0c578ec92bc1a # v4
+        with:
+          category: "/language:${{ matrix.language }}"
