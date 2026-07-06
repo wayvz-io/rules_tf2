@@ -1,4 +1,4 @@
-module github.com/wayvz-io/network_intent_manager/build/rules/tf2
+module github.com/wayvz-io/rules_tf2
 
 go 1.24.0
 
