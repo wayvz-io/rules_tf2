@@ -1,0 +1,146 @@
+name: Renovate terraform regen
+
+# versions.json is the single source of truth for provider/tool/plugin versions.
+# The .tf `required_providers` blocks, the terraform-docs READMEs, and the
+# provider hashes in MODULE.bazel.lock are all GENERATED from it (via `//:regenerate`
+# and the tf_providers extension). Renovate is restricted to bumping the JSON
+# (custom managers in renovate.json) and is - correctly - blocked from running
+# bazel to regenerate the downstream artifacts (untrusted execution). So we run
+# the regeneration here, on our own trusted in-cluster RBE runner, for Renovate's
+# PRs only, and commit the result back via the API so the commit is signed/verified
+# (the repo ruleset requires verified signatures; a plain runner `git push` is not).
+#
+# This is the terraform-provider twin of renovate-lockfile.yml (which does the same
+# round-trip for MODULE.bazel bazel_dep bumps).
+on:
+  pull_request:
+    branches: [main]
+    # Only when the mirror manifest actually changed - leaves go.mod / docker /
+    # actions / MODULE.bazel Renovate PRs untouched.
+    paths:
+      - tests/providers/versions.json
+
+permissions:
+  contents: write
+
+concurrency:
+  group: renovate-tf-regen-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regen:
+    # Renovate's own branches only; ignore everyone else's versions.json edits.
+    if: startsWith(github.head_ref, 'renovate/')
+    name: Regenerate terraform config (RBE)
+    # Same in-cluster ARC runner as the CI `rbe` job and renovate-lockfile.yml:
+    # bb-clientd is started by the runner's job hook and keeps a warm repo cache
+    # on PVC, so provider/module resolution stays fast.
+    runs-on: bb-ci-worker
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        with:
+          ref: ${{ github.head_ref }}
+
+      # Our own regen commit re-fires this workflow (the PR still touches
+      # versions.json); bail before spending an RBE run on a guaranteed no-op.
+      - name: Skip if config was already regenerated here
+        id: guard
+        run: |
+          if git log -1 --pretty=%s | grep -qF 'chore(deps): regenerate terraform config'; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Capture branch head (optimistic-lock for the API commit)
+        if: steps.guard.outputs.skip != 'true'
+        id: head
+        run: echo "oid=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      # Regenerate the .tf required_providers blocks + terraform-docs READMEs from
+      # versions.json. This also evaluates the tf_providers extension, generating
+      # h1/zh hashes for any newly-pinned provider version.
+      - name: Regenerate terraform config + docs
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" run //:regenerate \
+            --repository_cache=/clientd/bazel-repo-cache
+
+      # Persist the freshly-generated provider hashes into MODULE.bazel.lock
+      # (mod deps resolves the module graph on the client; --lockfile_mode=update
+      # rewrites the lock facts).
+      - name: Refresh MODULE.bazel.lock
+        if: steps.guard.outputs.skip != 'true'
+        run: |
+          bazel --output_user_root="${RUNNER_TEMP}/bazel" mod deps \
+            --lockfile_mode=update \
+            --repository_cache=/clientd/bazel-repo-cache
+
+      - name: Did anything change?
+        if: steps.guard.outputs.skip != 'true'
+        id: diff
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --name-only
+          fi
+
+      # Commit every regenerated file in one signed commit via GraphQL (verified) -
+      # satisfies the signed-commit ruleset. Author is github-actions[bot], which
+      # renovate.json lists in gitIgnoredAuthors so Renovate keeps managing the branch.
+      - name: Commit regenerated config (verified)
+        if: steps.guard.outputs.skip != 'true' && steps.diff.outputs.changed == 'true'
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        env:
+          BRANCH: ${{ github.head_ref }}
+          EXPECTED_OID: ${{ steps.head.outputs.oid }}
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const fs = require('fs');
+
+            // Enumerate every path git sees as changed (modified, added, deleted),
+            // NUL-separated to survive odd filenames.
+            const raw = execSync('git status --porcelain=v1 -z').toString();
+            const additions = [];
+            const deletions = [];
+            for (const entry of raw.split('\0')) {
+              if (!entry) continue;
+              const status = entry.slice(0, 2);
+              const path = entry.slice(3);
+              if (!path) continue;
+              if (status.includes('D')) {
+                deletions.push({ path });
+              } else {
+                additions.push({
+                  path,
+                  contents: fs.readFileSync(path).toString('base64'),
+                });
+              }
+            }
+
+            if (additions.length === 0 && deletions.length === 0) {
+              core.info('Nothing to commit.');
+              return;
+            }
+            core.info(`Committing ${additions.length} addition(s), ${deletions.length} deletion(s).`);
+
+            const fileChanges = { additions };
+            if (deletions.length) fileChanges.deletions = deletions;
+
+            await github.graphql(
+              `mutation($input: CreateCommitOnBranchInput!) {
+                 createCommitOnBranch(input: $input) { commit { oid } }
+               }`,
+              {
+                input: {
+                  branch: {
+                    repositoryNameWithOwner: `${context.repo.owner}/${context.repo.repo}`,
+                    branchName: process.env.BRANCH,
+                  },
+                  message: { headline: 'chore(deps): regenerate terraform config' },
+                  fileChanges,
+                  expectedHeadOid: process.env.EXPECTED_OID,
+                },
+              },
+            );
