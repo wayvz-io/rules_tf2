@@ -35,6 +35,10 @@ All user-facing rules/macros:
 - `tf_publish_oci_flux` - Publish a module as a Flux-compatible OCI artifact
 - `tfc_agent_image` - Build custom TFC agent Docker images with bundled providers
 - `provider_mirror` - Custom provider management
+- `tf_file_export` - Export a module's staged files to an output directory
+- `tf_variables` - Generate/manage Terraform variables
+- `tf_sentinel_test` / `tf_sentinel_fmt_test` / `tf_sentinel_fmt` - Sentinel policy testing & formatting
+- `tf_opa_test` / `tf_opa_fmt_test` / `tf_opa_fmt` - OPA policy testing & formatting
 
 ### Core Directories
 - **tf2/macros/tf_module.bzl**: The `tf_module` macro - generates module + 10+ test targets automatically
@@ -42,14 +46,19 @@ All user-facing rules/macros:
 - **tf2/tflint/**: TFLint integration (test, format, validate, config)
 - **tf2/tfdocs/**: terraform-docs integration (test, generator)
 - **tf2/providers/**: Provider management (registry, download, mirrors)
-- **tf2/tools/**: Tool download and management (terraform, tflint, terraform-docs)
-- **tf2/agent/**: TFC agent image building (agent_image, filtered_mirror, provider_layer)
-- **tf2/extensions.bzl**: Module extensions (`tf_providers`, `tf_tools`, `tf_agent_base`)
-- **tf2/internal/**: Internal utilities (staging, file_ops, organization)
+- **tf2/modules/**: External Terraform module management (download, registry, repository)
+- **tf2/tools/**: Tool download and management (terraform, tflint, terraform-docs, opa, sentinel)
+- **tf2/opa/** and **tf2/sentinel/**: Policy-as-code rules (OPA / Sentinel)
+- **tf2/tfcloud/**: Terraform Cloud integration - `tfc_workspace` runner lives here
+- **tf2/publish/**: Module publishing - `oci/` (Flux artifacts) and `registry/` (TFC/TFE)
+- **tf2/gazelle/**: Gazelle plugin for generating BUILD files
+- **tf2/agent/**: TFC agent image building (agent_image, filtered_mirror, provider_layer, terraformrc, tools_layer)
+- **tf2/extensions.bzl**: Module extensions (`tf_providers`, `tf_tools`, `tf_modules`, `tf_agent_base`)
+- **tf2/internal/**: Internal utilities (staging, file_ops, organization, hermetic_fetch, sources_validation, docs_collection)
 
 ### Configuration Files
 - **tests/providers/versions.json**: Tool and provider versions for development
-- **MODULE.bazel.lock**: Provider hashes are automatically generated and stored in the Bazel lockfile via module extension facts (requires Bazel 8.5+)
+- **MODULE.bazel.lock**: Committed to the repo. sha256 checksums for all downloads - providers, tools (terraform/tflint/plugins/terraform-docs/opa/sentinel), external modules (git + registry), and the tfc-agent OCI base-image digest - are resolved via `tf2/internal/hermetic_fetch.bzl` (publisher checksum file, else trust-on-first-use) and cached in the lockfile via module extension facts (requires Bazel 8.5+)
 
 ## Key Concepts
 
@@ -104,6 +113,10 @@ Provider hashes (h1 and zh) are automatically generated when:
 
 The extension uses `terraform providers lock` internally to generate hashes for all platforms. This happens during `bazel build` and results are cached in MODULE.bazel.lock via the `facts` mechanism (requires Bazel 8.5+).
 
+### Hermetic Fetch / Checksums
+
+Providers are one of several download types that are checksum-verified. Tools and external modules use the shared helper `tf2/internal/hermetic_fetch.bzl`, which resolves a sha256 by preferring the publisher's checksums file (HashiCorp `*_SHA256SUMS`, GitHub `checksums.txt`, terraform-docs `*.sha256sum`, OPA per-asset `*.sha256`) and falling back to trust-on-first-use for anything it omits. Results are cached in `MODULE.bazel.lock` facts, and the `tf_tools`/`tf_modules` extensions are marked `reproducible`. Git modules fetch a checksum-verified GitHub tarball (only non-GitHub hosts fall back to `git clone` with no sha), and the tfc-agent OCI base image is pinned by digest.
+
 ## Development Notes
 
 ### Adding New Rules
@@ -118,7 +131,7 @@ When rules_tf2 is the root module (development), it downloads test providers. Wh
 Tool paths are resolved at runtime to handle both root module and external dependency scenarios. The module extension creates individual download repositories for each platform.
 
 ### TFLint Plugins
-Configured per-provider in versions.json: aws, azurerm, google, opa, plus a built-in `tf2` plugin at `//go/tflint_ruleset:tflint-ruleset-tf2`.
+Configured per-provider in versions.json: aws, azurerm, google, opa, terraform, plus a built-in `tf2` plugin at `//go/tflint_ruleset:tflint-ruleset-tf2`.
 
 ### TFC Agent Images
 
