@@ -70,10 +70,15 @@ jobs:
         # The runner's job hook starts bb-clientd — a local caching proxy whose
         # CAS lives on a persistent PVC (warm across runs). Bazel talks to its
         # unix socket; clientd forwards to the in-cluster frontend, selected by
-        # --remote_instance_name (its config's cluster key). The repository cache
-        # sits on the same PVC so external repos (LLVM/Go SDK) stay warm too.
+        # --remote_instance_name (its config's cluster key).
+        #
+        # output_user_root ALSO lives on the PVC (/clientd), so the extracted
+        # external repos + analysis cache persist across the ephemeral runner
+        # pods. This is the big win: with a cold (ephemeral) output base a fully
+        # cached build still spends ~210s re-extracting toolchains and analysing;
+        # warm, that drops to ~8s. repository_cache stays on the PVC too.
         run: |
-          bazel --output_user_root="${RUNNER_TEMP}/bazel" test --config=remote \
+          bazel --output_user_root=/clientd/bazel test --config=remote \
             --remote_executor=unix:///clientd/bb_clientd/grpc \
             --remote_cache=unix:///clientd/bb_clientd/grpc \
             --remote_instance_name=frontend.buildbarn \
