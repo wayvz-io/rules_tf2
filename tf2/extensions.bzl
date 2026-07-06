@@ -1,15 +1,15 @@
 """Module extensions for tf2"""
 
 load("@rules_oci//oci:pull.bzl", "oci_pull")
-load("//tf2/modules/download:module_git_repository.bzl", "module_git_repository")
-load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository")
+load("//tf2/modules/download:module_git_repository.bzl", "git_module_archive_url", "module_git_repository")
+load("//tf2/modules/download:module_registry_repository.bzl", "module_registry_repository", "resolve_registry_download")
 load("//tf2/modules/registry:alias.bzl", "generate_module_alias", "generate_repo_name")
 load("//tf2/modules/repository:terraform_modules.bzl", "terraform_modules")
 load("//tf2/providers/download:provider_download_repository.bzl", "provider_download_repository")
 load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_provider_key")
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
-load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "tofu_hash")
+load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "resolve_single_hash", "tofu_hash")
 load("//tf2/tools/download:opa.bzl", "download_opa", "opa_fetch_spec")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:sentinel.bzl", "download_sentinel", "sentinel_fetch_spec")
@@ -717,6 +717,12 @@ def _tf_modules_impl(module_ctx):
     aliases = {}  # alias -> [source, source_type, version]
     module_repositories = {}  # alias -> {source, source_type, version, repo_name}
 
+    # Checksums are resolved (trust-on-first-use) and cached in facts, so each
+    # module archive is verified on download.
+    has_facts = hasattr(module_ctx, "facts")
+    facts = module_ctx.facts if has_facts else None
+    new_facts = {}
+
     # Process module downloads from modules
     for mod in module_ctx.modules:
         if mod.is_root:  # Root module only
@@ -765,6 +771,18 @@ def _tf_modules_impl(module_ctx):
                                     "registry_host": hostname,
                                 }
 
+                                # Pre-resolve the archive URL so we can hash it,
+                                # then verify on download in the repo rule.
+                                reg_url, reg_type = resolve_registry_download(module_ctx, full_source, version, source_type, hostname)
+                                reg_headers = {}
+                                if source_type == "private":
+                                    reg_token = module_ctx.os.environ.get("TFE_TOKEN", "")
+                                    if reg_token:
+                                        reg_headers = {"Authorization": "Bearer " + reg_token}
+                                reg_key = facts_key("module", "registry", full_source, version)
+                                reg_record, _reg_cached = resolve_single_hash(module_ctx, facts, reg_key, reg_url, headers = reg_headers)
+                                new_facts[reg_key] = reg_record
+
                                 # Create registry download repository
                                 module_registry_repository(
                                     name = repo_name,
@@ -772,6 +790,9 @@ def _tf_modules_impl(module_ctx):
                                     version = version,
                                     source_type = source_type,
                                     registry_host = hostname,
+                                    resolved_url = reg_url,
+                                    archive_type = reg_type,
+                                    sha256 = reg_record["sha256"],
                                 )
 
                     # Process git modules
@@ -793,11 +814,24 @@ def _tf_modules_impl(module_ctx):
                                 "repo_name": repo_name,
                             }
 
+                            # GitHub sources fetch a checksum-verified tarball;
+                            # other git hosts fall back to cloning (no sha).
+                            archive_url, archive_type = git_module_archive_url(source, ref)
+                            git_sha = ""
+                            if archive_url:
+                                git_key = facts_key("module", "git", source, ref)
+                                git_record, _git_cached = resolve_single_hash(module_ctx, facts, git_key, archive_url)
+                                new_facts[git_key] = git_record
+                                git_sha = git_record["sha256"]
+
                             # Create git download repository
                             module_git_repository(
                                 name = repo_name,
                                 source = source,
                                 ref = ref,
+                                archive_url = archive_url or "",
+                                archive_type = archive_type or "",
+                                sha256 = git_sha,
                             )
 
     # Create the module registry
@@ -806,6 +840,13 @@ def _tf_modules_impl(module_ctx):
         modules = modules_config,
         aliases = aliases,
         module_repositories_json = json.encode(module_repositories),
+    )
+
+    # Module checksums are pinned in facts (MODULE.bazel.lock); the extension is
+    # reproducible given those inputs.
+    return module_ctx.extension_metadata(
+        reproducible = True,
+        facts = new_facts,
     )
 
 # Tag class for module download configuration
