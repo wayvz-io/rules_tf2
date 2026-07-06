@@ -9,12 +9,13 @@ load("//tf2/providers/download:provider_download_repository.bzl", "provider_down
 load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_provider_key")
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
-load("//tf2/tools/download:opa.bzl", "download_opa")
+load("//tf2/internal:hermetic_fetch.bzl", "facts_key", "resolve_per_file_hashes", "resolve_platform_hashes", "tofu_hash")
+load("//tf2/tools/download:opa.bzl", "download_opa", "opa_fetch_spec")
 load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
-load("//tf2/tools/download:sentinel.bzl", "download_sentinel")
-load("//tf2/tools/download:terraform.bzl", "download_terraform")
-load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs")
-load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin")
+load("//tf2/tools/download:sentinel.bzl", "download_sentinel", "sentinel_fetch_spec")
+load("//tf2/tools/download:terraform.bzl", "download_terraform", "terraform_fetch_spec")
+load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs", "terraform_docs_fetch_spec")
+load("//tf2/tools/download:tflint.bzl", "download_tflint", "download_tflint_plugin", "tflint_fetch_spec", "tflint_plugin_fetch_spec")
 
 def _parse_lock_file_to_json(content):
     """Parse terraform.lock.hcl content into JSON structure.
@@ -493,6 +494,28 @@ tf_providers = module_extension(
     },
 )
 
+def _lock_tool_hashes(module_ctx, facts, new_facts, name, spec, current):
+    """Resolve and lock a tool's checksums, returning the current platform's sha256.
+
+    Prefers the publisher's checksums file (locking every platform for a
+    portable lockfile); trust-on-first-use fills any platform the file omits.
+    The merged record is written back into `new_facts` under a stable key.
+    """
+    key = facts_key("tool", name, spec.version)
+    per_file_sums = getattr(spec, "per_file_sums", None)
+    if per_file_sums:
+        record, _cached = resolve_per_file_hashes(module_ctx, facts, key, per_file_sums)
+    else:
+        record, _cached = resolve_platform_hashes(module_ctx, facts, key, spec.sums_url, spec.platform_files)
+
+    hashes = dict(record["sha256"])
+    source = record["source"] if current in hashes else "tofu"
+    if current not in hashes:
+        # Publisher checksum unavailable for this platform; trust-on-first-use.
+        hashes[current] = tofu_hash(module_ctx, key + ":" + current, spec.artifact_url)
+    new_facts[key] = {"sha256": hashes, "source": source}
+    return hashes.get(current, "")
+
 def _tf_tools_impl(module_ctx):
     """Implementation of tf_tools module extension"""
 
@@ -545,38 +568,58 @@ def _tf_tools_impl(module_ctx):
             plugin_version = plugin.version
             tflint_plugins[plugin_name] = plugin_version
 
+    # Resolve and lock each tool's checksum (publisher SHA256SUMS -> trust-on-
+    # first-use), caching the results in MODULE.bazel.lock via facts, then pass
+    # the current platform's sha256 to each download repo for verification.
+    has_facts = hasattr(module_ctx, "facts")
+    facts = module_ctx.facts if has_facts else None
+    new_facts = {}
+    current = _get_module_ctx_platform(module_ctx)
+
     # Create individual tool repositories
+    terraform_spec = terraform_fetch_spec(terraform_version, current)
     download_terraform(
         name = "terraform_tool",
-        version = terraform_version,
+        version = terraform_spec.version,
+        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "terraform", terraform_spec, current),
     )
 
+    tflint_spec = tflint_fetch_spec(tflint_version, current)
     download_tflint(
         name = "tflint_tool",
-        version = tflint_version,
+        version = tflint_spec.version,
+        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "tflint", tflint_spec, current),
     )
 
+    terraform_docs_spec = terraform_docs_fetch_spec(terraform_docs_version, current)
     download_terraform_docs(
         name = "terraform_docs_tool",
-        version = terraform_docs_version,
+        version = terraform_docs_spec.version,
+        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "terraform-docs", terraform_docs_spec, current),
     )
 
+    sentinel_spec = sentinel_fetch_spec(sentinel_version, current)
     download_sentinel(
         name = "sentinel_tool",
-        version = sentinel_version,
+        version = sentinel_spec.version,
+        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "sentinel", sentinel_spec, current),
     )
 
+    opa_spec = opa_fetch_spec(opa_version, current)
     download_opa(
         name = "opa_tool",
-        version = opa_version,
+        version = opa_spec.version,
+        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "opa", opa_spec, current),
     )
 
     # Create individual tflint plugin repositories
     for plugin_name, plugin_version in tflint_plugins.items():
+        plugin_spec = tflint_plugin_fetch_spec(plugin_name, plugin_version, current)
         download_tflint_plugin(
             name = "tflint_plugin_{}".format(plugin_name),
             plugin_name = plugin_name,
             version = plugin_version,
+            sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "tflint-plugin-" + plugin_name, plugin_spec, current),
         )
 
     # Create tool registry repository (just for aliases)
@@ -597,6 +640,13 @@ def _tf_tools_impl(module_ctx):
         local_plugins = {
             "tf2": tf2_plugin_label,
         },
+    )
+
+    # Tool checksums are pinned in facts (MODULE.bazel.lock); the extension is
+    # reproducible given those inputs.
+    return module_ctx.extension_metadata(
+        reproducible = True,
+        facts = new_facts,
     )
 
 # Tag class for tool configuration

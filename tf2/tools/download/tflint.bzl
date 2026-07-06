@@ -1,13 +1,13 @@
 """TFLint tool and plugins download rules"""
 
-load(":platform.bzl", "get_platform_info")
+load(":platform.bzl", "PLATFORM_IDS", "get_platform_info")
 
 # TFLint configuration
 TFLINT_CONFIG = {
     "base_url": "https://github.com/terraform-linters/tflint/releases/download",
     "archive_format": "zip",
     "binary_name": "tflint",
-    "fallback_version": "0.59.1",
+    "default_version": "0.59.1",
 }
 
 # TFLint plugin configuration
@@ -33,29 +33,6 @@ TFLINT_PLUGIN_CONFIG = {
         "binary_name": "tflint-ruleset-terraform",
     },
 }
-
-def _get_latest_tflint_version(repository_ctx):
-    """Get the latest version of TFLint from GitHub API.
-
-    Args:
-        repository_ctx: Repository rule context
-
-    Returns:
-        String version number
-    """
-    result = repository_ctx.execute([
-        "curl",
-        "-s",
-        "-L",
-        "https://api.github.com/repos/terraform-linters/tflint/releases/latest",
-    ])
-    if result.return_code != 0:
-        return TFLINT_CONFIG["fallback_version"]
-
-    # Parse JSON to get tag_name
-    response_data = json.decode(result.stdout)
-    latest_version = response_data["tag_name"].lstrip("v")
-    return latest_version
 
 def _build_tflint_download_url(version, platform):
     """Build the download URL for TFLint.
@@ -83,9 +60,7 @@ def _download_tflint_impl(repository_ctx):
     Args:
         repository_ctx: Repository rule context
     """
-    version = repository_ctx.attr.version
-    if not version:
-        version = _get_latest_tflint_version(repository_ctx)
+    version = repository_ctx.attr.version or TFLINT_CONFIG["default_version"]
 
     platform = get_platform_info(repository_ctx)
 
@@ -93,10 +68,11 @@ def _download_tflint_impl(repository_ctx):
     download_url = _build_tflint_download_url(version, platform)
     binary_name = TFLINT_CONFIG["binary_name"]
 
-    # Download and extract
+    # Download and extract, verifying the locked checksum when one was resolved.
     repository_ctx.download_and_extract(
         url = download_url,
         type = "zip",
+        sha256 = repository_ctx.attr.sha256,
     )
 
     # Make binary executable
@@ -123,10 +99,40 @@ sh_binary(
 download_tflint = repository_rule(
     implementation = _download_tflint_impl,
     attrs = {
-        "version": attr.string(doc = "TFLint version to download (latest if not specified)"),
+        "version": attr.string(doc = "TFLint version to download (uses default if not specified)"),
+        "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
     },
     doc = "Downloads TFLint binary from GitHub releases",
 )
+
+def tflint_fetch_spec(version, platform):
+    """Return the hermetic-fetch spec for a TFLint version.
+
+    TFLint attaches a `checksums.txt` (all platforms) to each GitHub release.
+    """
+    v = version or TFLINT_CONFIG["default_version"]
+    return struct(
+        version = v,
+        sums_url = "{base}/v{v}/checksums.txt".format(base = TFLINT_CONFIG["base_url"], v = v),
+        platform_files = {p: "tflint_{p}.zip".format(p = p) for p in PLATFORM_IDS},
+        artifact_url = _build_tflint_download_url(v, platform),
+    )
+
+def tflint_plugin_fetch_spec(plugin_name, version, platform):
+    """Return the hermetic-fetch spec for a TFLint plugin version.
+
+    Each plugin attaches a `checksums.txt` (all platforms) to its GitHub release.
+    """
+    if plugin_name not in TFLINT_PLUGIN_CONFIG:
+        fail("Unknown tflint plugin: {}".format(plugin_name))
+    config = TFLINT_PLUGIN_CONFIG[plugin_name]
+    binary_name = config["binary_name"]
+    return struct(
+        version = version,
+        sums_url = "https://github.com/{repo}/releases/download/v{v}/checksums.txt".format(repo = config["repo"], v = version),
+        platform_files = {p: "{b}_{p}.zip".format(b = binary_name, p = p) for p in PLATFORM_IDS},
+        artifact_url = _build_plugin_download_url(plugin_name, version, platform),
+    )
 
 def _build_plugin_download_url(plugin_name, version, platform):
     """Build the download URL for a TFLint plugin.
@@ -175,10 +181,11 @@ def _download_tflint_plugin_impl(repository_ctx):
     # Build download URL
     download_url = _build_plugin_download_url(plugin_name, version, platform)
 
-    # Download and extract the plugin
+    # Download and extract the plugin, verifying the locked checksum when set.
     repository_ctx.download_and_extract(
         url = download_url,
         type = "zip",
+        sha256 = repository_ctx.attr.sha256,
     )
 
     # Make binary executable
@@ -210,6 +217,7 @@ download_tflint_plugin = repository_rule(
     attrs = {
         "plugin_name": attr.string(mandatory = True, doc = "Name of the tflint plugin to download"),
         "version": attr.string(mandatory = True, doc = "Version of the plugin to download"),
+        "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
     },
     doc = "Downloads a TFLint plugin binary from its GitHub releases",
 )

@@ -1,6 +1,6 @@
 """Terraform tool download rules"""
 
-load(":platform.bzl", "get_platform_info")
+load(":platform.bzl", "PLATFORM_IDS", "get_platform_info")
 
 # Terraform-specific configuration
 TERRAFORM_CONFIG = {
@@ -9,6 +9,20 @@ TERRAFORM_CONFIG = {
     "binary_name": "terraform",
     "default_version": "1.12.2",  # HashiCorp doesn't have a simple API, use reasonable default
 }
+
+def terraform_fetch_spec(version, platform):
+    """Return the hermetic-fetch spec (checksums + URLs) for a Terraform version.
+
+    HashiCorp publishes a `terraform_<v>_SHA256SUMS` file listing every
+    platform, so one fetch locks a portable lockfile.
+    """
+    v = version or TERRAFORM_CONFIG["default_version"]
+    return struct(
+        version = v,
+        sums_url = "{base}/{v}/terraform_{v}_SHA256SUMS".format(base = TERRAFORM_CONFIG["base_url"], v = v),
+        platform_files = {p: "terraform_{v}_{p}.zip".format(v = v, p = p) for p in PLATFORM_IDS},
+        artifact_url = _build_terraform_download_url(v, platform),
+    )
 
 def _build_terraform_download_url(version, platform):
     """Build the download URL for Terraform.
@@ -43,10 +57,11 @@ def _download_terraform_impl(repository_ctx):
     download_url = _build_terraform_download_url(version, platform)
     binary_name = TERRAFORM_CONFIG["binary_name"]
 
-    # Download and extract
+    # Download and extract, verifying the locked checksum when one was resolved.
     repository_ctx.download_and_extract(
         url = download_url,
         type = "zip",
+        sha256 = repository_ctx.attr.sha256,
     )
 
     # Make binary executable
@@ -74,6 +89,7 @@ download_terraform = repository_rule(
     implementation = _download_terraform_impl,
     attrs = {
         "version": attr.string(doc = "Terraform version to download (uses default if not specified)"),
+        "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
     },
     doc = "Downloads Terraform binary from HashiCorp releases",
 )
