@@ -38,7 +38,8 @@ Example:
 For each directory containing `.tf` files, Gazelle generates a `tf_module` target and a
 corresponding `tf_test` target. The `tf_module` target has:
 
-- `name` derived from directory name
+- `name` defaulting to `tf_module` (the `tf_test` target defaults to `tf_test`), so a
+  module is referenced as `//path/to/dir:tf_module`
 - `srcs` containing all `.tf` files and `README.md`
 - `deps` inferred from local module references
 - `providers` mapped from `terraform_provider` directives or parent configuration

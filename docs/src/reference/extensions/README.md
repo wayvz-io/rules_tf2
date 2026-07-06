@@ -7,7 +7,7 @@ Bazel module extensions for MODULE.bazel configuration.
 | Extension | Provided Repos | Description |
 |-----------|----------------|-------------|
 | [tf_providers](#tf_providers) | `tf_provider_registry` | Provider download and registry management |
-| [tf_tools](#tf_tools) | `tf_tool_registry`, `tflint_plugin_registry` | Tool download (terraform, tflint, terraform-docs) |
+| [tf_tools](#tf_tools) | `tf_tool_registry`, `tflint_plugin_registry` | Tool download (terraform, tflint, terraform-docs, opa, sentinel) |
 | [tf_modules](#tf_modules) | `tf_module_registry` | External Terraform module management (Git + registry) |
 | [tf_agent_base](#tf_agent_base) | `tfc_agent_base`, `tfc_agent_base_linux_amd64`, `tfc_agent_base_linux_arm64` | TFC agent base image management |
 
@@ -28,12 +28,32 @@ Provider hashes are auto-generated and cached in `MODULE.bazel.lock` via extensi
 
 ## tf_tools
 
-Configure tool versions:
+Configure tool versions. The usual path reads every version from `versions.json`:
 
 ```starlark
 tf_tools = use_extension("@rules_tf2//tf2:extensions.bzl", "tf_tools")
 tf_tools.from_versions_json(versions_file = "path/to/versions.json")
 use_repo(tf_tools, "tf_tool_registry", "tflint_plugin_registry")
+```
+
+### Tags
+
+| Tag | Purpose |
+|-----|---------|
+| `from_versions_json(versions_file)` | Read all tool and tflint-plugin versions from a `versions.json`. |
+| `configure(terraform_version, tflint_version, terraform_docs_version)` | Set those three versions explicitly (overrides `versions.json`). |
+| `tflint_plugin(name, version)` | Add a single TFLint plugin explicitly. |
+
+Explicit configuration instead of (or overriding) `versions.json`:
+
+```starlark
+tf_tools.configure(
+    terraform_version = "1.13.2",
+    tflint_version = "0.59.1",
+    terraform_docs_version = "0.20.0",
+)
+tf_tools.tflint_plugin(name = "aws", version = "0.42.0")
+tf_tools.tflint_plugin(name = "azurerm", version = "0.29.0")
 ```
 
 ## tf_modules
@@ -59,7 +79,9 @@ sub-sections) and referenced as `@tf_module_registry//:vpc_aws_5`.
   "tools": {
     "terraform": "1.14.1",
     "tflint": "0.60.0",
-    "terraform-docs": "0.20.0"
+    "terraform-docs": "0.20.0",
+    "opa": "1.4.2",
+    "sentinel": "0.40.0"
   },
   "providers": {
     "hashicorp/aws": ["5.0.0"],
