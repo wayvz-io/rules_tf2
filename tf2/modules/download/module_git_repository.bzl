@@ -13,9 +13,11 @@ def _parse_git_source(source):
     Returns:
         Tuple of (git_url, owner, repo)
     """
+
     # Handle git:: prefix (Terraform-style)
     if source.startswith("git::"):
         url = source[5:]  # Remove git:: prefix
+
         # Parse owner/repo from URL
         # https://github.com/owner/repo.git -> owner, repo
         parts = url.replace(".git", "").split("/")
@@ -46,26 +48,48 @@ def _is_commit_hash(ref):
             return False
     return True
 
-def _module_git_repository_impl(repository_ctx):
-    """Download a Terraform module from a Git repository.
+def git_module_archive_url(source, ref):
+    """Return (archive_url, archive_type) for a GitHub-hosted git module.
 
-    Supports cloning at a specific tag or commit hash.
+    GitHub serves a tarball at `https://github.com/<owner>/<repo>/archive/<ref>.tar.gz`,
+    which lets us fetch the module with checksum verification instead of an
+    unverifiable `git clone`. Non-GitHub sources return (None, None), and the
+    repo rule falls back to cloning.
     """
-    source = repository_ctx.attr.source
-    ref = repository_ctx.attr.ref
-    subdirectory = repository_ctx.attr.subdirectory
-
-    # Parse the source URL
     git_url, owner, repo = _parse_git_source(source)
+    if "github.com" not in git_url:
+        return None, None
+    return "https://github.com/{}/{}/archive/{}.tar.gz".format(owner, repo, ref), "tar.gz"
 
-    is_commit = _is_commit_hash(ref)
+def _flatten_single_dir(repository_ctx):
+    """Flatten a lone top-level directory to the repo root.
 
-    # Git operations timeout (5 minutes should be enough for most modules)
+    Archive tarballs (e.g. GitHub's) wrap everything in a `<repo>-<ref>/`
+    directory; moving its contents up makes the layout match a `git clone .`.
+    """
+    result = repository_ctx.execute(["sh", "-c", "ls -d */ 2>/dev/null || true"])
+    dirs = []
+    for line in result.stdout.split("\n"):
+        line = line.strip()
+        if line.endswith("/") and line[:-1] not in [".", ".."]:
+            dirs.append(line[:-1])
+
+    result = repository_ctx.execute(["find", ".", "-maxdepth", "1", "-name", "*.tf"])
+    has_tf_at_root = result.return_code == 0 and result.stdout.strip()
+
+    if len(dirs) == 1 and not has_tf_at_root:
+        repository_ctx.execute(["sh", "-c", """
+            mv {subdir} _temp_module
+            mv _temp_module/* . 2>/dev/null || true
+            mv _temp_module/.* . 2>/dev/null || true
+            rm -rf _temp_module
+        """.format(subdir = dirs[0])])
+
+def _git_clone(repository_ctx, git_url, ref):
+    """Clone a module at a tag or commit into the repo root (non-hermetic fallback)."""
     git_timeout = 300
-
-    if is_commit:
-        # For commit hashes, we need to clone and checkout
-        # First, do a shallow clone
+    if _is_commit_hash(ref):
+        # For commit hashes, shallow clone then fetch + checkout the commit.
         result = repository_ctx.execute(
             ["git", "clone", "--depth", "1", git_url, "."],
             quiet = False,
@@ -78,8 +102,6 @@ def _module_git_repository_impl(repository_ctx):
                 "stderr: {}\n".format(result.stderr) +
                 "Check that the repository exists and is accessible.",
             )
-
-        # Fetch the specific commit
         result = repository_ctx.execute(
             ["git", "fetch", "--depth", "1", "origin", ref],
             quiet = False,
@@ -92,8 +114,6 @@ def _module_git_repository_impl(repository_ctx):
                 "stderr: {}\n".format(result.stderr) +
                 "Check that the commit hash exists in the repository.",
             )
-
-        # Checkout the commit
         result = repository_ctx.execute(
             ["git", "checkout", ref],
             quiet = False,
@@ -106,7 +126,7 @@ def _module_git_repository_impl(repository_ctx):
                 "stderr: {}".format(result.stderr),
             )
     else:
-        # For tags, use --branch which works for both tags and branches
+        # For tags, --branch works for both tags and branches.
         result = repository_ctx.execute(
             ["git", "clone", "--depth", "1", "--branch", ref, git_url, "."],
             quiet = False,
@@ -120,14 +140,38 @@ def _module_git_repository_impl(repository_ctx):
                 "Check that the tag/branch '{}' exists in the repository.".format(ref),
             )
 
-    # If subdirectory is specified, we need to move those files to root
+def _module_git_repository_impl(repository_ctx):
+    """Download a Terraform module from a Git repository.
+
+    Prefers a checksum-verified tarball (GitHub sources, when the extension
+    resolved a sha256); otherwise falls back to a shallow git clone.
+    """
+    source = repository_ctx.attr.source
+    ref = repository_ctx.attr.ref
+    subdirectory = repository_ctx.attr.subdirectory
+    archive_url = repository_ctx.attr.archive_url
+
+    # Parse the source URL (also validates the format).
+    git_url, owner, repo = _parse_git_source(source)
+
+    if archive_url:
+        # Hermetic path: fetch the checksum-verified tarball and flatten the
+        # single top-level directory GitHub wraps archive contents in.
+        repository_ctx.download_and_extract(
+            url = archive_url,
+            type = repository_ctx.attr.archive_type or "tar.gz",
+            sha256 = repository_ctx.attr.sha256,
+        )
+        _flatten_single_dir(repository_ctx)
+    else:
+        _git_clone(repository_ctx, git_url, ref)
+
+    # If subdirectory is specified, move those files to root.
     if subdirectory:
-        # List files in subdirectory
         result = repository_ctx.execute(["ls", "-la", subdirectory])
         if result.return_code != 0:
             fail("Subdirectory {} not found in {}".format(subdirectory, source))
 
-        # Move subdirectory contents to a temp location, clean up, then move back
         result = repository_ctx.execute(["sh", "-c", """
             mv {subdir} _temp_subdir
             rm -rf .git .github .gitignore examples tests docs README.md || true
@@ -137,8 +181,8 @@ def _module_git_repository_impl(repository_ctx):
         if result.return_code != 0:
             fail("Failed to extract subdirectory {}: {}".format(subdirectory, result.stderr))
     else:
-        # Clean up git metadata and unnecessary files
-        # - exports/ contains template files for copying (e.g., cloudposse context.tf)
+        # Clean up git metadata and unnecessary files.
+        # - exports/ contains template files for copying (e.g. cloudposse context.tf)
         # - docs/ contains documentation assets
         repository_ctx.execute(["rm", "-rf", ".git", ".github", ".gitignore", "examples", "tests", "test", "exports", "docs"])
 
@@ -149,6 +193,7 @@ def _module_git_repository_impl(repository_ctx):
         for f in result.stdout.strip().split("\n"):
             if f.startswith("./"):
                 f = f[2:]
+
             # Exclude example and test directories
             if not f.startswith("examples/") and not f.startswith("tests/") and not f.startswith("test/"):
                 tf_files.append(f)
@@ -160,8 +205,6 @@ def _module_git_repository_impl(repository_ctx):
         if result.return_code == 0:
             readme_files.append(readme)
             break
-
-    all_files = tf_files + readme_files
 
     if not tf_files:
         fail("No .tf files found in module {} at ref {}".format(source, ref))
@@ -216,10 +259,25 @@ module_git_repository = repository_rule(
             doc = "Optional subdirectory within the repo containing the module",
             default = "",
         ),
+        "archive_url": attr.string(
+            doc = "GitHub archive tarball URL; when set (with sha256) the module is fetched " +
+                  "and checksum-verified instead of cloned",
+            default = "",
+        ),
+        "archive_type": attr.string(
+            doc = "Archive type for archive_url (default tar.gz)",
+            default = "",
+        ),
+        "sha256": attr.string(
+            doc = "Expected sha256 of the archive; verified on download when set",
+            default = "",
+        ),
     },
     doc = """Downloads a Terraform module from a Git repository.
 
-    Supports both GitHub shorthand and full git URLs, with tags or commit hashes.
+    Prefers a checksum-verified GitHub tarball (when the tf_modules extension
+    resolves archive_url + sha256); falls back to a shallow git clone for
+    non-GitHub sources.
 
     Examples:
         # GitHub shorthand with tag

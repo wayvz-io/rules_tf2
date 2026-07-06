@@ -1,6 +1,6 @@
 """Sentinel tool download rules"""
 
-load(":platform.bzl", "get_platform_info")
+load(":platform.bzl", "PLATFORM_IDS", "get_platform_info")
 
 # Sentinel-specific configuration
 SENTINEL_CONFIG = {
@@ -9,6 +9,19 @@ SENTINEL_CONFIG = {
     "binary_name": "sentinel",
     "default_version": "0.40.0",
 }
+
+def sentinel_fetch_spec(version, platform):
+    """Return the hermetic-fetch spec for a Sentinel version.
+
+    HashiCorp publishes a `sentinel_<v>_SHA256SUMS` file covering all platforms.
+    """
+    v = version or SENTINEL_CONFIG["default_version"]
+    return struct(
+        version = v,
+        sums_url = "{base}/{v}/sentinel_{v}_SHA256SUMS".format(base = SENTINEL_CONFIG["base_url"], v = v),
+        platform_files = {p: "sentinel_{v}_{p}.zip".format(v = v, p = p) for p in PLATFORM_IDS},
+        artifact_url = _build_sentinel_download_url(v, platform),
+    )
 
 def _build_sentinel_download_url(version, platform):
     """Build the download URL for Sentinel.
@@ -43,10 +56,11 @@ def _download_sentinel_impl(repository_ctx):
     download_url = _build_sentinel_download_url(version, platform)
     binary_name = SENTINEL_CONFIG["binary_name"]
 
-    # Download and extract
+    # Download and extract, verifying the locked checksum when one was resolved.
     repository_ctx.download_and_extract(
         url = download_url,
         type = "zip",
+        sha256 = repository_ctx.attr.sha256,
     )
 
     # Make binary executable
@@ -74,6 +88,7 @@ download_sentinel = repository_rule(
     implementation = _download_sentinel_impl,
     attrs = {
         "version": attr.string(doc = "Sentinel version to download (uses default if not specified)"),
+        "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
     },
     doc = "Downloads Sentinel binary from HashiCorp releases",
 )

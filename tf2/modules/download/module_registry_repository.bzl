@@ -34,6 +34,7 @@ def _extract_download_url(json_content):
     The Terraform Registry API returns a JSON response that we need to parse
     to find the actual download URL.
     """
+
     # Look for download_url in the JSON
     for line in json_content.split("\n"):
         line = line.strip()
@@ -48,21 +49,10 @@ def _extract_download_url(json_content):
                         return url
     return None
 
-def _module_registry_repository_impl(repository_ctx):
-    """Download a Terraform module from the Terraform Registry.
-
-    Supports both public (registry.terraform.io) and private registries (app.terraform.io).
-    Private registries require TFE_TOKEN environment variable.
-    """
-    source = repository_ctx.attr.source
-    version = repository_ctx.attr.version
-    source_type = repository_ctx.attr.source_type
-    registry_host = repository_ctx.attr.registry_host
-
-    # Parse source based on type
+def _registry_api_url(source, version, source_type, registry_host):
+    """Build the registry download API URL and return (api_url, namespace, name, provider)."""
     if source_type == "private":
         hostname, organization, name, provider = _parse_private_source(source)
-        # For private registries, use the API path
         api_url = "https://{}/api/registry/v1/modules/{}/{}/{}/{}/download".format(
             hostname,
             organization,
@@ -70,36 +60,48 @@ def _module_registry_repository_impl(repository_ctx):
             provider,
             version,
         )
-        namespace = organization
-    else:
-        namespace, name, provider = _parse_registry_source(source)
-        # Public registry API
-        api_url = "https://{}/v1/modules/{}/{}/{}/{}/download".format(
-            registry_host,
-            namespace,
-            name,
-            provider,
-            version,
-        )
+        return api_url, organization, name, provider
 
-    # Step 1: Get download URL from registry API
-    # The Terraform Registry returns 204 No Content with X-Terraform-Get header
-    # We need to use curl with GET request and capture headers (HEAD returns 405)
+    namespace, name, provider = _parse_registry_source(source)
+    api_url = "https://{}/v1/modules/{}/{}/{}/{}/download".format(
+        registry_host,
+        namespace,
+        name,
+        provider,
+        version,
+    )
+    return api_url, namespace, name, provider
 
+def resolve_registry_download(ctx, source, version, source_type, registry_host):
+    """Resolve a registry module to its archive URL + type via the registry API.
+
+    Accepts any ctx exposing `.execute` and `.os.environ` (a module extension or
+    a repository rule), so the tf_modules extension can pre-resolve the URL to
+    hash it, and the repo rule can resolve it directly as a fallback.
+
+    Returns (download_url, archive_type).
+    """
+    api_url, _namespace, _name, _provider = _registry_api_url(source, version, source_type, registry_host)
+
+    # The Terraform Registry returns 204 No Content with an X-Terraform-Get
+    # header; issue a GET and capture headers (HEAD returns 405).
     curl_args = [
         "curl",
         "-s",  # Silent mode
-        "-D", "-",  # Dump headers to stdout
-        "-o", "/dev/null",  # Discard body
-        "--connect-timeout", "30",  # Connection timeout in seconds
-        "--max-time", "60",  # Total operation timeout in seconds
+        "-D",
+        "-",  # Dump headers to stdout
+        "-o",
+        "/dev/null",  # Discard body
+        "--connect-timeout",
+        "30",
+        "--max-time",
+        "60",
         "-f",  # Fail on HTTP errors (4xx, 5xx)
         api_url,
     ]
 
-    # Add auth header for private registries
     if source_type == "private":
-        tfe_token = repository_ctx.os.environ.get("TFE_TOKEN", "")
+        tfe_token = ctx.os.environ.get("TFE_TOKEN", "")
         if not tfe_token:
             fail(
                 "TFE_TOKEN environment variable is required for private registry modules.\n" +
@@ -108,18 +110,15 @@ def _module_registry_repository_impl(repository_ctx):
             )
         curl_args.extend(["-H", "Authorization: Bearer " + tfe_token])
 
-    result = repository_ctx.execute(curl_args, quiet = True, timeout = 120)
+    result = ctx.execute(curl_args, quiet = True, timeout = 120)
 
     download_url = None
-
     if result.return_code == 0:
-        # Parse headers to find X-Terraform-Get
         for line in result.stdout.split("\n"):
             line = line.strip()
             if line.lower().startswith("x-terraform-get:"):
                 download_url = line.split(":", 1)[1].strip()
                 break
-            # Also check for Location header (redirect)
             if line.lower().startswith("location:"):
                 download_url = line.split(":", 1)[1].strip()
 
@@ -138,10 +137,10 @@ def _module_registry_repository_impl(repository_ctx):
         error_msg += "Response headers:\n{}\n".format(result.stdout[:500] if len(result.stdout) > 500 else result.stdout)
         fail(error_msg)
 
-    # Transform git-style URLs to downloadable archive URLs
+    # Transform git-style URLs to downloadable archive URLs, e.g.
     # git::https://github.com/owner/repo?ref=abc123 -> https://github.com/owner/repo/archive/abc123.tar.gz
     if download_url.startswith("git::"):
-        git_url = download_url[5:]  # Remove git:: prefix
+        git_url = download_url[5:]
         if "?" in git_url:
             base_url, query = git_url.split("?", 1)
             ref = None
@@ -150,17 +149,39 @@ def _module_registry_repository_impl(repository_ctx):
                     ref = param[4:]
                     break
             if ref and "github.com" in base_url:
-                # Transform to GitHub archive URL
                 download_url = "{}/archive/{}.tar.gz".format(base_url.rstrip("/"), ref)
             else:
                 fail("Cannot transform git URL to archive URL: {}".format(download_url))
         else:
             fail("Git URL missing ref parameter: {}".format(download_url))
 
-    # Step 2: Download and extract the module
-    archive_type = "tar.gz"
-    if download_url.endswith(".zip"):
-        archive_type = "zip"
+    archive_type = "zip" if download_url.endswith(".zip") else "tar.gz"
+    return download_url, archive_type
+
+def _module_registry_repository_impl(repository_ctx):
+    """Download a Terraform module from the Terraform Registry.
+
+    Supports both public (registry.terraform.io) and private registries (app.terraform.io).
+    Private registries require TFE_TOKEN environment variable.
+    """
+    source = repository_ctx.attr.source
+    version = repository_ctx.attr.version
+    source_type = repository_ctx.attr.source_type
+    registry_host = repository_ctx.attr.registry_host
+
+    # Parse source for metadata (also validates the format).
+    if source_type == "private":
+        _hostname, namespace, name, provider = _parse_private_source(source)
+    else:
+        namespace, name, provider = _parse_registry_source(source)
+
+    # Prefer the URL the extension already resolved (so it could hash it);
+    # otherwise resolve it here via the registry API.
+    if repository_ctx.attr.resolved_url:
+        download_url = repository_ctx.attr.resolved_url
+        archive_type = repository_ctx.attr.archive_type or ("zip" if download_url.endswith(".zip") else "tar.gz")
+    else:
+        download_url, archive_type = resolve_registry_download(repository_ctx, source, version, source_type, registry_host)
 
     # Prepare auth headers for private registries
     download_headers = {}
@@ -174,6 +195,7 @@ def _module_registry_repository_impl(repository_ctx):
         headers = download_headers,
         type = archive_type,
         stripPrefix = "",  # Will handle prefix detection below
+        sha256 = repository_ctx.attr.sha256,
     )
 
     # Handle common archive structures where module is in a subdirectory
@@ -268,6 +290,18 @@ module_registry_repository = repository_rule(
         "registry_host": attr.string(
             default = "registry.terraform.io",
             doc = "Registry hostname for public modules",
+        ),
+        "resolved_url": attr.string(
+            default = "",
+            doc = "Archive URL pre-resolved by the extension; skips the registry API call when set",
+        ),
+        "archive_type": attr.string(
+            default = "",
+            doc = "Archive type for resolved_url (tar.gz or zip)",
+        ),
+        "sha256": attr.string(
+            default = "",
+            doc = "Expected sha256 of the archive; verified on download when set",
         ),
     },
     environ = ["TFE_TOKEN"],

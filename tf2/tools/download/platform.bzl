@@ -1,5 +1,10 @@
 """Platform detection utilities for tool downloads"""
 
+# Flat list of the platform identifiers tools publish binaries for. Used when
+# locking every platform's checksum from a publisher's SHA256SUMS file so the
+# committed lockfile is portable across the platforms devs and CI build on.
+PLATFORM_IDS = ["linux_amd64", "linux_arm64", "darwin_amd64", "darwin_arm64"]
+
 # Platform detection mapping
 PLATFORMS = {
     "linux": {

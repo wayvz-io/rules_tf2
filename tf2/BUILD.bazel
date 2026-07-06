@@ -32,6 +32,7 @@ bzl_library(
     srcs = ["extensions.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        "//tf2/internal:hermetic_fetch",
         "//tf2/modules/download:module_git_repository",
         "//tf2/modules/download:module_registry_repository",
         "//tf2/modules/registry:alias",

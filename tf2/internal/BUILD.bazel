@@ -3,6 +3,14 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 package(default_visibility = ["//tf2:__subpackages__"])
 
+exports_files(["hermetic_fetch.bzl"])
+
+bzl_library(
+    name = "hermetic_fetch",
+    srcs = ["hermetic_fetch.bzl"],
+    visibility = ["//visibility:public"],
+)
+
 bzl_library(
     name = "staging",
     srcs = ["staging.bzl"],

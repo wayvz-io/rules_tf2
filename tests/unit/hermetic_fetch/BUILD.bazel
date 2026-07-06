@@ -1,0 +1,18 @@
+"""Unit tests for tf2/internal/hermetic_fetch.bzl"""
+
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load(":hermetic_fetch_test.bzl", "hermetic_fetch_test_suite")
+
+package(default_visibility = ["//tests:__subpackages__"])
+
+hermetic_fetch_test_suite()
+
+bzl_library(
+    name = "hermetic_fetch_test",
+    srcs = ["hermetic_fetch_test.bzl"],
+    deps = [
+        "//tf2/internal:hermetic_fetch",
+        "@bazel_skylib//lib:partial",
+        "@bazel_skylib//lib:unittest",
+    ],
+)
