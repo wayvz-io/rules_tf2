@@ -92,12 +92,24 @@ jobs:
         # pods. This is the big win: with a cold (ephemeral) output base a fully
         # cached build still spends ~210s re-extracting toolchains and analysing;
         # warm, that drops to ~8s. repository_cache stays on the PVC too.
+        #
+        # This job is intermittently flaky (transient RBE/CAS hiccups) in a way a
+        # plain repeat clears, so retry once *in the same step* rather than via a
+        # job-level rerun: staying on this runner pod keeps that warm output base,
+        # so the retry is the ~8s cached rebuild — a fresh worker would re-pay the
+        # ~210s cold extraction.
         run: |
-          bazel --output_user_root=/clientd/bazel test --config=remote \
-            --remote_executor=unix:///clientd/bb_clientd/grpc \
-            --remote_cache=unix:///clientd/bb_clientd/grpc \
-            --remote_instance_name=frontend.buildbarn \
-            --repository_cache=/clientd/bazel-repo-cache \
-            --bes_backend="$BES_BACKEND" \
-            --bes_results_url="$BES_RESULTS_URL" \
-            //...
+          run_tests() {
+            bazel --output_user_root=/clientd/bazel test --config=remote \
+              --remote_executor=unix:///clientd/bb_clientd/grpc \
+              --remote_cache=unix:///clientd/bb_clientd/grpc \
+              --remote_instance_name=frontend.buildbarn \
+              --repository_cache=/clientd/bazel-repo-cache \
+              --bes_backend="$BES_BACKEND" \
+              --bes_results_url="$BES_RESULTS_URL" \
+              //...
+          }
+          run_tests || {
+            echo "::warning::RBE test run failed; retrying once on the same runner (warm cache)."
+            run_tests
+          }
