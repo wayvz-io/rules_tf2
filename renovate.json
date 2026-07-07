@@ -122,6 +122,19 @@
         "indirect"
       ],
       "enabled": true
+    },
+    {
+      "description": "go-textseg encodes its major version in the module path (/v15, /v17), so multiple majors legitimately coexist in the tree: v15 is required by github.com/zclconf/go-cty's source, while newer HCL/hclwrite uses v17. Renovate treats a major bump as REPLACING the require line, which deletes the v15 module go-cty imports and breaks the gazelle/Bazel build (unknown repo com_github_apparentlymart_go_textseg_v15 requested from com_github_zclconf_go_cty). Never apply major bumps to it. See PR #101.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "github.com/apparentlymart/go-textseg/**"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "enabled": false
     }
   ]
 }
