@@ -13,45 +13,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Local mode: the default stock/hermetic toolchains on a bare runner.
-  local:
-    name: Test (local)
-    # Skip the guaranteed-red pre-regen run: a Renovate versions.json bump lands
-    # .tf/lock out of sync until renovate-tf-regen.yml commits the regenerated
-    # files, so testing the raw bump always fails. That workflow re-runs CI via
-    # workflow_dispatch on the regenerated head, so tests run exactly once, green.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.head_ref != 'renovate/terraform-provider-mirror'
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
-
-      # The hermetic LLVM CC toolchain unpacks ~2.5GB; reclaim preinstalled
-      # bloat so it fits on the runner's root disk.
-      - name: Free disk space
-        run: |
-          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/lib/android \
-            /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
-          sudo docker image prune --all --force || true
-          df -h /
-
-      - uses: bazel-contrib/setup-bazel@c5acdfb288317d0b5c0bbd7a396a3dc868bb0f86 # 0.19.0
-        with:
-          bazelisk-cache: true
-          disk-cache: true
-          repository-cache: true
-
-      - name: Build and test
-        env:
-          # Force the pinned Bazel; setup-bazel/bazelisk otherwise defaults to
-          # latest and ignores .bazelversion (setup-bazel does not honor it).
-          USE_BAZEL_VERSION: "9.1.1"
-        run: bazel test //...
-
   # RBE mode: executed remotely on the lab Buildbarn cluster, driven by our
   # self-hosted ARC runner (`bb-ci-worker`) which runs *inside* the cluster with
   # Bazel 9.1.1 preinstalled. Because the runner is in-cluster it reaches
@@ -65,8 +26,10 @@ jobs:
   # endpoint; local dev uses .bazelrc.user.
   rbe:
     name: Test (RBE)
-    # See the local job: skip the guaranteed-red pre-regen run on the mirror
-    # branch; renovate-tf-regen.yml dispatches CI on the regenerated head.
+    # Skip the guaranteed-red pre-regen run on the mirror branch: a Renovate
+    # versions.json bump lands .tf/lock out of sync until renovate-tf-regen.yml
+    # commits the regenerated files, so testing the raw bump always fails. That
+    # workflow re-dispatches CI on the regenerated head, so tests run once, green.
     if: >-
       github.event_name != 'pull_request' ||
       github.head_ref != 'renovate/terraform-provider-mirror'
@@ -92,12 +55,24 @@ jobs:
         # pods. This is the big win: with a cold (ephemeral) output base a fully
         # cached build still spends ~210s re-extracting toolchains and analysing;
         # warm, that drops to ~8s. repository_cache stays on the PVC too.
+        #
+        # This job is intermittently flaky (transient RBE/CAS hiccups) in a way a
+        # plain repeat clears, so retry once *in the same step* rather than via a
+        # job-level rerun: staying on this runner pod keeps that warm output base,
+        # so the retry is the ~8s cached rebuild — a fresh worker would re-pay the
+        # ~210s cold extraction.
         run: |
-          bazel --output_user_root=/clientd/bazel test --config=remote \
-            --remote_executor=unix:///clientd/bb_clientd/grpc \
-            --remote_cache=unix:///clientd/bb_clientd/grpc \
-            --remote_instance_name=frontend.buildbarn \
-            --repository_cache=/clientd/bazel-repo-cache \
-            --bes_backend="$BES_BACKEND" \
-            --bes_results_url="$BES_RESULTS_URL" \
-            //...
+          run_tests() {
+            bazel --output_user_root=/clientd/bazel test --config=remote \
+              --remote_executor=unix:///clientd/bb_clientd/grpc \
+              --remote_cache=unix:///clientd/bb_clientd/grpc \
+              --remote_instance_name=frontend.buildbarn \
+              --repository_cache=/clientd/bazel-repo-cache \
+              --bes_backend="$BES_BACKEND" \
+              --bes_results_url="$BES_RESULTS_URL" \
+              //...
+          }
+          run_tests || {
+            echo "::warning::RBE test run failed; retrying once on the same runner (warm cache)."
+            run_tests
+          }
