@@ -46,7 +46,7 @@ bazel_dep(name = "rules_go", version = "0.61.1")
 bazel_dep(name = "gazelle", version = "0.51.3")
 
 # CC toolchain support (required by Go)
-bazel_dep(name = "rules_cc", version = "0.2.21")
+bazel_dep(name = "rules_cc", version = "0.2.22")
 
 # Java runtime support (required by Bazel for tests)
 bazel_dep(name = "rules_java", version = "9.6.1")
