@@ -22,7 +22,7 @@ bazel_dep(name = "protobuf", version = "35.1")
 
 # Hermetic buildifier for the BUILD-file lint test (//:buildifier_test). Replaces
 # the nix dev-shell's buildifier so the lint test runs on a bare runner.
-bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.2", dev_dependency = True)
+bazel_dep(name = "buildifier_prebuilt", version = "8.5.1.3", dev_dependency = True)
 
 # OCI container image support
 bazel_dep(name = "rules_oci", version = "2.3.0")
