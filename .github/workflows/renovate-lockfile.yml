@@ -71,8 +71,10 @@ jobs:
           fi
 
       # Commit via GraphQL so GitHub signs it (verified) — satisfies the
-      # signed-commit ruleset. Author is github-actions[bot], which renovate.json
-      # lists in gitIgnoredAuthors so Renovate keeps managing the branch.
+      # signed-commit ruleset. Author is github-actions[bot], which the Renovate CE
+      # self-hosted config lists in gitIgnoredAuthors so Renovate keeps managing the
+      # branch. That option is global-only — Renovate silently drops it from a repo's
+      # renovate.json — so it lives in the CE config.js (wayvz-io/iac), not here.
       - name: Commit refreshed lock (verified)
         if: steps.guard.outputs.skip != 'true' && steps.diff.outputs.changed == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
