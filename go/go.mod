@@ -5,7 +5,7 @@ go 1.25.3
 require (
 	github.com/hashicorp/go-version v1.9.0
 	github.com/hashicorp/hcl/v2 v2.24.0
-	github.com/hashicorp/terraform-registry-address v0.4.0
+	github.com/hashicorp/terraform-registry-address v0.5.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	github.com/terraform-linters/tflint-plugin-sdk v0.25.0
