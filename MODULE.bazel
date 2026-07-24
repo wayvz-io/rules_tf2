@@ -43,7 +43,13 @@ register_toolchains("@jq_toolchains//:all")
 
 # Go support
 bazel_dep(name = "rules_go", version = "0.62.0")
-bazel_dep(name = "gazelle", version = "0.52.2")
+# Held at 0.51.3 (not 0.52.x): gazelle's bazelbuild->bazel-contrib org move made
+# the 0.52.x Go packages shims that re-export github.com/bazel-contrib/bazel-gazelle/v2/*,
+# but no published /v2 tag carries those packages, breaking the tf2/gazelle go.mod
+# build (CodeQL Go extraction). We keep this bazel_dep in lockstep with that go.mod so
+# both stay on one version. Renovate holds both <0.52.0 (renovate.json). Lift once
+# upstream ships a usable /v2 module.
+bazel_dep(name = "gazelle", version = "0.51.3")
 
 # CC toolchain support (required by Go)
 bazel_dep(name = "rules_cc", version = "0.2.22")
