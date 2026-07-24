@@ -132,6 +132,18 @@
         "major"
       ],
       "enabled": false
+    },
+    {
+      "description": "Hold gazelle at <0.52.0 for BOTH the tf2/gazelle go.mod (gomod: github.com/bazelbuild/bazel-gazelle) and the MODULE.bazel bazel_dep (bazel-module: gazelle), keeping them on one version. From v0.52.0 gazelle's bazelbuild->bazel-contrib org move turned config/label/language/repo/resolve/rule into shims that re-export github.com/bazel-contrib/bazel-gazelle/v2/*, but the only published /v2 tags (v2.0.0-1/-2) omit those packages - the complete migration is only on untagged master - so `go build ./...` (CodeQL Go extraction) breaks. The Bazel build (BCR @gazelle) still works at 0.52.x, but we hold it too so the two declarations never diverge. Lift once upstream publishes a usable /v2 module. See the pin comments in MODULE.bazel and tf2/gazelle/go.mod.",
+      "matchManagers": [
+        "gomod",
+        "bazel-module"
+      ],
+      "matchPackageNames": [
+        "github.com/bazelbuild/bazel-gazelle",
+        "gazelle"
+      ],
+      "allowedVersions": "<0.52.0"
     }
   ]
 }
