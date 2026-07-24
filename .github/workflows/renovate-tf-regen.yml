@@ -154,8 +154,21 @@ jobs:
       # run, even from GITHUB_TOKEN). So kick CI explicitly: tests run exactly
       # once, on the regenerated commit. Runs even on a no-op regen so the bump is
       # still validated. --ref resolves to the branch's current (regenerated) head.
+      # Use github-script (octokit) rather than the `gh` CLI: the in-cluster
+      # bb-ci-worker runner does not ship the gh binary (`gh: command not found`),
+      # which silently failed this dispatch and left the regenerated head untested.
+      # This mirrors the github-script usage in the commit step above and the twin
+      # renovate-lockfile.yml.
       - name: Run CI on the regenerated head
         if: steps.guard.outputs.skip != 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run ci.yml --ref "${{ github.head_ref }}"
+          BRANCH: ${{ github.head_ref }}
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              ref: process.env.BRANCH,
+            });
