@@ -10,6 +10,12 @@
     "gomodTidy"
   ],
   "osvVulnerabilityAlerts": true,
+  "description": [
+    "gitIgnoredAuthors: renovate-tf-regen.yml commits the regenerated .tf/README/MODULE.bazel.lock back onto Renovate's own branch as github-actions[bot] (via createCommitOnBranch, so the commit is verified for the signed-commit ruleset). Without listing that author here, Renovate sees the branch tip as authored by someone else, assumes a human edited the PR, and refuses to auto-rebase ('Edited/Blocked' - will not rebase). The regen workflow header already assumed this entry existed; it never did."
+  ],
+  "gitIgnoredAuthors": [
+    "41898282+github-actions[bot]@users.noreply.github.com"
+  ],
   "ignorePaths": [
     "examples/**",
     "**/fixtures/**",
