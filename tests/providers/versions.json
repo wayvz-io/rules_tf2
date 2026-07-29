@@ -4,7 +4,7 @@
     "hashicorp/null": ["3.3.0"],
     "hashicorp/local": ["2.9.0"],
     "hashicorp/archive": ["2.8.0"],
-    "hashicorp/aws": ["5.100.0","6.56.0"],
+    "hashicorp/aws": ["5.100.0","6.57.0"],
     "hashicorp/azurerm": ["4.81.0"],
     "hashicorp/google": ["6.50.0"]
   },
