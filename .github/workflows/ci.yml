@@ -26,13 +26,6 @@ jobs:
   # endpoint; local dev uses .bazelrc.user.
   rbe:
     name: Test (RBE)
-    # Skip the guaranteed-red pre-regen run on the mirror branch: a Renovate
-    # versions.json bump lands .tf/lock out of sync until renovate-tf-regen.yml
-    # commits the regenerated files, so testing the raw bump always fails. That
-    # workflow re-dispatches CI on the regenerated head, so tests run once, green.
-    if: >-
-      github.event_name != 'pull_request' ||
-      github.head_ref != 'renovate/terraform-provider-mirror'
     runs-on: bb-ci-worker
     # Cap runaway/wedged jobs. Without this GitHub's default is 6h, so a stuck
     # self-hosted runner blocks the (single) queue slot for hours.
@@ -43,6 +36,38 @@ jobs:
       BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # depth 2 so the guard below can read the PR head commit as HEAD^2 — on
+          # a pull_request event HEAD is the ephemeral merge commit, whose subject
+          # is always "Merge <sha> into <sha>".
+          fetch-depth: 2
+
+      # A Renovate versions.json bump lands the .tf/README/lock out of sync until
+      # renovate-tf-regen.yml commits the regenerated files, so testing the raw
+      # bump is guaranteed-red. This job used to be skipped outright via a
+      # job-level `if:` — but GitHub counts a SKIPPED required check as SATISFIED,
+      # so the un-regenerated head reported mergeable (#109 sat MERGEABLE/UNSTABLE
+      # on the raw bump with `Test (RBE) = skipped`). Fail fast instead: ~10s, no
+      # bazel, and the PR stays blocked until the regen workflow's
+      # workflow_dispatch run goes green on the regenerated head.
+      #
+      # Only the pull_request event is gated. The dispatched run is what validates
+      # the branch, including the no-op-regen case (nothing to regenerate, so the
+      # head is still the raw bump commit) — it re-reports `Test (RBE)` on the same
+      # SHA after this one, and the latest result is what the ruleset reads.
+      - name: Require the regenerated head (terraform mirror branch)
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.head_ref == 'renovate/terraform-provider-mirror'
+        run: |
+          set -euo pipefail
+          subject=$(git log -1 --pretty=%s 'HEAD^2' 2>/dev/null || git log -1 --pretty=%s)
+          if [ "$subject" = 'chore(deps): regenerate terraform config' ]; then
+            echo "Head is the regenerated commit — continuing."
+            exit 0
+          fi
+          echo "::error::versions.json was bumped but the generated .tf/README/MODULE.bazel.lock have not been regenerated yet (head: '${subject}'). renovate-tf-regen.yml regenerates them and dispatches CI on the regenerated head; this check goes green there. Blocking until then so an un-regenerated bump cannot merge."
+          exit 1
 
       - name: Build and test on RBE (via bb-clientd)
         # The runner's job hook starts bb-clientd — a local caching proxy whose
