@@ -84,6 +84,10 @@ sh_binary(
     # Create version info file
     repository_ctx.file("VERSION", version)
 
+    # A pinned archive refetches to the same contents, so Bazel can share this
+    # repo across workspaces through the repo contents cache.
+    return repository_ctx.repo_metadata(reproducible = bool(repository_ctx.attr.sha256))
+
 download_sentinel = repository_rule(
     implementation = _download_sentinel_impl,
     attrs = {

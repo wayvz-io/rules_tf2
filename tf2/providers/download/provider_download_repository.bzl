@@ -100,9 +100,11 @@ def _provider_download_repository_impl(repository_ctx):
     )
 
     # Verify the hash if hashes were provided
+    verified = False
     if zh_hashes:
         actual_hash = download_result.sha256
-        if actual_hash not in zh_hashes:
+        verified = actual_hash in zh_hashes
+        if not verified:
             # Log warning but continue - lock file may be incomplete
             # The provider was still downloaded and will work
             print("Warning: Provider {} {} ({}) hash {} not in lock file hashes".format(
@@ -187,6 +189,10 @@ filegroup(
         binary_name = binary_name,
     )
     repository_ctx.file("metadata.json", metadata)
+
+    # Only a ZIP that matched a lock-file hash is known to refetch to the same
+    # contents, so only then can Bazel share the repo across workspaces.
+    return repository_ctx.repo_metadata(reproducible = verified)
 
 provider_download_repository = repository_rule(
     implementation = _provider_download_repository_impl,
