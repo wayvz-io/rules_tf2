@@ -66,7 +66,7 @@ genrule(
     cmd = """
         SRC=$$(mktemp -d)
         OUT=$$(mktemp -d)
-        tar -xzf $(location :book_src) -C $$SRC
+        tar --no-same-owner -xzf $(location :book_src) -C $$SRC
         chmod -R u+w $$SRC
         $(execpath @mdbook//:mdbook) build $$SRC -d $$OUT
         tar -czf $@ -C $$OUT .
@@ -88,7 +88,7 @@ genrule(
     cmd = """
         set -e
         SRC=$$(mktemp -d)
-        tar -xzf $(location :book_src) -C $$SRC
+        tar --no-same-owner -xzf $(location :book_src) -C $$SRC
 
         # Ignore "incomplete link" warnings -- false positives on code/tables that
         # contain [brackets] (e.g. `["main.tf"]`). Errors (missing pages, orphaned
