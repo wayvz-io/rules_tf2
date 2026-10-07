@@ -30,7 +30,7 @@ jobs:
     # Same in-cluster ARC runner as the CI `rbe` job: bb-clientd is started by the
     # runner's job hook and keeps a warm repo cache on PVC, so external-module
     # resolution stays fast (this is the path that gets quicker as clientd matures).
-    runs-on: bb-ci-worker
+    runs-on: bb-ci-worker-bombora
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

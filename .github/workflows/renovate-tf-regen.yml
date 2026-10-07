@@ -36,7 +36,7 @@ jobs:
     # Same in-cluster ARC runner as the CI `rbe` job and renovate-lockfile.yml:
     # bb-clientd is started by the runner's job hook and keeps a warm repo cache
     # on PVC, so provider/module resolution stays fast.
-    runs-on: bb-ci-worker
+    runs-on: bb-ci-worker-bombora
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

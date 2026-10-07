@@ -13,20 +13,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # RBE mode: executed remotely on the lab Buildbarn cluster, driven by our
-  # self-hosted ARC runner (`bb-ci-worker`) which runs *inside* the cluster with
-  # Bazel 9.1.1 preinstalled. Because the runner is in-cluster it reaches
-  # Buildbarn directly over plain gRPC via Kubernetes Service DNS — no Tailscale,
+  # RBE mode: executed remotely on the lab's Bombora build site, driven by our
+  # self-hosted ARC runner (`bb-ci-worker-bombora`) which runs *inside* the
+  # cluster with Bazel 9.1.1 preinstalled. Because the runner is in-cluster it
+  # reaches the site directly over plain gRPC via Kubernetes Service DNS — no Tailscale,
   # no gateway, no TLS, and none of the setup-bazel/free-disk dance a
   # GitHub-hosted runner needed. The local podman cluster in //tools/rbe-local
   # remains available for offline/self-contained runs.
   #
   # The runner + endpoints are defined in the iac repo (clusters/k3s-office/
-  # github-actions-runner + buildbarn). The committed .bazelrc never carries the
+  # github-actions-runner + bombora). The committed .bazelrc never carries the
   # endpoint; local dev uses .bazelrc.user.
   rbe:
     name: Test (RBE)
-    runs-on: bb-ci-worker
+    runs-on: bb-ci-worker-bombora
     # Cap runaway/wedged jobs. Without this GitHub's default is 6h, so a stuck
     # self-hosted runner blocks the (single) queue slot for hours.
     timeout-minutes: 30
