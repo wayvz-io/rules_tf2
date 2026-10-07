@@ -30,10 +30,6 @@ jobs:
     # Cap runaway/wedged jobs. Without this GitHub's default is 6h, so a stuck
     # self-hosted runner blocks the (single) queue slot for hours.
     timeout-minutes: 30
-    env:
-      BES_BACKEND: grpc://bb-portal.buildbarn:8082
-      # Human-facing https UI link Bazel prints for the invocation.
-      BES_RESULTS_URL: https://bb-portal.lab.wayvz.io/bazel-invocations/
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -93,8 +89,6 @@ jobs:
               --remote_cache=unix:///clientd/bb_clientd/grpc \
               --remote_instance_name=frontend.buildbarn \
               --repository_cache=/clientd/bazel-repo-cache \
-              --bes_backend="$BES_BACKEND" \
-              --bes_results_url="$BES_RESULTS_URL" \
               //...
           }
           run_tests || {
