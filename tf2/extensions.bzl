@@ -16,7 +16,7 @@ load("//tf2/providers/repository:hcl_parser.bzl", "parse_lock_hcl", "sanitize_pr
 load("//tf2/providers/repository:terraform_providers.bzl", "terraform_providers")
 load("//tf2/providers/repository:versions.bzl", "get_tflint_plugin_version", "get_tool_version", "parse_versions_json")
 load("//tf2/tools/download:opa.bzl", "download_opa", "opa_fetch_spec")
-load("//tf2/tools/download:registry.bzl", "tflint_plugin_registry", "tool_registry")
+load("//tf2/tools/download:registry.bzl", "platform_hub", "tflint_plugin_registry", "tool_registry")
 load("//tf2/tools/download:sentinel.bzl", "download_sentinel", "sentinel_fetch_spec")
 load("//tf2/tools/download:terraform.bzl", "download_terraform", "terraform_fetch_spec")
 load("//tf2/tools/download:terraform_docs.bzl", "download_terraform_docs", "terraform_docs_fetch_spec")
@@ -87,6 +87,9 @@ def _parse_lock_file_to_json(content):
 # Terraform download configuration
 _TERRAFORM_BASE_URL = "https://releases.hashicorp.com/terraform"
 _DEFAULT_TERRAFORM_VERSION = "1.14.2"
+
+# Platforms a remote executor may run tool actions on, whatever the host.
+_EXECUTOR_PLATFORMS = ["linux_amd64", "linux_arm64"]
 
 # Platforms to generate hashes for
 _TARGET_PLATFORMS = [
@@ -514,6 +517,7 @@ def _lock_tool_hashes(module_ctx, facts, new_facts, name, spec, current):
         record, _cached = resolve_platform_hashes(module_ctx, facts, key, spec.sums_url, spec.platform_files)
 
     hashes = dict(record["sha256"])
+    hashes.update(new_facts.get(key, {}).get("sha256", {}))
     source = record["source"] if current in hashes else "tofu"
     if current not in hashes:
         # Publisher checksum unavailable for this platform; trust-on-first-use.
@@ -581,50 +585,39 @@ def _tf_tools_impl(module_ctx):
     new_facts = {}
     current = _get_module_ctx_platform(module_ctx)
 
-    # Create individual tool repositories
-    terraform_spec = terraform_fetch_spec(terraform_version, current)
-    download_terraform(
-        name = "terraform_tool",
-        version = terraform_spec.version,
-        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "terraform", terraform_spec, current),
-    )
+    # Create each tool for the host and for every Linux executor platform, behind
+    # a hub that selects by the configuration's platform.
+    platforms = [current] + [p for p in _EXECUTOR_PLATFORMS if p != current]
 
-    tflint_spec = tflint_fetch_spec(tflint_version, current)
-    download_tflint(
-        name = "tflint_tool",
-        version = tflint_spec.version,
-        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "tflint", tflint_spec, current),
-    )
+    def platform_tool(name, lock_name, fetch_spec, download, binary_name, **kwargs):
+        repos = {}
+        for platform in platforms:
+            spec = fetch_spec(platform)
+            repo = "{}_{}".format(name, platform)
+            download(
+                name = repo,
+                version = spec.version,
+                platform = platform,
+                sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, lock_name, spec, platform),
+                **kwargs
+            )
+            repos[platform] = repo
+        platform_hub(name = name, host = current, repos = repos, targets = ["bin", binary_name])
 
-    terraform_docs_spec = terraform_docs_fetch_spec(terraform_docs_version, current)
-    download_terraform_docs(
-        name = "terraform_docs_tool",
-        version = terraform_docs_spec.version,
-        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "terraform-docs", terraform_docs_spec, current),
-    )
+    platform_tool("terraform_tool", "terraform", lambda p: terraform_fetch_spec(terraform_version, p), download_terraform, "terraform")
+    platform_tool("tflint_tool", "tflint", lambda p: tflint_fetch_spec(tflint_version, p), download_tflint, "tflint")
+    platform_tool("terraform_docs_tool", "terraform-docs", lambda p: terraform_docs_fetch_spec(terraform_docs_version, p), download_terraform_docs, "terraform-docs")
+    platform_tool("sentinel_tool", "sentinel", lambda p: sentinel_fetch_spec(sentinel_version, p), download_sentinel, "sentinel")
+    platform_tool("opa_tool", "opa", lambda p: opa_fetch_spec(opa_version, p), download_opa, "opa")
 
-    sentinel_spec = sentinel_fetch_spec(sentinel_version, current)
-    download_sentinel(
-        name = "sentinel_tool",
-        version = sentinel_spec.version,
-        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "sentinel", sentinel_spec, current),
-    )
-
-    opa_spec = opa_fetch_spec(opa_version, current)
-    download_opa(
-        name = "opa_tool",
-        version = opa_spec.version,
-        sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "opa", opa_spec, current),
-    )
-
-    # Create individual tflint plugin repositories
     for plugin_name, plugin_version in tflint_plugins.items():
-        plugin_spec = tflint_plugin_fetch_spec(plugin_name, plugin_version, current)
-        download_tflint_plugin(
-            name = "tflint_plugin_{}".format(plugin_name),
+        platform_tool(
+            "tflint_plugin_{}".format(plugin_name),
+            "tflint-plugin-" + plugin_name,
+            lambda p, n = plugin_name, v = plugin_version: tflint_plugin_fetch_spec(n, v, p),
+            download_tflint_plugin,
+            "tflint-ruleset-{}".format(plugin_name),
             plugin_name = plugin_name,
-            version = plugin_version,
-            sha256 = _lock_tool_hashes(module_ctx, facts, new_facts, "tflint-plugin-" + plugin_name, plugin_spec, current),
         )
 
     # Create tool registry repository (just for aliases)

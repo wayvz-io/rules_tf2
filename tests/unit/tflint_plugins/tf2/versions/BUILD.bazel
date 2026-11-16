@@ -11,4 +11,5 @@ sh_test(
         "//go/tflint_ruleset:tflint-ruleset-tf2",
         "@tf_tool_registry//:tflint",
     ],
+    env = {"TFLINT_ROOTPATH": "$(rootpath @tf_tool_registry//:tflint)"},
 )

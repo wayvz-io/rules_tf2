@@ -30,7 +30,7 @@ TERRAFORM_DOCS_PLATFORMS = {
 }
 
 def get_platform_info(repository_ctx):
-    """Determine the current platform for tool downloads.
+    """Determine the platform for tool downloads: the `platform` attribute, else the host.
 
     Args:
         repository_ctx: Repository rule context
@@ -38,6 +38,8 @@ def get_platform_info(repository_ctx):
     Returns:
         String platform identifier (e.g., "linux_amd64")
     """
+    if getattr(repository_ctx.attr, "platform", ""):
+        return repository_ctx.attr.platform
     os_name = repository_ctx.os.name.lower()
     arch = repository_ctx.os.arch.lower()
 
