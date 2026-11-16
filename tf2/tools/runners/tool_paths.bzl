@@ -74,6 +74,21 @@ def _is_external_repository(ctx):
                 return True
     return False
 
+def _selected_repo_dir(ctx, repo_name):
+    """Return the runfiles directory of the tool repository the hub selected.
+
+    The hub picks `<repo_name>_<platform>` for the configuration's platform, so
+    the directory comes from the tool files rather than from `repo_name` alone.
+    """
+    for tool_file in getattr(ctx.files, "_tools", None) or []:
+        if not tool_file.short_path.startswith("../"):
+            continue
+        repo_dir = tool_file.short_path[3:].split("/")[0]
+        apparent = repo_dir.split("+")[-1]
+        if apparent == repo_name or apparent.startswith(repo_name + "_linux_") or apparent.startswith(repo_name + "_darwin_"):
+            return repo_dir
+    return None
+
 def get_tool_path(ctx, tool_name):
     """Get the runfiles path to a downloaded tool binary.
 
@@ -93,6 +108,10 @@ def get_tool_path(ctx, tool_name):
     config = _TOOL_CONFIGS[tool_name]
     repo_name = config["repo_name"]
     binary_name = config["binary_name"]
+
+    selected = _selected_repo_dir(ctx, repo_name)
+    if selected:
+        return "$RUNFILES/{}/{}".format(selected, binary_name)
 
     # Determine repository prefix based on context
     if _is_external_repository(ctx):
@@ -140,6 +159,10 @@ def get_tflint_plugin_path(ctx, plugin_name):
     config = _PLUGIN_CONFIGS[plugin_name]
     repo_name = config["repo_name"]
     binary_name = config["binary_name"]
+
+    selected = _selected_repo_dir(ctx, repo_name)
+    if selected:
+        return "$RUNFILES/{}/{}".format(selected, binary_name)
 
     # Determine repository prefix based on context
     if _is_external_repository(ctx):

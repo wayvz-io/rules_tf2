@@ -105,6 +105,7 @@ download_tflint = repository_rule(
     attrs = {
         "version": attr.string(doc = "TFLint version to download (uses default if not specified)"),
         "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
+        "platform": attr.string(doc = "Platform to download, such as linux_arm64; defaults to the host"),
     },
     doc = "Downloads TFLint binary from GitHub releases",
 )
@@ -226,6 +227,7 @@ download_tflint_plugin = repository_rule(
         "plugin_name": attr.string(mandatory = True, doc = "Name of the tflint plugin to download"),
         "version": attr.string(mandatory = True, doc = "Version of the plugin to download"),
         "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
+        "platform": attr.string(doc = "Platform to download, such as linux_arm64; defaults to the host"),
     },
     doc = "Downloads a TFLint plugin binary from its GitHub releases",
 )

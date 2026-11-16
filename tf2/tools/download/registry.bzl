@@ -201,3 +201,30 @@ tflint_plugin_registry = repository_rule(
     },
     doc = "Creates a registry of TFLint plugins (both downloaded and local) with aliases",
 )
+
+_HUB_CONDITIONS = {
+    "linux_amd64": ["@platforms//os:linux", "@platforms//cpu:x86_64"],
+    "linux_arm64": ["@platforms//os:linux", "@platforms//cpu:arm64"],
+}
+
+def _platform_hub_impl(repository_ctx):
+    repos = repository_ctx.attr.repos
+    lines = ['package(default_visibility = ["//visibility:public"])', ""]
+    for platform, constraints in _HUB_CONDITIONS.items():
+        if platform in repos:
+            lines.append("config_setting(name = {}, constraint_values = {})".format(repr(platform), repr(constraints)))
+    for target in repository_ctx.attr.targets:
+        branches = ["        {}: {},".format(repr(":" + p), repr("@{}//:{}".format(repos[p], target))) for p in _HUB_CONDITIONS if p in repos]
+        branches.append("        {}: {},".format(repr("//conditions:default"), repr("@{}//:{}".format(repos[repository_ctx.attr.host], target))))
+        lines += ["", "alias(", "    name = {},".format(repr(target)), "    actual = select({"] + branches + ["    }),", ")"]
+    repository_ctx.file("BUILD.bazel", "\n".join(lines) + "\n")
+
+platform_hub = repository_rule(
+    implementation = _platform_hub_impl,
+    attrs = {
+        "host": attr.string(mandatory = True, doc = "Platform of the repository to use for other configurations"),
+        "repos": attr.string_dict(mandatory = True, doc = "Platform to the apparent name of the tool repository for it"),
+        "targets": attr.string_list(mandatory = True, doc = "Targets every tool repository exposes"),
+    },
+    doc = "Selects a tool repository by the configuration's platform, so remote actions get the build for the executor",
+)

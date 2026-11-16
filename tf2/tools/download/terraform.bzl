@@ -94,6 +94,7 @@ download_terraform = repository_rule(
     attrs = {
         "version": attr.string(doc = "Terraform version to download (uses default if not specified)"),
         "sha256": attr.string(doc = "Expected sha256 of the platform archive; verified on download when set"),
+        "platform": attr.string(doc = "Platform to download, such as linux_arm64; defaults to the host"),
     },
     doc = "Downloads Terraform binary from HashiCorp releases",
 )
